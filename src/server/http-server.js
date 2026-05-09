@@ -45,36 +45,6 @@ function mapInstanceStaticPath(requestPath) {
 }
 
 /**
- * When PixelFlow runs under `/pixelweb/*` inside an iframe, it may still navigate using
- * root-style paths such as `/project` or `/device`. If the request Referer is Pixelweb,
- * remap those root requests back under `/pixelweb/*` so they do not fall through to
- * HighAsCG's own root SPA.
- * @param {string} requestPath
- * @param {import('http').IncomingMessage} req
- * @returns {string}
- */
-function mapPixelwebRefererPath(requestPath, req) {
-	const p = String(requestPath || '/')
-	if (
-		p.startsWith('/pixelweb') ||
-		p.startsWith('/api/') ||
-		p.startsWith('/unico/') ||
-		p.startsWith('/vendor/') ||
-		p.startsWith('/assets/')
-	) return p
-	const ref = String(req?.headers?.referer || '')
-	if (!ref) return p
-	let refPath = ''
-	try {
-		refPath = new URL(ref).pathname || ''
-	} catch {
-		return p
-	}
-	if (!(refPath === '/pixelweb' || refPath.startsWith('/pixelweb/'))) return p
-	return `/pixelweb${p}`
-}
-
-/**
  * @returns {string[]}
  */
 function getLanIPv4Addresses() {
@@ -100,9 +70,8 @@ function getLanIPv4Addresses() {
  *   bundles to the browser without an importmap — see WO-17 previs module for usage.
  *   Mounts with no underlying install (e.g. `three` not installed) simply 404.
  */
-async function serveWebApp(requestPath, dirs, req) {
+async function serveWebApp(requestPath, dirs) {
 	let filePath = mapInstanceStaticPath(requestPath || '/')
-	filePath = mapPixelwebRefererPath(filePath, req)
 	if (filePath === '/') filePath = '/index.html'
 	if (filePath.includes('..')) {
 		return { status: 404, headers: { 'Content-Type': 'text/plain' }, body: 'Not found' }
@@ -237,20 +206,11 @@ function startHttpServer(options) {
 			}
 
 			let result
-			const reqPathForRouting = mapPixelwebRefererPath(reqPath, req)
+			const reqPathForRouting = reqPath
 			// Same-origin API when UI is served under Companion: /instance/<id>/api/...
 			const isApi =
 				reqPathForRouting.startsWith('/api/') ||
 				reqPathForRouting === '/api' ||
-				reqPathForRouting === '/control' ||
-				reqPathForRouting === '/api/config' ||
-				reqPathForRouting.startsWith('/pixelweb') ||
-				reqPathForRouting === '/pixelweb' ||
-				reqPathForRouting.startsWith('/unico/') ||
-				/^\/instance\/[^/]+\/control$/.test(reqPathForRouting) ||
-				/^\/instance\/[^/]+\/api\/config$/.test(reqPathForRouting) ||
-				/^\/instance\/[^/]+\/pixelweb(\/.*)?$/.test(reqPathForRouting) ||
-				/^\/instance\/[^/]+\/unico(\/.*)?$/.test(reqPathForRouting) ||
 				/^\/instance\/[^/]+\/api(\/.*)?$/.test(reqPathForRouting)
 			if (isApi) {
 				// Pass path including ?query so router can parse query params consistently.
@@ -259,7 +219,7 @@ function startHttpServer(options) {
 				const routedPath = reqPathForRouting + qs
 				result = await routeApi(req.method || 'GET', routedPath, body, req)
 			} else {
-				result = await serveWebApp(reqPath, { webDir, templatesDir, vendorDirs }, req)
+				result = await serveWebApp(reqPath, { webDir, templatesDir, vendorDirs })
 			}
 			const headers = mergeCors(result.headers)
 			res.writeHead(result.status ?? 200, headers)

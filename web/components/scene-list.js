@@ -66,7 +66,7 @@ export function renderSceneDeck(ctx) {
 			pillsParts.push(
 				`<div class="scenes-main-pill${active}${armed}${vis}" data-main-pill="${i}">` +
 					`<button type="button" class="scenes-main-pill__out" data-action="activate-main" data-screen="${i}" ` +
-					`title="Take / preview / compose for this main" aria-pressed="${i === sceneState.activeScreenIndex}">${name}</button>` +
+					`title="Toggle selection for this main" aria-pressed="${i === sceneState.activeScreenIndex}">${name}</button>` +
 					`<button type="button" class="scenes-main-pill__eye" data-action="toggle-eye" data-screen="${i}" ` +
 					`title="Show or hide this main’s look column" aria-label="Toggle column for ${name}">` +
 					`${sceneState.isMainEditorVisible(i) ? '👁' : '⏻'}` +
@@ -74,11 +74,7 @@ export function renderSceneDeck(ctx) {
 			)
 		}
 		pillsParts.push('</div>')
-		let check = ''
-		check +=
-			'<label class="scenes-next-global"><input type="checkbox" id="scenes-next-look-global" /> ' +
-			'Next + look on <strong>all</strong> mains</label>'
-		pillsParts.push(check)
+
 	}
 	pillsParts.push(
 		'<div class="scenes-toolbar__global-take scenes-toolbar__global-take--right">' +
@@ -125,11 +121,7 @@ export function renderSceneDeck(ctx) {
 	toolbar.querySelectorAll('[data-action="activate-main"]').forEach((btn) => {
 		btn.addEventListener('click', (e) => {
 			const i = parseInt(/** @type {HTMLElement} */ (btn).dataset.screen || '0', 10)
-			if (e.shiftKey || e.metaKey || e.ctrlKey) {
-				sceneState.toggleArmedScreen(i)
-			} else {
-				sceneState.switchScreen(i)
-			}
+			sceneState.toggleArmedScreen(i)
 		})
 	})
 	toolbar.querySelectorAll('[data-action="toggle-eye"]').forEach((btn) => {
@@ -139,10 +131,7 @@ export function renderSceneDeck(ctx) {
 			sceneState.toggleMainEditorVisible(i)
 		})
 	})
-	const nextGlobalEl = /** @type {HTMLInputElement | null} */ (toolbar.querySelector('#scenes-next-look-global'))
-	function nextLookGlobal() {
-		return !!nextGlobalEl?.checked
-	}
+
 
 	mainHost.appendChild(deckWrap)
 
@@ -320,13 +309,11 @@ export function renderSceneDeck(ctx) {
 		const addTile = document.createElement('button')
 		addTile.type = 'button'
 		addTile.className = 'scenes-deck__add-look'
-		addTile.title = nextGlobalEl?.checked
-			? 'New look on all mains'
-			: `New look for ${mainLabel(col)}`
+		addTile.title = `New look for ${mainLabel(col)}`
 		addTile.setAttribute('aria-label', 'New look')
 		addTile.textContent = '＋'
 		addTile.addEventListener('click', () => {
-			const global = screenCount > 1 && nextLookGlobal()
+			const global = false
 			const id = sceneState.addScene(undefined, {
 				mainScope: global ? 'all' : String(col),
 			})

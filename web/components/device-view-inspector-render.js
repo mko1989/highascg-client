@@ -2,7 +2,6 @@
  * Inspector Rendering for Device View.
  */
 import { CASPAR_HOST } from './device-view-helpers.js'
-import { SWITCHER_INTEGRATION_DISABLED } from './device-view-switcher-integration-disabled.js'
 import { buildInspectorTable } from './device-view-ui-utils.js'
 import { renderMappingNodeInspector } from './device-view-inspector-mapping.js'
 

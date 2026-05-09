@@ -8,6 +8,7 @@ const liveSceneState = require('../state/live-scene-state')
 const playbackTracker = require('../state/playback-tracker')
 const { parseCinfMedia } = require('../media/cinf-parse')
 const { buildChannelMap } = require('../config/channel-map-from-ctx')
+const { normalizeScreenDestinations } = require('../config/screen-destinations')
 
 /**
  * @param {object} ctx — app context (state, config, gatheredInfo, …)
@@ -69,6 +70,7 @@ function getState(ctx) {
 
 	return {
 		...base,
+		screenDestinations: normalizeScreenDestinations(cfg.screenDestinations),
 		caspar: casparConn,
 		/** Last DeckLink input PLAY summary after AMCP connect (WO-28); null until first routing setup. */
 		decklinkInputsStatus: ctx._decklinkInputsStatus ?? null,

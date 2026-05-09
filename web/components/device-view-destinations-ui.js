@@ -128,7 +128,7 @@ export function renderDestinations(ctx) {
 		destBody.appendChild(box)
 	}
 
-	const destinationsRaw = Array.isArray(lastPayload?.tandemTopology?.destinations) ? lastPayload.tandemTopology.destinations : []
+	const destinationsRaw = Array.isArray(lastPayload?.screenDestinations?.destinations) ? lastPayload.screenDestinations.destinations : []
 	const seenDestinationIds = new Set()
 	const destinationsList = destinationsRaw.filter((d) => {
 		const id = String(d?.id || '').trim()

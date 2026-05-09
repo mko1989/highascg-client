@@ -1,7 +1,7 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
 
-const defaults = require('../config/default')
+const defaults = require('../src/config/defaults')
 const { buildConfigXml } = require('../src/config/config-generator')
 const { buildCasparGeneratorFlatConfig } = require('../src/config/build-caspar-generator-config')
 const { getChannelMap } = require('../src/config/routing')
@@ -12,6 +12,18 @@ const { getChannelMap } = require('../src/config/routing')
  */
 function clone(cfg) {
 	return JSON.parse(JSON.stringify(cfg))
+}
+
+function addMockGraph(app) {
+	app.deviceGraph = {
+		connectors: [
+			{ id: 'dst_in_led1', kind: 'destination_in', externalRef: 'led1' },
+			{ id: 'gpu_p0', kind: 'gpu_out' }
+		],
+		edges: [
+			{ sourceId: 'dst_in_led1', sinkId: 'gpu_p0' }
+		]
+	}
 }
 
 test('multiview auto x counts only real screen consumers', () => {
@@ -37,6 +49,15 @@ test('multiview auto x counts only real screen consumers', () => {
 	}
 	app.streamingChannel = { ...app.streamingChannel, enabled: false }
 	app.rtmp = { ...app.rtmp, enabled: false }
+	app.deviceGraph = {
+		connectors: [
+			{ id: 'dst_in_led1', kind: 'destination_in', externalRef: 'led1' },
+			{ id: 'gpu_p0', kind: 'gpu_out' }
+		],
+		edges: [
+			{ sourceId: 'dst_in_led1', sinkId: 'gpu_p0' }
+		]
+	}
 	const flat = buildCasparGeneratorFlatConfig(app)
 	const xml = buildConfigXml(flat)
 	const m = xml.match(/<video-mode>720p5000<\/video-mode>[\s\S]*?<screen>[\s\S]*?<x>(\d+)<\/x><y>(\d+)<\/y>/)
@@ -65,6 +86,7 @@ test('decklink inputs use multiview host when mode matches', () => {
 
 test('only one dedicated inputs channel when multiview host is not used', () => {
 	const app = clone(defaults)
+	addMockGraph(app)
 	app.screen_count = 1
 	app.casparServer = {
 		...app.casparServer,
@@ -78,7 +100,7 @@ test('only one dedicated inputs channel when multiview host is not used', () => 
 	const flat = buildCasparGeneratorFlatConfig(app)
 	const xml = buildConfigXml(flat)
 	const channels = (xml.match(/<channel>/g) || []).length
-	assert.equal(channels, 4, 'expected OUTPUT/PGM + BUS1 + BUS2 + one dedicated inputs channel')
+	assert.equal(channels, 3, 'expected OUTPUT/PGM + PRV + one dedicated inputs channel')
 })
 
 /**
@@ -87,6 +109,7 @@ test('only one dedicated inputs channel when multiview host is not used', () => 
  */
 test('multiview off: inputs host then streaming channel after screen pairs', () => {
 	const app = clone(defaults)
+	addMockGraph(app)
 	app.screen_count = 1
 	app.casparServer = {
 		...app.casparServer,
@@ -101,13 +124,14 @@ test('multiview off: inputs host then streaming channel after screen pairs', () 
 	const flat = buildCasparGeneratorFlatConfig(app)
 	const xml = buildConfigXml(flat)
 	const channelBlocks = [...xml.matchAll(/<channel>[\s\S]*?<\/channel>/g)].map((m) => m[0])
-	assert.equal(channelBlocks.length, 5, 'OUTPUT/PGM + BUS1 + BUS2 + inputs host + streaming (legacy dedicated slot)')
-	assert.match(channelBlocks[3], /<consumers\/>/, 'inputs host channel has no consumers')
-	assert.match(channelBlocks[4], /<video-mode>720p5000<\/video-mode>/, 'streaming channel is last with its mode')
+	assert.equal(channelBlocks.length, 4, 'OUTPUT/PGM + PRV + inputs host + streaming (legacy dedicated slot)')
+	assert.match(channelBlocks[2], /<consumers\s*\/>/, 'inputs host channel has no consumers')
+	assert.match(channelBlocks[3], /<video-mode>720p5000<\/video-mode>/, 'streaming channel is last with its mode')
 })
 
 test('streaming without dedicatedOutputChannel encodes the videoSource bus — no extra <channel>', () => {
 	const app = clone(defaults)
+	addMockGraph(app)
 	app.screen_count = 1
 	app.casparServer = {
 		...app.casparServer,
@@ -123,7 +147,7 @@ test('streaming without dedicatedOutputChannel encodes the videoSource bus — n
 	assert.equal(map.streamingDedicatedChannelSlot, false)
 	const flat = buildCasparGeneratorFlatConfig(app)
 	const xml = buildConfigXml(flat)
-	assert.equal((xml.match(/<channel>/g) || []).length, 3, 'OUTPUT/PGM + BUS1 + BUS2 only')
+	assert.equal((xml.match(/<channel>/g) || []).length, 2, 'OUTPUT/PGM + PRV only (streaming attaches to program)')
 })
 
 test('device-view destinations override screen count and mode mapping', () => {
@@ -136,13 +160,13 @@ test('device-view destinations override screen count and mode mapping', () => {
 		screen_2_mode: '1080p5000',
 		multiview_enabled: false,
 	}
-	app.tandemTopology = {
+	app.screenDestinations = {
 		version: 1,
 		destinations: [
 			{ id: 'a', label: 'Main1', mainScreenIndex: 0, mode: 'pgm_prv', videoMode: '720p5000', width: 1280, height: 720, fps: 50 },
 			{ id: 'b', label: 'Main2', mainScreenIndex: 1, mode: 'pgm_only', videoMode: 'custom', width: 5120, height: 768, fps: 50 },
 		],
-		signalPaths: [],
+		edidNotes: '',
 	}
 	app.streamingChannel = { ...app.streamingChannel, enabled: false }
 	app.rtmp = { ...app.rtmp, enabled: false }
@@ -160,6 +184,7 @@ test('device-view destinations override screen count and mode mapping', () => {
 
 test('pgm_only destination omits preview channel for that main', () => {
 	const app = clone(defaults)
+	addMockGraph(app)
 	app.screen_count = 2
 	app.casparServer = {
 		...app.casparServer,
@@ -168,13 +193,13 @@ test('pgm_only destination omits preview channel for that main', () => {
 		screen_2_mode: '1080p5000',
 		multiview_enabled: false,
 	}
-	app.tandemTopology = {
+	app.screenDestinations = {
 		version: 1,
 		destinations: [
 			{ id: 'd1', label: 'Main1', mainScreenIndex: 0, mode: 'pgm_only', videoMode: '1080p5000', width: 1920, height: 1080, fps: 50 },
 			{ id: 'd2', label: 'Main2', mainScreenIndex: 1, mode: 'pgm_prv', videoMode: '1080p5000', width: 1920, height: 1080, fps: 50 },
 		],
-		signalPaths: [],
+		edidNotes: '',
 	}
 	app.streamingChannel = { ...app.streamingChannel, enabled: false }
 	app.rtmp = { ...app.rtmp, enabled: false }
@@ -184,11 +209,12 @@ test('pgm_only destination omits preview channel for that main', () => {
 	assert.deepEqual(map.previewChannels, [null, 3], 'pgm_only omits BUS1 for that main; main2 has dedicated bus1')
 	const xml = buildConfigXml(flat)
 	const channels = (xml.match(/<channel>/g) || []).length
-	assert.equal(channels, 4, 'expected OUTPUT(main1) + OUTPUT/BUS1/BUS2(main2)')
+	assert.equal(channels, 3, 'expected PGM-only main1 + PGM/PRV pair for main2')
 })
 
-test('empty tandem destinations ignore stale screen_count (one main bus)', () => {
+test('empty screen destinations ignore stale screen_count (one main bus)', () => {
 	const app = clone(defaults)
+	addMockGraph(app)
 	app.screen_count = 4
 	app.casparServer = {
 		...app.casparServer,
@@ -196,7 +222,7 @@ test('empty tandem destinations ignore stale screen_count (one main bus)', () =>
 		multiview_enabled: false,
 		decklink_input_count: 0,
 	}
-	app.tandemTopology = { version: 1, destinations: [], signalPaths: [] }
+	app.screenDestinations = { version: 1, destinations: [], edidNotes: '' }
 	app.streamingChannel = { ...app.streamingChannel, enabled: false }
 	app.rtmp = { ...app.rtmp, enabled: false }
 	const flat = buildCasparGeneratorFlatConfig(app)
@@ -204,5 +230,5 @@ test('empty tandem destinations ignore stale screen_count (one main bus)', () =>
 	const map = getChannelMap(app)
 	assert.equal(map.screenCount, 1)
 	const xml = buildConfigXml(flat)
-	assert.equal((xml.match(/<channel>/g) || []).length, 3, 'one main: OUTPUT + BUS1 + BUS2 (switcher_bus)')
+	assert.equal((xml.match(/<channel>/g) || []).length, 2, 'one main: OUTPUT/PGM + PRV')
 })

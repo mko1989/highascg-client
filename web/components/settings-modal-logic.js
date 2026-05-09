@@ -42,23 +42,6 @@ export function buildSettingsPayload(modal) {
 			host: modal.querySelector('#set-companion-host').value || '127.0.0.1',
 			port: parseInt(modal.querySelector('#set-companion-port').value, 10) || 8000,
 		},
-		pixelhue: (() => {
-			const prevPixelHue = prevAll.pixelhue || {}
-			const rawApi = (modal.querySelector('#set-ph-apiport') || {}).value
-			let apiPort = null
-			if (rawApi != null && String(rawApi).trim() !== '') {
-				const n = parseInt(String(rawApi).trim(), 10); if (Number.isFinite(n) && n > 0) apiPort = n
-			} else {
-				apiPort = prevPixelHue.apiPort ?? null
-			}
-			return {
-				enabled: modal.querySelector('#set-ph-enabled')?.checked ?? !!prevPixelHue.enabled,
-				host: modal.querySelector('#set-ph-host')?.value?.trim() ?? prevPixelHue.host ?? '',
-				unicoPort: parseInt(String(modal.querySelector('#set-ph-unico')?.value ?? prevPixelHue.unicoPort ?? '19998'), 10) || 19998,
-				apiPort,
-				targetSerial: modal.querySelector('#set-ph-sn')?.value?.trim() ?? prevPixelHue.targetSerial ?? '',
-			}
-		})(),
 		audioRouting: { ...prevAr, ...openalAr },
 		dmx: JSON.parse(JSON.stringify(settingsState.getSettings()?.dmx || { enabled: false, debugLogDmx: false, fps: 25, fixtures: [] })),
 		casparServer: JSON.parse(JSON.stringify(prevAll.casparServer || {})),
@@ -103,15 +86,6 @@ export function hydrateSettings(modal, cfg) {
 	const comp = cfg.companion || {}
 	modal.querySelector('#set-companion-host').value = comp.host || '127.0.0.1'
 	modal.querySelector('#set-companion-port').value = comp.port || 8000
-	const ph = cfg.pixelhue || {}
-	const phEn = modal.querySelector('#set-ph-enabled')
-	if (phEn) {
-		phEn.checked = ph.enabled === true || ph.enabled === 'true'
-		const phH = modal.querySelector('#set-ph-host'); if (phH) phH.value = ph.host ?? ''
-		const phU = modal.querySelector('#set-ph-unico'); if (phU) phU.value = ph.unicoPort ?? '19998'
-		const phA = modal.querySelector('#set-ph-apiport'); if (phA) phA.value = ph.apiPort ?? ''
-		const phS = modal.querySelector('#set-ph-sn'); if (phS) phS.value = ph.targetSerial ?? ''
-	}
 	const u = cfg.usbIngest || {}
 	const usbEn = modal.querySelector('#set-usb-enabled'); if (usbEn) usbEn.checked = u.enabled !== false
 	const usbSub = modal.querySelector('#set-usb-subfolder'); if (usbSub) usbSub.value = u.defaultSubfolder || ''

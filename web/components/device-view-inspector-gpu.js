@@ -5,7 +5,7 @@ import * as Actions from './device-view-actions.js'
 import { setStatus } from './device-view-ui-utils.js'
 import { STANDARD_VIDEO_MODES } from './device-view-destinations-inspector.js'
 
-export function renderGpuOutControls(h, conn, { currentSettings, lastPayload, skipPh, statusEl, load, setCasparRestartDirty }) {
+export function renderGpuOutControls(h, conn, { currentSettings, lastPayload, statusEl, load, setCasparRestartDirty }) {
 	const resolveGpuScreenNumber = (c) => {
 		const mainIdx = Number(c?.caspar?.mainIndex)
 		if (Number.isFinite(mainIdx) && mainIdx >= 0) return Math.max(1, Math.min(4, Math.round(mainIdx) + 1))
@@ -46,9 +46,9 @@ export function renderGpuOutControls(h, conn, { currentSettings, lastPayload, sk
 	const mipmapsOn = cs[keyMipmaps] === true || cs[keyMipmaps] === 'true'
 	const screenName = String(cs[keyName] || '')
 	const aspectRatio = String(cs[keyAspectRatio] || '')
-	const posXVal = parseInt(String(cs[keyPosX] ?? 0), 10) || 0
-	const posYVal = parseInt(String(cs[keyPosY] ?? 0), 10) || 0
-	const wrapCtl = Object.assign(document.createElement('div'), { className: 'device-view__inspector-links' })
+	const posXVal = cs[keyPosX] ?? 0
+	const posYVal = cs[keyPosY] ?? 0
+	const wrapCtl = Object.assign(document.createElement('div'), { style: 'display:flex; flex-direction:column; gap:4px; margin-top:8px' })
 	const fullscreenCk = Object.assign(document.createElement('label'), { className: 'device-view__cablemode' })
 	const fullscreenIn = Object.assign(document.createElement('input'), { type: 'checkbox' })
 	fullscreenIn.checked = !windowedOn
@@ -111,6 +111,8 @@ export function renderGpuOutControls(h, conn, { currentSettings, lastPayload, sk
 	const osBackendSel = Object.assign(document.createElement('select'), { className: 'device-view__destinations-type' })
 	osBackendSel.innerHTML = '<option value="xrandr">Apply via X (xrandr)</option><option value="nvidia">Apply via NVIDIA</option>'
 	osBackendSel.value = String(cs[keyOsBackend] || 'xrandr').trim().toLowerCase() === 'nvidia' ? 'nvidia' : 'xrandr'
+	osBackendSel.style.fontSize = '11px'
+	osBackendSel.style.height = '24px'
 
 	const edges = lastPayload?.graph?.edges || []
 	const inEdge = edges.find((e) => e.sinkId === conn.id)
@@ -190,12 +192,11 @@ export function renderGpuOutControls(h, conn, { currentSettings, lastPayload, sk
 	syncCustomInputsState()
 
 	if (inherited) {
-		const note = Object.assign(document.createElement('p'), { 
-			className: 'device-view__note', 
-			textContent: `Inherited from ${source.label || source.id}` 
+		const note = Object.assign(document.createElement('div'), { 
+			className: 'device-view__inherited-box', 
+			innerHTML: `<svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" style="opacity:0.8"><path d="M8 1a7 7 0 100 14A7 7 0 008 1zm0 12.5a5.5 5.5 0 110-11 5.5 5.5 0 010 11zM8.75 4h-1.5v4.5H11v-1.5H8.75V4z"/></svg> Inherited from ${source.label || source.id}`
 		})
-		note.style.color = 'var(--accent)'
-		h.append(note)
+		wrapCtl.append(note)
 		modeSel.classList.add('device-view__input--inherited')
 		customWidthIn.classList.add('device-view__input--inherited')
 		customHeightIn.classList.add('device-view__input--inherited')
@@ -347,7 +348,7 @@ export function renderGpuOutControls(h, conn, { currentSettings, lastPayload, sk
 		}
 		await Actions.saveSettingsPatch(patch)
 		await Actions.applyOsSettings(outputPatch)
-		await Actions.updateConnector(conn.id, { caspar: { edidOverride: edidText, mode: modeText } }, skipPh)
+		await Actions.updateConnector(conn.id, { caspar: { edidOverride: edidText, mode: modeText } })
 		setCasparRestartDirty(true)
 		setStatus(statusEl, `Applied resolution to the screen (Screen ${screenN})`, true)
 		await load()
@@ -377,31 +378,59 @@ export function renderGpuOutControls(h, conn, { currentSettings, lastPayload, sk
 		setStatus(statusEl, `Settings for Screen ${screenN} cleared`, true)
 	}
 
-	const edidLabel = Object.assign(document.createElement('label'), { className: 'device-view__inspector-label', textContent: 'EDID Override / Force ID' })
 	const posRow = Object.assign(document.createElement('div'), { style: 'display:flex;gap:6px' })
 	posRow.append(posXIn, posYIn)
 
+	const minimalToggleRow = Object.assign(document.createElement('div'), { className: 'device-view__inspector-links', style: 'margin: 4px 0; gap: 4px' })
+	const mkSmallCk = (ckWrap) => {
+		ckWrap.style.fontSize = '10px'
+		ckWrap.style.padding = '2px 6px'
+		ckWrap.style.opacity = '0.85'
+		return ckWrap
+	}
+	minimalToggleRow.append(
+		mkSmallCk(fullscreenCk), mkSmallCk(windowedCk), mkSmallCk(borderCk), mkSmallCk(vsyncCk),
+		mkSmallCk(keyOnlyCk), mkSmallCk(aotCk)
+	)
+
 	wrapCtl.append(
-		fullscreenCk, windowedCk, borderCk, vsyncCk, 
+		minimalToggleRow,
+		Object.assign(document.createElement('div'), { className: 'device-view__inspector-label', textContent: 'Video Mode', style: 'font-size:10px; opacity:0.7; margin-top:8px' }),
+		modeSel, 
+		(() => {
+			const d = Object.assign(document.createElement('div'), { style: 'display:flex; gap:4px; margin-top:4px' });
+			d.append(customWidthIn, customHeightIn, customFpsIn);
+			return d;
+		})(),
+		saveGpuBtn
+	)
+	
+	// Advanced settings hidden by default
+	const advancedToggles = Object.assign(document.createElement('div'), { style: 'display:none' })
+	advancedToggles.append(
 		Object.assign(document.createElement('hr'), { className: 'device-view__hr' }),
-		Object.assign(document.createElement('label'), { className: 'device-view__inspector-label', textContent: 'CasparCG Video Mode' }),
-		modeSel, customWidthIn, customHeightIn, customFpsIn, 
+		Object.assign(document.createElement('div'), { className: 'device-view__inspector-label', textContent: 'OS / X11 Settings (xrandr)', style: 'font-size:10px; opacity:0.7' }),
+		Object.assign(document.createElement('div'), { className: 'device-view__row', style: 'margin: 4px 0', innerHTML: `<small style="font-size:10px; opacity:0.6">Physical: ${detectedDisplay ? `<strong>${detectedDisplay.name}</strong>` : '<em>None</em>'}</small>` }),
+		displayModeSelect, 
+		autoFromEdidBtn, 
 		Object.assign(document.createElement('hr'), { className: 'device-view__hr' }),
-		Object.assign(document.createElement('label'), { className: 'device-view__inspector-label', textContent: 'Screen Consumer' }),
-		Object.assign(document.createElement('label'), { className: 'device-view__inspector-label', textContent: 'Stretch', style: 'font-size:11px;opacity:.7' }), stretchSel,
-		Object.assign(document.createElement('label'), { className: 'device-view__inspector-label', textContent: 'Colour Space', style: 'font-size:11px;opacity:.7' }), colourSpaceSel,
-		keyOnlyCk, aotCk, interactiveCk, sbsKeyCk, forceLinearCk, mipmapsCk,
-		Object.assign(document.createElement('label'), { className: 'device-view__inspector-label', textContent: 'Name', style: 'font-size:11px;opacity:.7' }), nameIn,
-		Object.assign(document.createElement('label'), { className: 'device-view__inspector-label', textContent: 'Aspect Ratio', style: 'font-size:11px;opacity:.7' }), arIn,
-		Object.assign(document.createElement('label'), { className: 'device-view__inspector-label', textContent: 'Position (X / Y)', style: 'font-size:11px;opacity:.7' }), posRow,
-		Object.assign(document.createElement('hr'), { className: 'device-view__hr' }),
-		Object.assign(document.createElement('label'), { className: 'device-view__inspector-label', textContent: 'OS / X11 Settings' }),
-		osBackendSel, 
-		Object.assign(document.createElement('div'), { className: 'device-view__row', innerHTML: `<small style="opacity:0.7">Physical Display: ${detectedDisplay ? `<strong>${detectedDisplay.name}</strong>` : '<em>None detected</em>'}</small>` }),
-		displayModeSelect, autoFromEdidBtn, 
-		edidLabel, edidIn, 
-		saveGpuBtn,
+		Object.assign(document.createElement('label'), { className: 'device-view__inspector-label', textContent: 'Stretch', style: 'font-size:10px;opacity:.7' }), stretchSel,
+		Object.assign(document.createElement('label'), { className: 'device-view__inspector-label', textContent: 'Colour Space', style: 'font-size:10px;opacity:.7' }), colourSpaceSel,
+		interactiveCk, sbsKeyCk, forceLinearCk, mipmapsCk,
+		nameIn, arIn, posRow,
 		resetBtn
 	)
+	
+	const showAdvancedBtn = Object.assign(document.createElement('button'), { 
+		className: 'device-view__inspector-link-btn', 
+		textContent: 'Show advanced consumer settings...',
+		style: 'font-size:10px; margin-top:8px; opacity:0.6'
+	})
+	showAdvancedBtn.onclick = () => {
+		advancedToggles.style.display = advancedToggles.style.display === 'none' ? 'block' : 'none'
+		showAdvancedBtn.textContent = advancedToggles.style.display === 'none' ? 'Show advanced consumer settings...' : 'Hide advanced consumer settings'
+	}
+	
+	wrapCtl.append(showAdvancedBtn, advancedToggles)
 	h.append(wrapCtl)
 }

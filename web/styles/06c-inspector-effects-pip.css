@@ -170,6 +170,10 @@
 	border-radius: 6px;
 	font-size: 0.8rem;
 }
+.look-preset-card--loaded-prv {
+	border-color: var(--accent, #1d4ed8);
+	background: rgba(29, 78, 216, 0.1);
+}
 .look-preset-card__row {
 	display: flex;
 	align-items: baseline;
@@ -190,30 +194,6 @@
 	font-size: 0.74rem;
 	color: var(--text-muted);
 	margin-top: 2px;
-}
-.look-preset-card__tandem {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	gap: 6px;
-	margin-top: 8px;
-	padding-top: 6px;
-	border-top: 1px solid var(--border-muted, #30363d);
-}
-.look-preset-card__tandem-g {
-	flex: 1 1 120px;
-	min-width: 0;
-	font-size: 0.72rem;
-	padding: 4px 6px;
-	background: var(--bg-input, #0d1117);
-	border: 1px solid var(--border, #30363d);
-	border-radius: 4px;
-	color: var(--text, #e6edf3);
-}
-.look-preset-card__tandem-order {
-	font-size: 0.7rem;
-	padding: 3px 4px;
-	max-width: 200px;
 }
 .look-preset-card__actions {
 	display: flex;

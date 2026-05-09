@@ -1,9 +1,0 @@
-[
-  {
-    "id": "audio_1",
-    "label": "Audio 1",
-    "enabled": true,
-    "deviceName": "hw:2,3",
-    "channelLayout": "8ch"
-  }
-]

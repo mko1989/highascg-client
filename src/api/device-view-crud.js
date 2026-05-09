@@ -4,12 +4,11 @@
 'use strict'
 
 const { normalizeDeviceGraph, validateDeviceGraph, ensureConnectorsFromSuggested, addEdgeToGraph, removeEdgeById, mergeHardwareSync } = require('../config/device-graph')
-const { normalizeTandemTopology } = require('../config/tandem-topology')
-const { upsertTandemPathFromCableConnectors, removeTandemPathForCableConnectors, buildTandemPathIdForCable } = require('../config/tandem-from-device-cable')
+const { normalizeScreenDestinations } = require('../config/screen-destinations')
 
 function saveConfig(ctx, patch) {
 	if (!ctx.configManager) {
-		if (typeof ctx.log === 'function') ctx.log('warn', '[device-view] configManager missing; graph/tandem changes are not persisted to disk')
+		if (typeof ctx.log === 'function') ctx.log('warn', '[device-view] configManager missing; graph/destination changes are not persisted to disk')
 		Object.assign(ctx.config, patch)
 		return true
 	}
@@ -17,7 +16,8 @@ function saveConfig(ctx, patch) {
 }
 
 function handleAddDestination(j, ctx) {
-	const top = normalizeTandemTopology(ctx.config?.tandemTopology); const now = Date.now().toString(36)
+	const top = normalizeScreenDestinations(ctx.config?.screenDestinations)
+	const now = Date.now().toString(36)
 	let seq = 1; while (top.destinations.some(d => d.id === `dst_${now}_${seq}`)) seq++
 	const id = `dst_${now}_${seq}`; const nextMain = Math.max(0, parseInt(j.addDestination.mainScreenIndex, 10) || 0)
 	const reqType = String(j.addDestination.type || 'pgm_prv')
@@ -39,13 +39,16 @@ function handleAddDestination(j, ctx) {
 				: mode === 'pgm_only'
 					? `PGM ${nextMain + 1}`
 					: `PGM/PRV ${nextMain + 1}`
-	top.destinations.push({ id, label: String(j.addDestination.label || '').trim() || defaultLabel, mainScreenIndex: nextMain, caspar: { bus: 'pgm' }, pixelhue: { layerId: null, screenGuid: '', role: 'caspar_pgm' }, signalPathId: '', edidLabel: '', mode, videoMode: String(j.addDestination.videoMode || '1080p5000'), width: Math.max(64, j.addDestination.width || 1920), height: Math.max(64, j.addDestination.height || 1080), fps: Math.max(1, j.addDestination.fps || 50), stream: { type: 'rtmp', source: 'program_1', url: '', key: '', quality: 'medium' } })
-	ctx.config.tandemTopology = top; saveConfig(ctx, { tandemTopology: top })
-	return { ok: true, tandemTopology: top, addedId: id }
+	top.destinations.push({ id, label: String(j.addDestination.label || '').trim() || defaultLabel, mainScreenIndex: nextMain, caspar: { bus: 'pgm' }, edidLabel: '', mode, videoMode: String(j.addDestination.videoMode || '1080p5000'), width: Math.max(64, j.addDestination.width || 1920), height: Math.max(64, j.addDestination.height || 1080), fps: Math.max(1, j.addDestination.fps || 50), stream: { type: 'rtmp', source: 'program_1', url: '', key: '', quality: 'medium' } })
+	const next = normalizeScreenDestinations(top)
+	ctx.config.screenDestinations = next
+	saveConfig(ctx, { screenDestinations: next })
+	return { ok: true, screenDestinations: next, addedId: id }
 }
 
 function handleUpdateDestination(j, ctx) {
-	const id = String(j.updateDestination.id); const top = normalizeTandemTopology(ctx.config?.tandemTopology)
+	const id = String(j.updateDestination.id)
+	const top = normalizeScreenDestinations(ctx.config?.screenDestinations)
 	const idx = top.destinations.findIndex(d => d.id === id); if (idx < 0) return { error: 'Not found', id }
 	const d0 = top.destinations[idx]; const p = j.updateDestination
 	const nextMode = p.mode === 'pgm_only' || p.mode === 'pgm_prv' || p.mode === 'multiview' || p.mode === 'stream' ? p.mode : d0.mode
@@ -70,16 +73,22 @@ function handleUpdateDestination(j, ctx) {
 				}
 				: (d0.stream || { type: 'rtmp', source: 'program_1', url: '', key: '', quality: 'medium' }),
 	}
-	ctx.config.tandemTopology = top; saveConfig(ctx, { tandemTopology: top })
-	return { ok: true, tandemTopology: top, updatedId: id }
+	const next = normalizeScreenDestinations(top)
+	ctx.config.screenDestinations = next
+	saveConfig(ctx, { screenDestinations: next })
+	return { ok: true, screenDestinations: next, updatedId: id }
 }
 
 function handleRemoveDestination(j, ctx) {
-	const id = String(j.removeDestination.id); const top = normalizeTandemTopology(ctx.config?.tandemTopology)
-	const before = top.destinations.length; top.destinations = top.destinations.filter(d => d.id !== id)
+	const id = String(j.removeDestination.id)
+	const top = normalizeScreenDestinations(ctx.config?.screenDestinations)
+	const before = top.destinations.length
+	top.destinations = top.destinations.filter(d => d.id !== id)
 	if (top.destinations.length === before) return { error: 'Not found', id }
-	ctx.config.tandemTopology = top; saveConfig(ctx, { tandemTopology: top })
-	return { ok: true, tandemTopology: top, removedId: id }
+	const next = normalizeScreenDestinations(top)
+	ctx.config.screenDestinations = next
+	saveConfig(ctx, { screenDestinations: next })
+	return { ok: true, screenDestinations: next, removedId: id }
 }
 
 function handleAddEdge(j, ctx, liveSnapshot) {
@@ -87,24 +96,20 @@ function handleAddEdge(j, ctx, liveSnapshot) {
 	const sid = String(j.addEdge.sourceId), tid = String(j.addEdge.sinkId)
 	const merged = ensureConnectorsFromSuggested(ctx.config?.deviceGraph, [sid, tid], suggested)
 	const res = addEdgeToGraph(merged, sid, tid); if (!res.ok) return { error: res.reason }
-	let nextTandem = normalizeTandemTopology(ctx.config?.tandemTopology)
-	if (j.tandemSync !== false) nextTandem = upsertTandemPathFromCableConnectors(nextTandem, res.graph, sid, tid)
-	ctx.config.deviceGraph = res.graph; ctx.config.tandemTopology = nextTandem
-	saveConfig(ctx, { deviceGraph: res.graph, tandemTopology: nextTandem })
-	const byConn = new Map((res.graph.connectors || []).map(c => [c.id, c]))
+	ctx.config.deviceGraph = res.graph
+	saveConfig(ctx, { deviceGraph: res.graph })
 	if (typeof ctx.augmentGraphWithSources === 'function') ctx.augmentGraphWithSources(res.graph, liveSnapshot)
-	return { ok: true, graph: res.graph, tandemPathId: buildTandemPathIdForCable(byConn.get(sid), byConn.get(tid)) }
+	return { ok: true, graph: res.graph }
 }
 
 function handleRemoveEdge(j, ctx) {
 	const g0 = normalizeDeviceGraph(ctx.config?.deviceGraph); const eid = String(j.removeEdge.id)
-	const edge = (g0.edges || []).find(e => e.id === eid); let nextTandem = normalizeTandemTopology(ctx.config?.tandemTopology)
-	if (edge && j.tandemSync !== false) nextTandem = removeTandemPathForCableConnectors(nextTandem, g0, edge.sourceId, edge.sinkId)
-	const next = removeEdgeById(g0, eid); ctx.config.deviceGraph = next; ctx.config.tandemTopology = nextTandem
-	saveConfig(ctx, { deviceGraph: next, tandemTopology: nextTandem })
+	const next = removeEdgeById(g0, eid)
+	ctx.config.deviceGraph = next
+	saveConfig(ctx, { deviceGraph: next })
 	if (typeof ctx.augmentGraphWithSources === 'function') {
 		const Snapshot = require('./device-view-snapshot')
-		Snapshot.buildLiveSnapshot(ctx, j.pixelhue !== false).then(live => ctx.augmentGraphWithSources(next, live)).catch(() => {})
+		Snapshot.buildLiveSnapshot(ctx).then(live => ctx.augmentGraphWithSources(next, live)).catch(() => {})
 	}
 	return { ok: true, graph: next }
 }
@@ -167,15 +172,9 @@ function handleUpdateConnector(j, ctx, liveSnapshot) {
 
 function handleRemoveAllEdges(j, ctx) {
 	const g0 = normalizeDeviceGraph(ctx.config?.deviceGraph)
-	const nextTandem = normalizeTandemTopology(ctx.config?.tandemTopology)
-	if (j.tandemSync !== false) {
-		// Filter out signal paths created from cables (starting with dv_)
-		nextTandem.signalPaths = (nextTandem.signalPaths || []).filter((p) => !p?.id || !String(p.id).startsWith('dv_'))
-	}
 	const next = { ...g0, edges: [] }
 	ctx.config.deviceGraph = next
-	ctx.config.tandemTopology = nextTandem
-	saveConfig(ctx, { deviceGraph: next, tandemTopology: nextTandem })
+	saveConfig(ctx, { deviceGraph: next })
 	return { ok: true, graph: next }
 }
 

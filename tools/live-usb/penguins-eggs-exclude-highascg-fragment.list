@@ -1,9 +1,50 @@
 # HighAsCG — paths omitted from the live USB squashfs (penguins-eggs / mksquashfs)
 #
-# mksquashfs is invoked with -wildcards; entries are relative to the image root
-# (no leading slash), anchored at the top of the filesystem.
-# Using "/*" omits *contents*; the parent directory (empty) is still in the image.
-# See: work/docs/LIVE_USB_IMAGE.md §4.2.1
-#
+# Entries are relative to filesystem root (no leading slash).
+
+# --- other users (don't ship personal data) ---
 home/serwer/*
-opt/casparcg/media/*
+
+# --- HighAsCG runtime/working artifacts (regenerated on first run) ---
+home/casparcg/highascg/media
+home/casparcg/highascg/media/*
+home/casparcg/highascg/_media/
+home/casparcg/highascg/cef-cache/
+home/casparcg/highascg/log/
+home/casparcg/highascg/data/
+home/casparcg/highascg/refs/
+home/casparcg/highascg/work/
+
+# --- IDE / dev-tool caches ---
+home/casparcg/.cache
+home/casparcg/.cursor-server
+home/casparcg/.antigravity-server
+home/casparcg/.cursor
+home/casparcg/.gemini
+home/casparcg/.npm
+home/casparcg/.vscode-server
+home/casparcg/.config/Code
+home/casparcg/.config/Cursor
+home/casparcg/.config/cursor
+
+# --- Tailscale (omit node identity from cloned ISO) ---
+# eggs `--clone` snapshots the build host. Whatever paths hold tailscaled state will make the
+# live machine reuse the SAME tailnet node key as the builder ("steals" that node's slot).
+#
+# Default `.deb` (`tailscale.com/install.sh`): often `/var/lib/tailscale/` — but your host may
+# show NO such directory if Tailscale is installed via snap or uses a custom `--statedir=` /
+# `--state=` in `/etc/default/tailscaled` or the systemd unit drop-in.
+#
+# Snap installs keep writable state under `/var/snap/tailscale/…` (especially …/common/).
+var/lib/tailscale
+var/lib/tailscale/*
+var/snap/tailscale
+var/snap/tailscale/*
+
+# --- shell / editor history ---
+home/casparcg/.bash_history
+home/casparcg/.lesshst
+home/casparcg/.viminfo
+home/casparcg/.python_history
+home/casparcg/.local/share/Trash/*
+home/casparcg/.local/share/recently-used.xbel

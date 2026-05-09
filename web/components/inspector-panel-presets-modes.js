@@ -6,8 +6,6 @@ import { mountLayerPresetControls } from './scene-layer-row.js'
 import { showScenesToast } from './scenes-editor-support.js'
 import { LOOK_PRESET_RECALL_PGM, LOOK_PRESET_RECALL_PRV } from '../lib/look-preset-events.js'
 import { api } from '../lib/api-client.js'
-import { SWITCHER_INTEGRATION_DISABLED } from './device-view-switcher-integration-disabled.js'
-
 /**
  * @param {HTMLElement} root
  * @param {object} opts
@@ -248,10 +246,23 @@ export function renderLookPresetsMode(root, { onSceneRefresh } = {}) {
 		const sc = sceneState.getScene(p.sceneId)
 		const card = document.createElement('div')
 		card.className = 'look-preset-card'
+		
+		const isLoadedOnPrv = Array.isArray(p.items) && p.items.length > 0
+			? p.items.every(it => it.sceneId === sceneState.previewSceneIdByScreen?.[String(it.mainIdx)])
+			: p.sceneId === sceneState.previewSceneIdByScreen?.[String(p.targetMain || 0)]
+		
+		if (isLoadedOnPrv) {
+			card.classList.add('look-preset-card--loaded-prv')
+		}
+
 		const line1 = document.createElement('div')
 		line1.className = 'look-preset-card__row'
 		const mainHint =
-			typeof p.targetMain === 'number' ? `· main ${(p.targetMain ?? 0) + 1}` : ''
+			Array.isArray(p.items) && p.items.length > 1
+				? `· mains ${p.items.map((it) => (Number(it.mainIdx) || 0) + 1).join(', ')}`
+				: typeof p.targetMain === 'number'
+					? `· main ${(p.targetMain ?? 0) + 1}`
+					: ''
 		line1.innerHTML = `<span class="look-preset-card__name"></span>
 			<span class="look-preset-card__meta"></span>`
 		const nameEl = line1.querySelector('.look-preset-card__name')
@@ -267,42 +278,6 @@ export function renderLookPresetsMode(root, { onSceneRefresh } = {}) {
 			sub.className = 'look-preset-card__sub'
 			sub.textContent = `→ “${sc.name}”`
 			card.appendChild(sub)
-		}
-		if (!SWITCHER_INTEGRATION_DISABLED) {
-			const ph = p.tandem && p.tandem.pixelhue
-			const tandemWrap = document.createElement('div')
-			tandemWrap.className = 'look-preset-card__tandem'
-			const gInput = document.createElement('input')
-			gInput.type = 'text'
-			gInput.className = 'look-preset-card__tandem-g'
-			gInput.placeholder = 'PixelHue preset GUID (optional)'
-			gInput.setAttribute('autocomplete', 'off')
-			gInput.value = ph && ph.presetId ? String(ph.presetId) : ''
-			const ord = document.createElement('select')
-			ord.className = 'look-preset-card__tandem-order'
-			ord.title = 'When to run PixelFlow preset load vs Caspar (preview / take)'
-			ord.innerHTML =
-				'<option value="afterCaspar">PixelHue after Caspar (default)</option><option value="beforeCaspar">PixelHue before Caspar</option>'
-			ord.value = ph && ph.order === 'beforeCaspar' ? 'beforeCaspar' : 'afterCaspar'
-			const saveTandem = () => {
-				const g = gInput.value.trim()
-				if (!g) {
-					if (p.tandem) {
-						sceneState.patchLookPreset(p.id, { tandem: null })
-						onSceneRefresh?.()
-					}
-					return
-				}
-				sceneState.patchLookPreset(p.id, {
-					tandem: { pixelhue: { presetId: g, order: ord.value } },
-				})
-				onSceneRefresh?.()
-			}
-			gInput.addEventListener('change', saveTandem)
-			ord.addEventListener('change', saveTandem)
-			tandemWrap.appendChild(gInput)
-			tandemWrap.appendChild(ord)
-			card.appendChild(tandemWrap)
 		}
 		const row2 = document.createElement('div')
 		row2.className = 'look-preset-card__actions'
@@ -343,6 +318,13 @@ export function renderLookPresetsMode(root, { onSceneRefresh } = {}) {
 				showScenesToast('Look preset removed.', 'info')
 				onSceneRefresh?.()
 			}
+		})
+		card.addEventListener('click', (e) => {
+			if (e.target.closest('button') || e.target.closest('input') || e.target.closest('select')) return
+			if (!sc) return
+			document.dispatchEvent(
+				new CustomEvent(LOOK_PRESET_RECALL_PRV, { detail: { sceneId: p.sceneId, lookPreset: p } }),
+			)
 		})
 		list.appendChild(card)
 	}

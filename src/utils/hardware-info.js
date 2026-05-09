@@ -108,11 +108,17 @@ function readDrmModesFromSysfs(drmName) {
  *   modes: Array<{ width: number, height: number, hz: number, current: boolean }>
  * }> | null}
  */
+function getXAuthority() {
+	if (process.env.XAUTHORITY) return process.env.XAUTHORITY
+	const user = process.env.USER || 'casparcg'
+	return `/home/${user}/.Xauthority`
+}
+
 function getDisplaysXrandrDetailed() {
 	try {
 		const stdout = execSync('xrandr --query', {
 			stdio: ['ignore', 'pipe', 'ignore'],
-			env: { ...process.env, DISPLAY: ':0' },
+			env: { ...process.env, DISPLAY: ':0', XAUTHORITY: getXAuthority() },
 		}).toString()
 		const lines = stdout.split('\n')
 		const displays = []
@@ -171,6 +177,7 @@ function getDisplaysXrandrDetailed() {
 		pushCur()
 		return { displays, raw: stdout }
 	} catch (e) {
+		console.error(`[Hardware-Info] getDisplaysXrandrDetailed failed:`, e.message)
 		return null
 	}
 }

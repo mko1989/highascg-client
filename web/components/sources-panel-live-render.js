@@ -8,7 +8,16 @@ export function renderLiveTab(listEl, { channelMap, decklinkInputsStatus, extraS
 	const base = buildLiveSources(channelMap, connectors)
 	const existing = new Set(base.map((s) => String(s.value || '')))
 	const extras = Array.isArray(extraSources) ? extraSources.filter((s) => s && s.value && !existing.has(String(s.value))) : []
-	const sources = [...extras, ...base]; listEl.innerHTML = ''
+	const sources = [...extras, ...base]
+
+	const renderKey = JSON.stringify({
+		sources: sources.map(s => ({ value: s.value, label: s.label, res: s.resolution })),
+		status: decklinkInputsStatus
+	})
+	if (listEl._lastRenderKey === renderKey) return
+	listEl._lastRenderKey = renderKey
+
+	listEl.innerHTML = ''
 	if (!sources.length) { listEl.innerHTML = '<p class="sources-empty">No live sources</p>'; return }
 	if (sources.some(s => s.routeType === 'decklink')) listEl.innerHTML = '<p class="sources-live-hint">DeckLink tiles match Settings. Use Stop to clear layer.</p>'
 	sources.forEach(s => {

@@ -7,7 +7,7 @@ const { JSON_HEADERS, jsonBody, parseBody } = require('./response')
 const { applyX11Layout, calculateLayoutPositions } = require('../utils/os-config')
 const { resolveMainScreenCount } = require('../config/routing')
 const { normalizeCasparServerConfigPath } = require('./routes-caspar-config')
-const { normalizeTandemTopology } = require('../config/tandem-topology')
+const { normalizeScreenDestinations } = require('../config/screen-destinations')
 const { normalizeDeviceGraph } = require('../config/device-graph')
 const { normalizeRtmpConfig } = require('../config/rtmp-output')
 const defaults = require('../config/defaults')
@@ -75,7 +75,7 @@ async function handleOsPost(path, body, ctx) {
 
 	if (ctx.configManager) {
 		const cfg = ctx.config; const cur = ctx.configManager.get()
-		const newConfig = { ...cur, screen_count: cfg.screen_count, caspar: cfg.caspar, streaming: { ...cfg.streaming }, periodic_sync_interval_sec: cfg.periodic_sync_interval_sec, periodic_sync_interval_sec_osc: cfg.periodic_sync_interval_sec_osc, osc_info_supplement_ms: cfg.osc_info_supplement_ms, osc: pickOscForPersistence(cfg.osc), ui: cfg.ui || defaults.ui, audioRouting: cfg.audioRouting || defaults.audioRouting, offline_mode: cfg.offline_mode, dmx: { ...defaults.dmx, ...(cfg.dmx || {}) }, casparServer: cfg.casparServer || defaults.casparServer, companion: cfg.companion || { host: '127.0.0.1', port: 8000 }, pixelhue: { ...defaults.pixelhue, ...(cfg.pixelhue || {}) }, tandemTopology: normalizeTandemTopology(cfg.tandemTopology), deviceGraph: normalizeDeviceGraph(cfg.deviceGraph), rtmp: normalizeRtmpConfig(cfg.rtmp), usbIngest: { ...defaults.usbIngest, ...(cfg.usbIngest || {}) }, streamingChannel: { ...defaults.streamingChannel, ...(cfg.streamingChannel || {}) } }
+		const newConfig = { ...cur, screen_count: cfg.screen_count, caspar: cfg.caspar, streaming: { ...cfg.streaming }, periodic_sync_interval_sec: cfg.periodic_sync_interval_sec, periodic_sync_interval_sec_osc: cfg.periodic_sync_interval_sec_osc, osc_info_supplement_ms: cfg.osc_info_supplement_ms, osc: pickOscForPersistence(cfg.osc), ui: cfg.ui || defaults.ui, audioRouting: cfg.audioRouting || defaults.audioRouting, offline_mode: cfg.offline_mode, dmx: { ...defaults.dmx, ...(cfg.dmx || {}) }, casparServer: cfg.casparServer || defaults.casparServer, companion: cfg.companion || { host: '127.0.0.1', port: 8000 }, screenDestinations: normalizeScreenDestinations(cfg.screenDestinations), deviceGraph: normalizeDeviceGraph(cfg.deviceGraph), rtmp: normalizeRtmpConfig(cfg.rtmp), usbIngest: { ...defaults.usbIngest, ...(cfg.usbIngest || {}) }, streamingChannel: { ...defaults.streamingChannel, ...(cfg.streamingChannel || {}) } }
 		delete newConfig.streaming._effectiveBasePort; delete newConfig.streaming._casparHost
 		for (const k of SYSTEM_DISPLAY_KEYS) { if (s[k] !== undefined) { if (cfg[k] !== undefined) newConfig[k] = cfg[k]; else delete newConfig[k] } }
 		ctx.configManager.save(newConfig)

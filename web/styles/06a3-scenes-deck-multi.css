@@ -27,8 +27,18 @@
 }
 
 .scenes-main-pill--active .scenes-main-pill__out {
+	color: var(--text, #e6edf3);
+	background: rgba(29, 78, 216, 0.15);
+}
+
+.scenes-main-pill--armed .scenes-main-pill__out {
 	color: #fff;
 	background: var(--accent, #1d4ed8);
+	font-weight: 600;
+}
+
+.scenes-main-pill--armed .scenes-main-pill__out:hover {
+	background: #1e40af;
 }
 
 .scenes-main-pill--hidden {

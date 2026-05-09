@@ -1,6 +1,7 @@
 'use strict'
 
 const { execSync } = require('child_process')
+const { destinationsFromConfig } = require('../config/screen-destinations')
 const { multiviewGeneratedConfigIncludesScreen } = require('../config/multiview-helpers')
 const { getModeDimensions, STANDARD_VIDEO_MODES } = require('../config/config-modes')
 const logger = require('./logger').defaultLogger
@@ -14,8 +15,7 @@ function readScreenSetting(config, key) {
 }
 
 function resolveScreenDimsFromTopology(config, screenIdx1) {
-	const topology = config?.tandemTopology && typeof config.tandemTopology === 'object' ? config.tandemTopology : {}
-	const list = Array.isArray(topology.destinations) ? topology.destinations : []
+	const list = destinationsFromConfig(config)
 	if (!list.length) return null
 	const idx0 = Math.max(0, (parseInt(String(screenIdx1), 10) || 1) - 1)
 	const routable = list.filter((d) => {
@@ -137,8 +137,7 @@ function calculateLayoutPositions(config) {
 	// Collect from device graph
 	const connectors = Array.isArray(config?.deviceGraph?.connectors) ? config.deviceGraph.connectors : []
 	const edges = Array.isArray(config?.deviceGraph?.edges) ? config.deviceGraph.edges : []
-	const topology = config?.tandemTopology && typeof config.tandemTopology === 'object' ? config.tandemTopology : {}
-	const dests = Array.isArray(topology.destinations) ? topology.destinations : []
+	const dests = destinationsFromConfig(config)
 
 	const graphGpuConnectors = connectors.filter(c => c.kind === 'gpu_out' || c.kind === 'gpu_output')
 	const graphHasAnyGpuBinding = graphGpuConnectors.some(c => {

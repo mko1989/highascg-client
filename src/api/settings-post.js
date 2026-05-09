@@ -12,8 +12,7 @@ const { JSON_HEADERS, jsonBody, parseBody } = require('./response')
 const { normalizeRtmpConfig } = require('../config/rtmp-output')
 const { validateDecklinkCasparSlice } = require('../config/decklink-config-validate')
 const { resolveMainScreenCount } = require('../config/routing')
-const phClient = require('../pixelhue/client')
-const { normalizeTandemTopology } = require('../config/tandem-topology')
+const { normalizeScreenDestinations } = require('../config/screen-destinations')
 const { normalizeDeviceGraph } = require('../config/device-graph')
 const { mergeSystemDisplaySettings, pickOscForPersistence, SYSTEM_DISPLAY_KEYS } = require('./settings-os')
 
@@ -46,25 +45,13 @@ async function handlePost(path, body, ctx) {
 	if (settings.dmx) cfg.dmx = { ...defaults.dmx, ...settings.dmx }
 	if (settings.rtmp) cfg.rtmp = normalizeRtmpConfig({ ...defaults.rtmp, ...(cfg.rtmp || {}), ...settings.rtmp })
 	if (settings.companion) cfg.companion = { host: String(settings.companion.host || '127.0.0.1').trim(), port: parseInt(settings.companion.port, 10) || 8000 }
-	if (settings.pixelhue) {
-		const x = settings.pixelhue
-		const secure =
-			x.secure === undefined
-				? (cfg.pixelhue && cfg.pixelhue.secure !== undefined ? cfg.pixelhue.secure : defaults.pixelhue.secure)
-				: !(x.secure === false || x.secure === 'false' || x.secure === 0 || x.secure === '0')
-		cfg.pixelhue = {
-			...defaults.pixelhue,
-			...(cfg.pixelhue || {}),
-			enabled: x.enabled === true || x.enabled === 'true',
-			host: String(x.host ?? '').trim(),
-			unicoPort: parseInt(x.unicoPort || 19998, 10),
-			secure,
-			apiPort: x.apiPort ? parseInt(x.apiPort, 10) : null,
-			targetSerial: String(x.targetSerial ?? '').trim(),
-		}
-		phClient.clearConnectionCache()
+	if (settings.screenDestinations) cfg.screenDestinations = normalizeScreenDestinations(settings.screenDestinations)
+	else if (settings.tandemTopology && typeof settings.tandemTopology === 'object') {
+		cfg.screenDestinations = normalizeScreenDestinations({
+			destinations: settings.tandemTopology.destinations,
+			edidNotes: settings.tandemTopology.edidNotes,
+		})
 	}
-	if (settings.tandemTopology) cfg.tandemTopology = normalizeTandemTopology(settings.tandemTopology)
 	if (settings.deviceGraph) cfg.deviceGraph = normalizeDeviceGraph(settings.deviceGraph)
 	if (Array.isArray(settings.gpuPhysicalTopology)) {
 		cfg.gpuPhysicalTopology = settings.gpuPhysicalTopology
@@ -199,7 +186,7 @@ async function handlePost(path, body, ctx) {
 	const mainCount = resolveMainScreenCount(cfg); cfg.screen_count = mainCount; if (!cfg.casparServer) cfg.casparServer = { ...defaults.casparServer }; cfg.casparServer.screen_count = mainCount
 
 	if (ctx.configManager) {
-		const cur = ctx.configManager.get(); const newConfig = { ...cur, screen_count: cfg.screen_count, caspar: cfg.caspar, streaming: { ...cfg.streaming }, periodic_sync_interval_sec: cfg.periodic_sync_interval_sec, periodic_sync_interval_sec_osc: cfg.periodic_sync_interval_sec_osc, osc_info_supplement_ms: cfg.osc_info_supplement_ms, osc: pickOscForPersistence(cfg.osc), ui: cfg.ui || defaults.ui, audioRouting: cfg.audioRouting || defaults.audioRouting, offline_mode: cfg.offline_mode, dmx: { ...defaults.dmx, ...(cfg.dmx || {}) }, casparServer: cfg.casparServer || defaults.casparServer, companion: cfg.companion || { host: '127.0.0.1', port: 8000 }, pixelhue: { ...defaults.pixelhue, ...(cfg.pixelhue || {}) }, tandemTopology: normalizeTandemTopology(cfg.tandemTopology), deviceGraph: normalizeDeviceGraph(cfg.deviceGraph), gpuPhysicalTopology: Array.isArray(cfg.gpuPhysicalTopology) && cfg.gpuPhysicalTopology.length ? cfg.gpuPhysicalTopology : defaults.gpuPhysicalTopology, rtmp: normalizeRtmpConfig(cfg.rtmp), usbIngest: { ...defaults.usbIngest, ...(cfg.usbIngest || {}) }, streamingChannel: { ...defaults.streamingChannel, ...(cfg.streamingChannel || {}) }, streamOutputs: Array.isArray(cfg.streamOutputs) ? cfg.streamOutputs : (Array.isArray(cur.streamOutputs) ? cur.streamOutputs : []), recordOutputs: Array.isArray(cfg.recordOutputs) ? cfg.recordOutputs : (Array.isArray(cur.recordOutputs) ? cur.recordOutputs : (Array.isArray(defaults.recordOutputs) ? defaults.recordOutputs : [])), audioOutputs: Array.isArray(cfg.audioOutputs) ? cfg.audioOutputs : (Array.isArray(cur.audioOutputs) ? cur.audioOutputs : []) }
+		const cur = ctx.configManager.get(); const newConfig = { ...cur, screen_count: cfg.screen_count, caspar: cfg.caspar, streaming: { ...cfg.streaming }, periodic_sync_interval_sec: cfg.periodic_sync_interval_sec, periodic_sync_interval_sec_osc: cfg.periodic_sync_interval_sec_osc, osc_info_supplement_ms: cfg.osc_info_supplement_ms, osc: pickOscForPersistence(cfg.osc), ui: cfg.ui || defaults.ui, audioRouting: cfg.audioRouting || defaults.audioRouting, offline_mode: cfg.offline_mode, dmx: { ...defaults.dmx, ...(cfg.dmx || {}) }, casparServer: cfg.casparServer || defaults.casparServer, companion: cfg.companion || { host: '127.0.0.1', port: 8000 }, screenDestinations: normalizeScreenDestinations(cfg.screenDestinations), deviceGraph: normalizeDeviceGraph(cfg.deviceGraph), gpuPhysicalTopology: Array.isArray(cfg.gpuPhysicalTopology) && cfg.gpuPhysicalTopology.length ? cfg.gpuPhysicalTopology : defaults.gpuPhysicalTopology, rtmp: normalizeRtmpConfig(cfg.rtmp), usbIngest: { ...defaults.usbIngest, ...(cfg.usbIngest || {}) }, streamingChannel: { ...defaults.streamingChannel, ...(cfg.streamingChannel || {}) }, streamOutputs: Array.isArray(cfg.streamOutputs) ? cfg.streamOutputs : (Array.isArray(cur.streamOutputs) ? cur.streamOutputs : []), recordOutputs: Array.isArray(cfg.recordOutputs) ? cfg.recordOutputs : (Array.isArray(cur.recordOutputs) ? cur.recordOutputs : (Array.isArray(defaults.recordOutputs) ? defaults.recordOutputs : [])), audioOutputs: Array.isArray(cfg.audioOutputs) ? cfg.audioOutputs : (Array.isArray(cur.audioOutputs) ? cur.audioOutputs : []) }
 		delete newConfig.streaming._effectiveBasePort; delete newConfig.streaming._casparHost
 		for (const k of SYSTEM_DISPLAY_KEYS) { if (settings[k] !== undefined) { if (cfg[k] !== undefined) newConfig[k] = cfg[k]; else delete newConfig[k] } }
 		ctx.configManager.save(newConfig)

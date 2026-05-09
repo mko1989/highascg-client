@@ -81,16 +81,6 @@ export function applyPersistedData(state, data) {
 	
 	if (Array.isArray(data.lookPresets)) {
 		const sk = (v) => (v === 'prv' || v === 'pgm' || v === 'editing' ? v : 'editing')
-		const pickTandem = (t) => {
-			if (!t || typeof t !== 'object' || !t.pixelhue || typeof t.pixelhue !== 'object') return undefined
-			const x = t.pixelhue
-			const id = typeof x.presetId === 'string' ? x.presetId.trim() : ''
-			if (!id) return undefined
-			const ph = { presetId: id }
-			if (x.targetRegion === 2 || x.targetRegion === 4) ph.targetRegion = x.targetRegion
-			if (x.order === 'beforeCaspar' || x.order === 'afterCaspar') ph.order = x.order
-			return { pixelhue: ph }
-		}
 		state.lookPresets = data.lookPresets
 			.filter((p) => p && typeof p.id === 'string' && typeof p.name === 'string' && typeof p.sceneId === 'string' && state.getScene(p.sceneId))
 			.map((p) => {
@@ -102,8 +92,6 @@ export function applyPersistedData(state, data) {
 					sourceKind: sk(p.sourceKind),
 					targetMain: typeof p.targetMain === 'number' && p.targetMain >= 0 ? p.targetMain : 0,
 				}
-				const tm = p.tandem && pickTandem(p.tandem)
-				if (tm) entry.tandem = tm
 				return entry
 			})
 	} else {

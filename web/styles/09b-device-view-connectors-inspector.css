@@ -317,28 +317,10 @@
 	left: 8px;
 	right: auto;
 }
-.device-view__port--ph-sink {
+.device-view__port--connector-dot-left {
 	padding-left: 22px;
 	padding-right: 10px;
 	text-align: right;
-}
-.device-view__port--ph-source {
-	padding-left: 10px;
-	padding-right: 22px;
-}
-.device-view__band--pixelhue .device-view__band-subtitle {
-	margin-top: 10px;
-}
-.device-view__band--pixelhue .device-view__band-subtitle:first-of-type {
-	margin-top: 0;
-}
-.device-view__panel-marker--ph-in {
-	border-color: rgba(16, 185, 129, 0.95);
-	background: rgba(5, 150, 105, 0.8);
-}
-.device-view__panel-marker--ph-out {
-	border-color: rgba(168, 85, 247, 0.95);
-	background: rgba(124, 58, 237, 0.82);
 }
 .device-view__connector-dot:hover {
 	border-color: #f59e0b;
@@ -414,11 +396,33 @@
 }
 .device-view__inspector {
 	margin-top: 0;
-	padding: 10px 12px;
+	padding: 4px 12px 10px;
 	border-radius: 8px;
 	border: 1px dashed var(--color-border, #2a2a32);
 	font-size: 12px;
 	background: rgba(0, 0, 0, 0.18);
+}
+.device-view__inspector-title {
+	font-size: 11px;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	color: var(--accent);
+	margin: 4px 0 8px;
+	opacity: 0.9;
+}
+.device-view__inherited-box {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 2px 8px;
+	background: rgba(88, 166, 255, 0.12);
+	border: 1px solid rgba(88, 166, 255, 0.35);
+	border-radius: 4px;
+	color: #8bbfff;
+	font-size: 10px;
+	font-weight: 600;
+	margin-bottom: 8px;
 }
 .device-view__kv {
 	display: grid;

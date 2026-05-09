@@ -10,8 +10,15 @@ const { JSON_HEADERS, jsonBody, parseBody } = require('./response')
 const { getLanIPv4Addresses } = require('../utils/lan-ipv4')
 
 const TEST_LAYER = 999
-const TEMPLATE = 'led_test_pattern/index'
+const TEMPLATE = 'led_grid_test'
+/** Default HTML template host (layer with a producer CG can attach to). */
 const HOST_LAYER = 0
+/**
+ * Multiview output builds real pixels from layer 10 (`color_bg`) upward; layer 0 is often empty,
+ * so CG ADD … 0 fails with COMMAND_UNKNOWN_DATA while PGM channels still work.
+ * @see routes-multiview.js MV_BG_LAYER
+ */
+const MULTIVIEW_TEMPLATE_HOST_FALLBACK = 10
 
 /**
  * @param {string} path
@@ -132,14 +139,33 @@ async function handlePost(path, body, ctx) {
 
 		const data = JSON.stringify(payload)
 
-		try {
-			await amcp.cg.cgClear(channel, TEST_LAYER)
-		} catch {
-			/* replace previous */
+		const mvList = Array.isArray(cm.multiviewChannels)
+			? cm.multiviewChannels
+			: cm.multiviewCh != null
+				? [cm.multiviewCh]
+				: []
+		const isMultiviewChannel = mvList.some((c) => parseInt(c, 10) === channel)
+		const hostLayers = isMultiviewChannel ? [HOST_LAYER, MULTIVIEW_TEMPLATE_HOST_FALLBACK] : [HOST_LAYER]
+
+		let cgApplyErr
+		for (const templateHostLayer of hostLayers) {
+			try {
+				try {
+					await amcp.cg.cgClear(channel, TEST_LAYER)
+				} catch {
+					/* replace previous */
+				}
+				await amcp.cg.cgAdd(channel, TEST_LAYER, templateHostLayer, TEMPLATE, 1, data)
+				await amcp.cg.cgPlay(channel, TEST_LAYER, templateHostLayer)
+				await amcp.cg.cgUpdate(channel, TEST_LAYER, templateHostLayer, data)
+				cgApplyErr = null
+				break
+			} catch (e) {
+				cgApplyErr = e
+			}
 		}
-		await amcp.cg.cgAdd(channel, TEST_LAYER, HOST_LAYER, TEMPLATE, 1, data)
-		await amcp.cg.cgPlay(channel, TEST_LAYER, HOST_LAYER)
-		await amcp.cg.cgUpdate(channel, TEST_LAYER, HOST_LAYER, data)
+		if (cgApplyErr) throw cgApplyErr
+
 		await amcp.mixer.mixerFill(channel, TEST_LAYER, 0, 0, 1, 1)
 		await amcp.mixer.mixerOpacity?.(channel, TEST_LAYER, 1).catch(() => {})
 		await amcp.mixer.mixerCommit(channel)

@@ -1,5 +1,4 @@
 import { sceneState } from '../lib/scene-state.js'
-import { api } from '../lib/api-client.js'
 import { buildIncomingScenePayload } from './scenes-shared.js'
 import { timelineState } from '../lib/timeline-state.js'
 import { UI_FONT_FAMILY } from '../lib/ui-font.js'
@@ -121,6 +120,7 @@ export function bindScenesPreviewSplitDrag({ splitHandle, previewHost, previewPa
 
 /**
  * @param {object} deps
+ * @param {{ post: (path: string, body?: any) => Promise<any> }} deps.api
  * @param {import('../lib/state-store.js').StateStore} deps.stateStore
  * @param {() => object} deps.getChannelMap
  * @param {() => number} deps.getProgramChannel
@@ -130,22 +130,6 @@ export function bindScenesPreviewSplitDrag({ splitHandle, previewHost, previewPa
  */
 export function createTakeSceneToProgram(deps) {
 	let takeBusy = false
-
-	async function ensureLiveThumbCached(channel) {
-		const ch = Number(channel)
-		if (!Number.isFinite(ch) || ch <= 0) return
-		try {
-			await api.get(`/api/thumbnail/live/${ch}`)
-			return
-		} catch {
-			// cache miss
-		}
-		try {
-			await api.post('/api/thumbnail/live/capture', { channel: ch })
-		} catch {
-			/* non-fatal */
-		}
-	}
 
 	return async function takeSceneToProgram(sceneId, forceCut) {
 		if (takeBusy) return
@@ -165,7 +149,7 @@ export function createTakeSceneToProgram(deps) {
 				if (scope === 'all') return Array.from({ length: programChannels.length }, (_, i) => i)
 				const n = parseInt(scope, 10)
 				if (Number.isFinite(n) && n >= 0 && n < programChannels.length) return [n]
-				return [sceneState.activeScreenIndex]
+				return sceneState.armedScreenIndices?.length ? sceneState.armedScreenIndices : [sceneState.activeScreenIndex]
 			})()
 			const scenePayloadForState = buildIncomingScenePayload(scene)
 			const incomingJsonBase = buildIncomingScenePayload(scene, {
@@ -202,7 +186,7 @@ export function createTakeSceneToProgram(deps) {
 					forceCut: !!forceCut,
 					layerCount: Array.isArray(incomingJsonBase?.layers) ? incomingJsonBase.layers.length : 0,
 				})
-				const takeRes = await api.post('/api/scene/take', body)
+				const takeRes = await deps.api.post('/api/scene/take', body)
 				sceneState.setLiveSceneId(sceneId, mainIdx)
 				if (takeRes?.sceneLive && typeof takeRes.sceneLive === 'object') {
 					for (const [k, v] of Object.entries(takeRes.sceneLive)) {
@@ -219,10 +203,6 @@ export function createTakeSceneToProgram(deps) {
 				} else {
 					sceneState.applySceneFromTakePayload(sceneId, scenePayloadForState)
 				}
-			}
-			// Capture only when cache is missing to avoid PRINT spam on every take.
-			for (const t of touched) {
-				await ensureLiveThumbCached(t.channel)
 			}
 			deps.stateStore.applyChange('scene.live', mergedLive)
 			deps.primePreviewSnapshotFromScene(sceneId)

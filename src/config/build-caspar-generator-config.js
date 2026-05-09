@@ -5,15 +5,14 @@ const { mergeAudioRoutingIntoConfig } = require('./config-generator')
 const { normalizeRtmpConfig } = require('./rtmp-output')
 const { resolveMainScreenCount } = require('./routing-map')
 const { STANDARD_VIDEO_MODES } = require('./config-modes')
-const { normalizeTandemTopology } = require('./tandem-topology')
+const { normalizeScreenDestinations, destinationsFromConfig } = require('./screen-destinations')
 
 /**
  * @param {Record<string, unknown>} appConfig
  * @returns {Array<any>}
  */
 function getDestinationList(appConfig) {
-	const top = normalizeTandemTopology(appConfig && appConfig.tandemTopology)
-	const list = Array.isArray(top?.destinations) ? top.destinations : []
+	const list = destinationsFromConfig(appConfig || {})
 	return list.filter((d) => d && typeof d === 'object')
 }
 
@@ -37,13 +36,7 @@ function parseCustomVideoModeString(modeRaw) {
  * @param {Record<string, unknown>} appConfig
  */
 function applyDestinationOverridesToScreens(merged, appConfig) {
-	const rawList =
-		appConfig &&
-			appConfig.tandemTopology &&
-			typeof appConfig.tandemTopology === 'object' &&
-			Array.isArray(appConfig.tandemTopology.destinations)
-			? appConfig.tandemTopology.destinations
-			: []
+	const rawList = destinationsFromConfig(appConfig || {})
 	const list = getDestinationList(appConfig)
 	if (!list.length) return
 	const routable = list.filter((d) => {
@@ -62,7 +55,7 @@ function applyDestinationOverridesToScreens(merged, appConfig) {
 	for (let idx = 0; idx < merged.screen_count; idx++) {
 		const perMain = routable.filter((d) => (parseInt(String(d.mainScreenIndex ?? 0), 10) || 0) === idx)
 		if (!perMain.length) continue
-		const picked = perMain.find((d) => String(d.mode || 'pgm_prv') === 'pgm_prv') || perMain[0]
+		const picked = perMain.find((d) => d.videoMode && d.videoMode !== '1080p5000') || perMain.find((d) => String(d.mode || 'pgm_prv') === 'pgm_prv') || perMain[0]
 		const modeRaw = String(picked.videoMode || '').trim()
 		const width = Math.max(64, parseInt(String(picked.width ?? 0), 10) || 0)
 		const height = Math.max(64, parseInt(String(picked.height ?? 0), 10) || 0)
@@ -94,7 +87,7 @@ function applyDecklinkOverridesToScreens(merged, appConfig) {
 	if (!g || !Array.isArray(g.connectors)) return
 
 	const edges = Array.isArray(g.edges) ? g.edges : []
-	const destinations = Array.isArray(appConfig?.tandemTopology?.destinations) ? appConfig.tandemTopology.destinations : []
+	const destinations = destinationsFromConfig(appConfig || {})
 	const byId = new Map(g.connectors.map((c) => [String(c?.id || ''), c]))
 	const outgoing = new Map()
 	for (const e of edges) {
@@ -190,11 +183,11 @@ function applyDecklinkOverridesToScreens(merged, appConfig) {
 
 function applyScreenConsumerOverridesFromCabling(merged, appConfig) {
 	const g = appConfig?.deviceGraph
-	const destinations = Array.isArray(appConfig?.tandemTopology?.destinations) ? appConfig.tandemTopology.destinations : []
-	if (!g || !Array.isArray(g.connectors) || !Array.isArray(g.edges) || !destinations.length) return
+	const destinations = destinationsFromConfig(appConfig || {})
+	if (!g || !Array.isArray(g.connectors) || !destinations.length) return
 
 	const byId = new Map(g.connectors.map((c) => [String(c?.id || ''), c]))
-	const edges = g.edges
+	const edges = Array.isArray(g.edges) ? g.edges : []
 	const outgoing = new Map()
 	for (const e of edges) {
 		const src = String(e?.sourceId || '')
@@ -253,7 +246,7 @@ function applyScreenConsumerOverridesFromCabling(merged, appConfig) {
 
 function applyAudioOutputOverridesToScreens(merged, appConfig) {
 	const audioOutputs = Array.isArray(appConfig?.audioOutputs) ? appConfig.audioOutputs : []
-	const destinations = Array.isArray(appConfig?.tandemTopology?.destinations) ? appConfig.tandemTopology.destinations : []
+	const destinations = destinationsFromConfig(appConfig || {})
 	const edges = Array.isArray(appConfig?.deviceGraph?.edges) ? appConfig.deviceGraph.edges : []
 
 	if (audioOutputs.length > 0) {
@@ -320,7 +313,7 @@ function resolvePixelMapFeedToProgramScreen(appConfig, nodeId) {
 	if (!dg || !Array.isArray(dg.connectors) || !Array.isArray(dg.edges)) return null
 	const connectors = dg.connectors
 	const edges = dg.edges
-	const destinations = Array.isArray(appConfig?.tandemTopology?.destinations) ? appConfig.tandemTopology.destinations : []
+	const destinations = destinationsFromConfig(appConfig || {})
 	const inConn = connectors.find((c) => String(c?.deviceId || '') === nodeId && c.kind === 'pixel_map_in')
 	if (!inConn) return null
 	const inEdge = edges.find((e) => String(e?.sinkId || '') === String(inConn.id || ''))
@@ -509,7 +502,7 @@ function buildCasparGeneratorFlatConfig(appConfig) {
 			? appConfig.streamingChannel
 			: {}),
 	}
-	merged.tandemTopology = normalizeTandemTopology(appConfig && appConfig.tandemTopology)
+	merged.screenDestinations = normalizeScreenDestinations(appConfig?.screenDestinations)
 	
 	// Attach layout-related bits for buildChannelsSection -> calculateLayoutPositions
 	merged.deviceGraph = appConfig && appConfig.deviceGraph

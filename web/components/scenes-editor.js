@@ -48,10 +48,7 @@ export function initScenesEditor(root, stateStore, opts = {}) {
 
 	async function captureOnDemandForDroppedSource(data) {
 		if (!data || !data.type) return
-		const cm = getChannelMap() || {}
 		const mainIdx = sceneState.activeScreenIndex
-		const previewCh = Number(cm.previewChannels?.[mainIdx] ?? getPreviewChannel() ?? 0)
-		const programCh = Number(cm.programChannels?.[mainIdx] ?? getProgramChannel() ?? 0)
 		if (String(data.type) === 'timeline' && data.value) {
 			const timelineId = encodeURIComponent(String(data.value))
 			// One-shot PRV thumb at 5s marker for timeline cards.
@@ -59,19 +56,17 @@ export function initScenesEditor(root, stateStore, opts = {}) {
 			await api.post(`/api/timelines/${timelineId}/seek`, { ms: 5000 }).catch(() => {})
 			await api.post(`/api/timelines/${timelineId}/play`, { from: 5000 }).catch(() => {})
 			await new Promise((r) => setTimeout(r, 160))
-			if (previewCh > 0) await api.post('/api/thumbnail/live/capture', { channel: previewCh }).catch(() => {})
 			await api.post(`/api/timelines/${timelineId}/pause`).catch(() => {})
 			previewPanel.scheduleDraw()
 			return
 		}
 		if (String(data.type) === 'route') {
-			const ch = previewCh > 0 ? previewCh : programCh
-			if (ch > 0) await api.post('/api/thumbnail/live/capture', { channel: ch }).catch(() => {})
 			previewPanel.scheduleDraw()
 		}
 	}
 
 	const takeSceneToProgram = createTakeSceneToProgram({
+		api,
 		stateStore, getChannelMap, getProgramChannel, showToast: showScenesToast,
 		getTimelinePositionMsForTake: () => { const st = stateStore.getState(); return st?.timeline?.playback?.position ?? st?.timeline?.tick?.position ?? 0 },
 		primePreviewSnapshotFromScene: previewRuntime.primePreviewSnapshotFromScene,
@@ -166,7 +161,22 @@ export function initScenesEditor(root, stateStore, opts = {}) {
 				},
 				deckThumbnailMode: true,
 			})
-		}, takeSceneToProgram, showToast: showScenesToast, dispatchLayerSelect, previewPanel, sendSceneToPreviewCard: previewRuntime.sendSceneToPreviewCard, selectedLayerIndexRef, globalTakeFromPreview: () => { if (sceneState.previewSceneId) takeSceneToProgram(sceneState.previewSceneId, false) }, globalCutFromPreview: () => { if (sceneState.previewSceneId) takeSceneToProgram(sceneState.previewSceneId, true) } })
+		}, takeSceneToProgram, showToast: showScenesToast, dispatchLayerSelect, previewPanel, sendSceneToPreviewCard: previewRuntime.sendSceneToPreviewCard, selectedLayerIndexRef,
+		globalTakeFromPreview: () => {
+			const armed = sceneState.armedScreenIndices?.length ? sceneState.armedScreenIndices : [sceneState.activeScreenIndex]
+			for (const mIdx of armed) {
+				const sid = sceneState.previewSceneIdByScreen?.[String(mIdx)]
+				if (sid) takeSceneToProgram(sid, false)
+			}
+		},
+		globalCutFromPreview: () => {
+			const armed = sceneState.armedScreenIndices?.length ? sceneState.armedScreenIndices : [sceneState.activeScreenIndex]
+			for (const mIdx of armed) {
+				const sid = sceneState.previewSceneIdByScreen?.[String(mIdx)]
+				if (sid) takeSceneToProgram(sid, true)
+			}
+		}
+	})
 		if (preserveDeckScroll) {
 			mainHost.scrollTop = prevScrollTop
 			mainHost.scrollLeft = prevScrollLeft
@@ -223,7 +233,20 @@ export function initScenesEditor(root, stateStore, opts = {}) {
 	sceneState.on('editingChange', scheduleRender); sceneState.on('screenChange', () => { previewPanel.scheduleDraw(); scheduleRender() })
 	document.addEventListener('scenes-refresh-preview', () => { previewRuntime.scheduleFlushPreviewFromInspector(); previewPanel.scheduleDraw() })
 	document.addEventListener('scenes-tab-activated', () => { previewPanel.scheduleDraw(); if (sceneState.editingSceneId) previewRuntime.schedulePreviewPush() })
-	document.addEventListener(LOOK_PRESET_RECALL_PRV, e => { if (e.detail?.sceneId) Logic.runLookRecall(e.detail.sceneId, e.detail.lookPreset, 'prv', { ...previewRuntime, takeSceneToProgram, showScenesToast }) })
-	document.addEventListener(LOOK_PRESET_RECALL_PGM, e => { if (e.detail?.sceneId) Logic.runLookRecall(e.detail.sceneId, e.detail.lookPreset, 'pgm', { ...previewRuntime, takeSceneToProgram, showScenesToast }) })
+	document.addEventListener(LOOK_PRESET_RECALL_PRV, (e) => {
+		const d = e.detail || {}
+		if (!d.sceneId && !(d.lookPreset && Array.isArray(d.lookPreset.items) && d.lookPreset.items.length)) return
+		Logic.runLookRecall(d.sceneId, d.lookPreset, 'prv', { ...previewRuntime, takeSceneToProgram, showScenesToast })
+	})
+	document.addEventListener(LOOK_PRESET_RECALL_PGM, (e) => {
+		const d = e.detail || {}
+		if (!d.sceneId && !(d.lookPreset && Array.isArray(d.lookPreset.items) && d.lookPreset.items.length)) return
+		Logic.runLookRecall(d.sceneId, d.lookPreset, 'pgm', {
+			...previewRuntime,
+			takeSceneToProgram,
+			showScenesToast,
+			forceCut: !!d.forceCut,
+		})
+	})
 	scheduleRender()
 }

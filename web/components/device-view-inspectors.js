@@ -18,7 +18,6 @@ export function renderConnectorInspector(h, conn, ctx, {
 	lastPayload,
 	currentSettings,
 	streamingStatus,
-	skipPh,
 	statusEl,
 	load,
 	setCasparRestartDirty,
@@ -35,14 +34,26 @@ export function renderConnectorInspector(h, conn, ctx, {
 		)
 		return
 	}
-	const rows = readableConnectorRows(conn, ctx)
 	const edges = lastPayload?.graph?.edges || []
 	const summary = { in: edges.filter((e) => e.sinkId === conn.id), out: edges.filter((e) => e.sourceId === conn.id) }
-	rows.push({ label: 'Out cables', value: String(summary.out.length) }, { label: 'In cables', value: String(summary.in.length) })
-	h.append(Object.assign(document.createElement('p'), { textContent: 'Selected connector' }), buildInspectorTable(rows))
+	
+	const isGpu = conn?.kind === 'gpu_out' || conn?.kind === 'gpu_output'
+	
+	h.append(
+		Object.assign(document.createElement('div'), {
+			className: 'device-view__inspector-title',
+			textContent: conn.label || conn.id,
+		})
+	)
+
+	if (!isGpu) {
+		const rows = readableConnectorRows(conn, ctx)
+		rows.push({ label: 'Out cables', value: String(summary.out.length) }, { label: 'In cables', value: String(summary.in.length) })
+		h.append(buildInspectorTable(rows))
+	}
 
 	if (conn?.kind === 'decklink_io') {
-		renderDeckLinkIoControls(h, conn, { currentSettings, lastPayload, skipPh, statusEl, load, setCasparRestartDirty })
+		renderDeckLinkIoControls(h, conn, { currentSettings, lastPayload, statusEl, load, setCasparRestartDirty })
 	} else if (conn?.kind === 'stream_out') {
 		renderStreamOutControls(h, conn, { currentSettings, streamingStatus, statusEl, load, setCasparRestartDirty, onRemoveStreamOutput })
 	} else if (conn?.kind === 'record_out') {
@@ -50,7 +61,7 @@ export function renderConnectorInspector(h, conn, ctx, {
 	} else if (conn?.kind === 'audio_out') {
 		renderAudioOutControls(h, conn, { currentSettings, lastPayload, statusEl, load, setCasparRestartDirty, onRemoveAudioOutput })
 	} else if (conn?.kind === 'gpu_out' || conn?.kind === 'gpu_output') {
-		renderGpuOutControls(h, conn, { currentSettings, lastPayload, skipPh, statusEl, load, setCasparRestartDirty })
+		renderGpuOutControls(h, conn, { currentSettings, lastPayload, statusEl, load, setCasparRestartDirty })
 	} else if (conn?.kind === 'pixel_map_in' || conn?.kind === 'pixel_map_out') {
 		renderMappingConnectorControls(h, conn, {
 			lastPayload,

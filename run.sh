@@ -25,37 +25,37 @@ GRACE="${CASPAR_RESTART_GRACE_SEC:-2}"
 RESPAWN_SLEEP="${CASPAR_RESTART_SLEEP:-5}"
 
 is_restart_code() {
-	_ec="$1"
-	for _c in $RESTART_CODES; do
-		if [ "$_c" = "$_ec" ]; then
-			return 0
-		fi
-	done
-	return 1
+        _ec="$1"
+        for _c in $RESTART_CODES; do
+                if [ "$_c" = "$_ec" ]; then
+                        return 0
+                fi
+        done
+        return 1
 }
 
 run_one() {
-	"$CASPAR_BIN" "$CONFIG_PATH" "$@" </dev/null
+        "$CASPAR_BIN" "$CONFIG_PATH" "$@" </dev/null
 }
 
 if [ "${CASPAR_RESPAWN:-0}" = "1" ]; then
-	while true; do
-		run_one "$@"
-		ec=$?
-		echo "$(date '+%Y-%m-%d %H:%M:%S') casparcg exited ${ec}, respawning in ${RESPAWN_SLEEP}s" >&2
-		sleep "$RESPAWN_SLEEP"
-	done
+        while true; do
+                run_one "$@"
+                ec=$?
+                echo "$(date '+%Y-%m-%d %H:%M:%S') casparcg exited ${ec}, respawning in ${RESPAWN_SLEEP}s" >&2
+                sleep "$RESPAWN_SLEEP"
+        done
 else
-	while true; do
-		run_one "$@"
-		ec=$?
-		if is_restart_code "$ec"; then
-			echo "$(date '+%Y-%m-%d %H:%M:%S') casparcg exited ${ec} (restart), relaunching after ${GRACE}s" >&2
-			if [ -n "$GRACE" ] && [ "$GRACE" != "0" ]; then
-				sleep "$GRACE"
-			fi
-			continue
-		fi
-		exit "$ec"
-	done
+        while true; do
+                run_one "$@"
+                ec=$?
+                if is_restart_code "$ec"; then
+                        echo "$(date '+%Y-%m-%d %H:%M:%S') casparcg exited ${ec} (restart), relaunching after ${GRACE}s" >&2
+                        if [ -n "$GRACE" ] && [ "$GRACE" != "0" ]; then
+                                sleep "$GRACE"
+                        fi
+                        continue
+                fi
+                exit "$ec"
+        done
 fi

@@ -35,12 +35,7 @@ lib/
 _media/
 data/
 
-# Pixelweb local scratch/extracted artifacts
-pixelweb/.DS_Store
-pixelweb/extracted-source/
-pixelweb/pixelhue-web-server copy/
-pixelweb/pixelhue-web-server copy/.DS_Store
-
+refs/
 # User/system local artifacts
 core
 health.json

@@ -413,6 +413,13 @@ module.exports = {
 		decklinkDevice: 0,
 	},
 	/**
+	 * Plugin manager state (WO-43).
+	 * Existing env/config feature flags still apply as legacy defaults.
+	 */
+	plugins: {
+		entries: {},
+	},
+	/**
 	 * Device View record outputs. Source is set by cabling (destination -> record output).
 	 */
 	recordOutputs: [
@@ -431,63 +438,11 @@ module.exports = {
 		},
 	],
 	/**
-	 * PixelHue / PixelFlow (NovaStar Unico) — proxied from HighAsCG so the browser never holds the device JWT.
-	 * @see docs/PIXELHUE_API.md
+	 * Screen destinations (PGM/PRV/multiview/stream) for routing and Caspar generator overrides.
 	 */
-	pixelhue: {
-		enabled: false,
-		/** Device hostname or IP (empty = feature off). */
-		host: '',
-		/** ucenter / discovery (HTTPS, self-signed), default 19998. */
-		unicoPort: 19998,
-		/** Discovery and /unico proxy transport: true=https, false=http. */
-		secure: true,
-		/**
-		 * If set to a number, use this HTTP API port and skip taking it from `device-list`.
-		 * If null/empty, the port from discovery (`linkType: http`) is used.
-		 */
-		apiPort: null,
-		/** If multiple switchers in `device-list`, match this serial; empty = first device. */
-		targetSerial: '',
-	},
-	/**
-	 * Caspar + PixelHue “symbiosis” topology: logical LED destinations, physical signal paths, EDID notes.
-	 * One **destination** row = one PixelHue **layer** for the full Caspar bus (not one PH layer per Caspar stacked clip).
-	 * @see work/WO_pixelhue-companion-and-tandem-looks.md
-	 */
-	tandemTopology: {
+	screenDestinations: {
 		version: 1,
-		/** free-form notes; EDID exchange often requires the vendor tool — store labels here. */
 		edidNotes: '',
-		/**
-		 * Logical outputs (e.g. LED wall 1). `pixelhue.layerId` = which PH layer shows that Caspar feed.
-		 * `signalPathId` = optional ref into `signalPaths` for the Caspar→PH cable.
-		 */
-		destinations: [
-			{
-				id: 'led1',
-				label: 'LED wall 1',
-				mainScreenIndex: 0,
-				caspar: { bus: 'pgm' },
-				pixelhue: { layerId: null, screenGuid: '', role: 'caspar_pgm' },
-				signalPathId: 'caspar_pgm1_in',
-				edidLabel: '',
-			},
-		],
-		/**
-		 * Cabling / logical links: which PixelHue `interfaceId` is fed by which Caspar program output, or a camera, etc.
-		 */
-		signalPaths: [
-			{
-				id: 'caspar_pgm1_in',
-				label: 'Caspar main 1 PGM → switcher input',
-				kind: 'caspar_in',
-				phInterfaceId: null,
-				caspar: { bus: 'pgm', mainIndex: 0 },
-				edidLabel: '',
-				notes: 'Set phInterfaceId after GET /api/tandem-device populates interfaces from the device.',
-			},
-		],
 	},
 	/**
 	 * Stable physical GPU connector topology (bottom -> top). Each physical connector can

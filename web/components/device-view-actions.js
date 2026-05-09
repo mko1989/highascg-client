@@ -3,9 +3,8 @@
  */
 import { api } from '../lib/api-client.js'
 
-export async function loadDeviceView(skipPh) {
-	const q = skipPh ? '?pixelhue=0' : ''
-	return await api.get('/api/device-view' + q)
+export async function loadDeviceView() {
+	return await api.get('/api/device-view')
 }
 
 export async function loadSettings() {
@@ -66,35 +65,20 @@ export async function saveDeviceGraph(graph) {
 	return await api.post('/api/device-view', { deviceGraph: graph })
 }
 
-export async function syncFromHardware(skipPh) {
-	const payload = { syncFromLive: true }
-	if (skipPh) payload.pixelhue = false
-	return await api.post('/api/device-view', payload)
+export async function addCable(sourceId, sinkId) {
+	return await api.post('/api/device-view', { addEdge: { sourceId, sinkId } })
 }
 
-export async function addCable(sourceId, sinkId, skipPh, tandemSync) {
-	const body = { addEdge: { sourceId, sinkId } }
-	if (skipPh) body.pixelhue = false
-	if (!tandemSync) body.tandemSync = false
-	return await api.post('/api/device-view', body)
+export async function removeEdge(edgeId) {
+	return await api.post('/api/device-view', { removeEdge: { id: edgeId } })
 }
 
-export async function removeEdge(edgeId, tandemSync) {
-	const body = { removeEdge: { id: edgeId } }
-	if (!tandemSync) body.tandemSync = false
-	return await api.post('/api/device-view', body)
+export async function removeAllEdges() {
+	return await api.post('/api/device-view', { removeAllEdges: true })
 }
 
-export async function removeAllEdges(tandemSync) {
-	const body = { removeAllEdges: true }
-	if (!tandemSync) body.tandemSync = false
-	return await api.post('/api/device-view', body)
-}
-
-export async function updateConnector(id, patch, skipPh) {
-	const body = { updateConnector: { id, patch } }
-	if (skipPh) body.pixelhue = false
-	return await api.post('/api/device-view', body)
+export async function updateConnector(id, patch) {
+	return await api.post('/api/device-view', { updateConnector: { id, patch } })
 }
 
 export async function getStreamingChannelStatus() {

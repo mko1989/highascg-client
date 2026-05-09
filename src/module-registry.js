@@ -77,6 +77,83 @@ function isLoaded(name) {
 }
 
 /**
+ * Remove one module descriptor from registry.
+ * @param {string} name
+ * @returns {boolean}
+ */
+function unregister(name) {
+	const i = _modules.findIndex((m) => m.name === name)
+	if (i < 0) return false
+	_modules.splice(i, 1)
+	return true
+}
+
+/**
+ * Try to remove a module from runtime and clear require cache for its register entry.
+ * @param {string} name
+ * @param {(level:'warn'|'info',msg:string)=>void} [log]
+ * @returns {boolean}
+ */
+function tryUnload(name, log) {
+	const removed = unregister(name)
+	try {
+		const modulePath = require.resolve(`./${name}/register`)
+		if (require.cache[modulePath]) delete require.cache[modulePath]
+	} catch {}
+	if (log) log('info', removed ? `[modules] unloaded "${name}"` : `[modules] unload skipped "${name}" (not loaded)`)
+	return removed
+}
+
+/**
+ * @param {string} name
+ * @returns {any|null}
+ */
+function get(name) {
+	const mod = _modules.find((m) => m.name === name)
+	return mod || null
+}
+
+/**
+ * Call onBoot for one module if present.
+ * @param {string} name
+ * @param {any} ctx
+ * @returns {boolean}
+ */
+function bootOne(name, ctx) {
+	const m = get(name)
+	if (!m) return false
+	if (typeof m.onBoot !== 'function') return true
+	try {
+		m.onBoot(ctx)
+		return true
+	} catch (e) {
+		const msg = e && e.message ? e.message : String(e)
+		if (ctx && typeof ctx.log === 'function') ctx.log('warn', `[modules] onBoot("${m.name}") failed: ${msg}`)
+		return false
+	}
+}
+
+/**
+ * Call onShutdown for one module if present.
+ * @param {string} name
+ * @param {(level:'warn'|'info',msg:string)=>void} [log]
+ * @returns {Promise<boolean>}
+ */
+async function shutdownOne(name, log) {
+	const m = get(name)
+	if (!m) return false
+	if (typeof m.onShutdown !== 'function') return true
+	try {
+		await m.onShutdown()
+		return true
+	} catch (e) {
+		const msg = e && e.message ? e.message : String(e)
+		if (log) log('warn', `[modules] onShutdown("${m.name}") failed: ${msg}`)
+		return false
+	}
+}
+
+/**
  * Call `onBoot(ctx)` on every registered module, swallowing errors per-module so one bad
  * module can't stop the rest of the app.
  * @param {any} ctx
@@ -166,9 +243,14 @@ function describe() {
 
 module.exports = {
 	register,
+	unregister,
 	tryLoad,
+	tryUnload,
 	listNames,
 	isLoaded,
+	get,
+	bootOne,
+	shutdownOne,
 	bootAll,
 	shutdownAll,
 	handleApi,

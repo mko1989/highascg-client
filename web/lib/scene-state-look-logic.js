@@ -33,16 +33,6 @@ export function uniqueLookPresetName(presets, baseName) {
 export function importLookPresetsFromServer(list) {
 	if (!Array.isArray(list) || list.length === 0) return null
 	const sk = (v) => (v === 'prv' || v === 'pgm' || v === 'editing' ? v : 'editing')
-	const pickTandem = (t) => {
-		if (!t || typeof t !== 'object' || !t.pixelhue || typeof t.pixelhue !== 'object') return undefined
-		const x = t.pixelhue
-		const id = typeof x.presetId === 'string' ? x.presetId.trim() : ''
-		if (!id) return undefined
-		const ph = { presetId: id }
-		if (x.targetRegion === 2 || x.targetRegion === 4) ph.targetRegion = x.targetRegion
-		if (x.order === 'beforeCaspar' || x.order === 'afterCaspar') ph.order = x.order
-		return { pixelhue: ph }
-	}
 	const next = list
 		.filter((p) => p && typeof p.id === 'string' && typeof p.name === 'string' && typeof p.sceneId === 'string')
 		.map((p) => {
@@ -54,8 +44,15 @@ export function importLookPresetsFromServer(list) {
 				sourceKind: sk(p.sourceKind),
 				targetMain: typeof p.targetMain === 'number' && p.targetMain >= 0 ? p.targetMain : 0,
 			}
-			const tm = p.tandem && pickTandem(p.tandem)
-			if (tm) o.tandem = tm
+			if (Array.isArray(p.items) && p.items.length > 0) {
+				o.items = p.items
+					.filter((it) => it && typeof it.sceneId === 'string')
+					.map((it) => ({
+						mainIdx: typeof it.mainIdx === 'number' && it.mainIdx >= 0 ? Math.floor(it.mainIdx) : 0,
+						sceneId: String(it.sceneId),
+						sourceKind: sk(it.sourceKind),
+					}))
+			}
 			return o
 		})
 	return next.length > 0 ? next : null

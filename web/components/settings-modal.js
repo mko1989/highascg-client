@@ -67,6 +67,125 @@ export function showSettingsModal(initialTab) {
 		await postNuclear('/api/system/setup/reboot')
 	})
 
+	const pluginsListEl = modal.querySelector('#set-plugins-list')
+	const pluginsStatusEl = modal.querySelector('#set-plugin-status')
+	const pluginAddIdEl = modal.querySelector('#set-plugin-add-id')
+	const pluginAddModuleEl = modal.querySelector('#set-plugin-add-module')
+	const pluginAddSourceEl = modal.querySelector('#set-plugin-add-source')
+	const pluginAddBtn = modal.querySelector('#set-plugin-add-btn')
+	const pluginRestartBtn = modal.querySelector('#set-plugin-restart-app')
+	const pluginApplyTogglesBtn = modal.querySelector('#set-plugin-apply-toggles')
+	const pluginRefreshBtn = modal.querySelector('#set-plugin-refresh')
+
+	function setPluginStatus(msg) {
+		if (pluginsStatusEl) pluginsStatusEl.textContent = msg || ''
+	}
+
+	function pluginRowHtml(p) {
+		const esc = (v) =>
+			String(v ?? '')
+				.replaceAll('&', '&amp;')
+				.replaceAll('<', '&lt;')
+				.replaceAll('>', '&gt;')
+				.replaceAll('"', '&quot;')
+		const state = p.status || (p.enabled ? 'enabled' : 'disabled')
+		return `
+			<div class="settings-group" data-plugin-id="${esc(p.id)}" data-current-enabled="${p.enabled ? '1' : '0'}">
+				<label>
+					<input type="checkbox" data-plugin-enabled ${p.enabled ? 'checked' : ''}>
+					<strong>${esc(p.name || p.id)}</strong>
+				</label>
+				<div class="settings-note">status: ${esc(state)} · source: ${esc(p.source || 'local')}</div>
+			</div>
+		`
+	}
+
+	async function refreshPlugins() {
+		if (!pluginsListEl) return
+		try {
+			const res = await api.get('/api/plugins')
+			const rows = Array.isArray(res?.plugins) ? res.plugins : []
+			if (!rows.length) {
+				pluginsListEl.innerHTML = '<p class="settings-note">No plugins registered.</p>'
+				return
+			}
+			pluginsListEl.innerHTML = rows.map(pluginRowHtml).join('')
+		} catch (e) {
+			pluginsListEl.innerHTML = `<p class="settings-note">Failed to load plugins: ${e?.message || e}</p>`
+		}
+	}
+
+	pluginAddBtn?.addEventListener('click', async () => {
+		const id = String(pluginAddIdEl?.value || '').trim()
+		if (!id) {
+			setPluginStatus('Plugin ID is required.')
+			return
+		}
+		try {
+			setPluginStatus('Adding plugin...')
+			const res = await api.post('/api/plugins/add', {
+				id,
+				moduleName: String(pluginAddModuleEl?.value || id).trim() || id,
+				source: String(pluginAddSourceEl?.value || 'local').trim() || 'local',
+				enabled: true,
+			})
+			if (pluginAddIdEl) pluginAddIdEl.value = ''
+			if (pluginAddModuleEl) pluginAddModuleEl.value = ''
+			setPluginStatus(res?.note || 'Plugin added.')
+			await refreshPlugins()
+		} catch (e) {
+			setPluginStatus(`Add failed: ${e?.message || e}`)
+		}
+	})
+
+	pluginApplyTogglesBtn?.addEventListener('click', async () => {
+		if (!pluginsListEl) return
+		const rows = Array.from(pluginsListEl.querySelectorAll('[data-plugin-id]'))
+		const changed = rows
+			.map((row) => {
+				const id = row.getAttribute('data-plugin-id')
+				const current = row.getAttribute('data-current-enabled') === '1'
+				const next = !!row.querySelector('[data-plugin-enabled]')?.checked
+				if (!id || current === next) return null
+				return { id, action: next ? 'enable' : 'disable' }
+			})
+			.filter(Boolean)
+		if (!changed.length) {
+			setPluginStatus('No plugin toggle changes to apply.')
+			return
+		}
+		try {
+			setPluginStatus(`Applying ${changed.length} plugin toggle(s)...`)
+			const notes = []
+			for (const c of changed) {
+				const res = await api.post(`/api/plugins/${encodeURIComponent(c.id)}/${c.action}`, {})
+				if (res?.note) notes.push(res.note)
+			}
+			setPluginStatus(notes[notes.length - 1] || `Applied ${changed.length} plugin toggle(s).`)
+			await refreshPlugins()
+		} catch (err) {
+			setPluginStatus(`Apply failed: ${err?.message || err}`)
+		}
+	})
+
+	pluginRefreshBtn?.addEventListener('click', async () => {
+		setPluginStatus('Refreshing plugin list...')
+		await refreshPlugins()
+		setPluginStatus('')
+	})
+
+	pluginRestartBtn?.addEventListener('click', async () => {
+		if (!window.confirm('Restart HighAsCG app now? Active operations may be interrupted.')) return
+		try {
+			const actionPassword = (modal.querySelector('#set-nuclear-action-password') || {}).value || ''
+			setPluginStatus('Sending restart signal...')
+			const res = await api.post('/api/system/setup/restart-app', { password: actionPassword })
+			setPluginStatus(res?.note || 'Restart signal sent.')
+		} catch (err) {
+			setPluginStatus(`Restart failed: ${err?.message || err}`)
+		}
+	})
+
 	let autosaveSuspended = true
 	const saveStatusEl = modal.querySelector('#settings-save-status')
 	let autosaveTimer = null
@@ -94,6 +213,7 @@ export function showSettingsModal(initialTab) {
 		try {
 			const cfg = await api.get('/api/settings')
 			Logic.hydrateSettings(modal, cfg)
+			await refreshPlugins()
 			void mountVariablesPanel(varPane)
 			if (initialTab) activateSettingsTab(initialTab)
 			autosaveSuspended = false

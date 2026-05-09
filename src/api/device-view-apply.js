@@ -3,12 +3,10 @@
  */
 'use strict'
 
-const phClient = require('../pixelhue/client')
 const { applyCasparConfigToDiskAndRestart } = require('./routes-caspar-config')
-const { normalizeDeviceGraph, isCasparOutputConnector, isPhInputConnector } = require('../config/device-graph')
-const { normalizeTandemTopology } = require('../config/tandem-topology')
+const { normalizeDeviceGraph } = require('../config/device-graph')
+const { normalizeScreenDestinations } = require('../config/screen-destinations')
 const { getChannelMap } = require('../config/routing')
-const { inferMainIndexFromSourceConnector } = require('../config/tandem-from-device-cable')
 
 function readEdgeOutputLayer(edge) {
 	const raw = edge?.note
@@ -30,7 +28,7 @@ function applyDestinationOutputEdgesToCasparConfig(ctx, plan) {
 	const graph = normalizeDeviceGraph(ctx.config?.deviceGraph)
 	const map = getChannelMap(ctx.config || {})
 	const byConn = new Map((graph.connectors || []).map((c) => [String(c.id), c]))
-	const byDestId = new Map((normalizeTandemTopology(ctx.config?.tandemTopology).destinations || []).map((d) => [String(d?.id || ''), d]))
+	const byDestId = new Map((normalizeScreenDestinations(ctx.config?.screenDestinations).destinations || []).map((d) => [String(d?.id || ''), d]))
 	const edges = Array.isArray(graph.edges) ? graph.edges : []
 	const destinationEdges = edges
 		.map((e) => {
@@ -217,47 +215,83 @@ function applyDestinationOutputEdgesToCasparConfig(ctx, plan) {
 }
 
 function buildApplyDryRunPlan(ctx) {
-	const top = normalizeTandemTopology(ctx.config?.tandemTopology); const graph = normalizeDeviceGraph(ctx.config?.deviceGraph)
-	const map = getChannelMap(ctx.config || {}); const byConn = new Map((graph.connectors || []).map(c => [String(c.id), c]))
-	const edges = graph.edges || []; const signalPaths = top.signalPaths || []; const blockers = [], warnings = [], actions = [], byDestination = []
+	const top = normalizeScreenDestinations(ctx.config?.screenDestinations)
+	const map = getChannelMap(ctx.config || {})
+	const blockers = []
+	const warnings = []
+	const actions = []
+	const byDestination = []
 
-	for (const d of (top.destinations || [])) {
-		if (!d) continue; const did = String(d.id || ''), label = d.label || did, mainIdx = Math.max(0, parseInt(d.mainScreenIndex, 10) || 0)
+	for (const d of top.destinations || []) {
+		if (!d) continue
+		const did = String(d.id || '')
+		const label = d.label || did
+		const mainIdx = Math.max(0, parseInt(d.mainScreenIndex, 10) || 0)
 		const modeRaw = String(d.mode || 'pgm_prv')
-		const mode = modeRaw === 'pgm_only' ? 'pgm_only' : (modeRaw === 'multiview' ? 'multiview' : (modeRaw === 'stream' ? 'stream' : 'pgm_prv'))
+		const mode =
+			modeRaw === 'pgm_only' ? 'pgm_only' : modeRaw === 'multiview' ? 'multiview' : modeRaw === 'stream' ? 'stream' : 'pgm_prv'
 		if (mode === 'stream') {
-			const dActions = [{
-				kind: 'streaming_channel_config',
-				destinationId: did,
-				stream: {
-					type: String(d?.stream?.type || 'rtmp'),
-					source: String(d?.stream?.source || 'program_1'),
-					url: String(d?.stream?.url || ''),
-					key: String(d?.stream?.key || ''),
-					quality: String(d?.stream?.quality || 'medium'),
+			const dActions = [
+				{
+					kind: 'streaming_channel_config',
+					destinationId: did,
+					stream: {
+						type: String(d?.stream?.type || 'rtmp'),
+						source: String(d?.stream?.source || 'program_1'),
+						url: String(d?.stream?.url || ''),
+						key: String(d?.stream?.key || ''),
+						quality: String(d?.stream?.quality || 'medium'),
+					},
 				},
-			}]
+			]
 			actions.push(...dActions)
-			byDestination.push({ id: did, label, mainIndex: null, mode, bus: null, pgmCh: null, prvCh: null, signalPathId: null, phInterfaceId: null, cableEdgeId: null, blockers: [], warnings: [], actions: dActions })
+			byDestination.push({
+				id: did,
+				label,
+				mainIndex: null,
+				mode,
+				bus: null,
+				pgmCh: null,
+				prvCh: null,
+				cableEdgeId: null,
+				blockers: [],
+				warnings: [],
+				actions: dActions,
+			})
 			continue
 		}
 		const bus = d.caspar?.bus === 'prv' ? 'prv' : 'pgm'
-		const signalPath = (d.signalPathId && signalPaths.find(s => s.id === d.signalPathId)) || signalPaths.find(s => s.caspar?.mainIndex === mainIdx && (s.caspar?.bus || 'pgm') === bus)
-		const phId = signalPath && signalPath.phInterfaceId != null ? parseInt(signalPath.phInterfaceId, 10) : null
-		const matchingEdge = edges.find(e => {
-			const src = byConn.get(String(e.sourceId)); const sink = byConn.get(String(e.sinkId))
-			return isCasparOutputConnector(src) && isPhInputConnector(sink) && Number(sink.externalRef) === phId && (mode === 'multiview' || inferMainIndexFromSourceConnector(src) === mainIdx)
+		const dActions = [
+			{
+				kind: 'caspar_config_screen_mode',
+				destinationId: did,
+				mainIndex: mainIdx,
+				screen: mainIdx + 1,
+				videoMode: d.videoMode || '1080p5000',
+				width: d.width || 1920,
+				height: d.height || 1080,
+				fps: d.fps || 50,
+				channelIntent: {
+					pgmCh: mode === 'multiview' ? map.multiviewCh : map.programChannels[mainIdx],
+					prvCh: mode === 'pgm_only' || mode === 'multiview' ? null : map.previewChannels[mainIdx],
+					mode,
+				},
+			},
+		]
+		actions.push(...dActions)
+		byDestination.push({
+			id: did,
+			label,
+			mainIndex: mainIdx,
+			mode,
+			bus,
+			pgmCh: mode === 'multiview' ? map.multiviewCh : map.programChannels[mainIdx],
+			prvCh: mode === 'pgm_only' || mode === 'multiview' ? null : map.previewChannels[mainIdx],
+			cableEdgeId: null,
+			blockers: [],
+			warnings: [],
+			actions: dActions,
 		})
-		const dBlockers = [], dWarnings = []
-		if (!signalPath) dBlockers.push({ code: 'missing_signal_path', message: 'No signal path mapped.' })
-		else if (!Number.isFinite(phId)) dBlockers.push({ code: 'missing_ph_interface', message: 'No interface set.' })
-		if (Number.isFinite(phId) && !matchingEdge) dWarnings.push({ code: 'missing_cable_edge', message: 'No cable edge found.' })
-		if (!d.pixelhue?.layerId) dWarnings.push({ code: 'missing_pixelhue_layer', message: 'No layer assigned.' })
-		blockers.push(...dBlockers.map(x => ({ destinationId: did, label, ...x })))
-		warnings.push(...dWarnings.map(x => ({ destinationId: did, label, ...x })))
-		const dActions = [{ kind: 'caspar_config_screen_mode', destinationId: did, mainIndex: mainIdx, screen: mainIdx + 1, videoMode: d.videoMode || '1080p5000', width: d.width || 1920, height: d.height || 1080, fps: d.fps || 50, channelIntent: { pgmCh: mode === 'multiview' ? map.multiviewCh : map.programChannels[mainIdx], prvCh: mode === 'pgm_only' || mode === 'multiview' ? null : map.previewChannels[mainIdx], mode } }]
-		if (Number.isFinite(phId) && d.pixelhue?.layerId) dActions.push({ kind: 'pixelhue_bind_input', destinationId: did, layerId: Number(d.pixelhue.layerId), phInterfaceId: phId })
-		actions.push(...dActions); byDestination.push({ id: did, label, mainIndex: mainIdx, mode, bus, pgmCh: mode === 'multiview' ? map.multiviewCh : map.programChannels[mainIdx], prvCh: mode === 'pgm_only' || mode === 'multiview' ? null : map.previewChannels[mainIdx], signalPathId: signalPath?.id || null, phInterfaceId: phId, cableEdgeId: matchingEdge?.id || null, blockers: dBlockers, warnings: dWarnings, actions: dActions })
 	}
 	return { canApply: blockers.length === 0, blockers, warnings, actions, byDestination }
 }
@@ -287,21 +321,6 @@ async function executeApplyPlan(ctx, opts = {}) {
 			const res = await applyCasparConfigToDiskAndRestart(ctx); const body = JSON.parse(String(res.body || '{}'))
 			casparResult.ok = res.status < 300 && !body.error; casparResult.message = body.message || body.error || `Status ${res.status}`
 		} catch (e) { casparResult.ok = false; casparResult.message = e.message; errors.push({ kind: 'caspar_apply', error: e.message }) }
-	}
-	if (opts.applyPixelhue !== false) {
-		try {
-			const c = await phClient.resolveConnection(ctx, { force: false })
-			const ifRes = await phClient.unicoRequest(c, phClient.PATH.ifaceList, 'GET'); const ifById = new Map((ifRes.json?.data?.list || []).map(x => [Number(x?.interfaceId), x]))
-			for (const d of plan.byDestination) {
-				const layerAction = (d.actions || []).find(a => a.kind === 'pixelhue_bind_input')
-				if (d.blockers.length || !layerAction) { skipped.push({ kind: 'pixelhue_bind_input', destinationId: d.id, reason: d.blockers.length ? 'blocked' : 'not_configured' }); continue }
-				const iface = ifById.get(Number(layerAction.phInterfaceId)); if (!iface) { errors.push({ kind: 'pixelhue_bind_input', destinationId: d.id, error: 'interface not found' }); continue }
-				const payload = [{ layerId: Number(layerAction.layerId), source: { general: { sourceId: Number(iface.interfaceId), sourceType: iface.auxiliaryInfo?.connectorInfo?.interfaceType, connectorType: iface.auxiliaryInfo?.connectorInfo?.type } } }]
-				const put = await phClient.unicoRequest(c, phClient.PATH.layersSource, 'PUT', payload)
-				if (put.statusCode < 300) executed.push({ kind: 'pixelhue_bind_input', destinationId: d.id, layerId: layerAction.layerId, phInterfaceId: layerAction.phInterfaceId, statusCode: put.statusCode })
-				else errors.push({ kind: 'pixelhue_bind_input', destinationId: d.id, error: `HTTP ${put.statusCode}` })
-			}
-		} catch (e) { errors.push({ kind: 'pixelhue_connection', error: e.message }) }
 	}
 	return { ok: casparResult.ok && !errors.length, plan, caspar: casparResult, executed, skipped, errors }
 }

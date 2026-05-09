@@ -15,7 +15,9 @@ class AmcpCg {
 	}
 
 	cgAdd(channel, layer, templateHostLayer, template, playOnLoad, data) {
-		let cmd = `CG ${chLayer(channel, layer)} ADD ${parseInt(templateHostLayer, 10)} ${param(template)}`
+		const p = param(template)
+		const templateParam = p.startsWith('"') ? p : `"${p}"`
+		let cmd = `CG ${chLayer(channel, layer)} ADD ${parseInt(templateHostLayer, 10)} ${templateParam}`
 		cmd += ' ' + (playOnLoad ? 1 : 0)
 		if (data) cmd += ' ' + param(data)
 		return this._send(cmd, 'CG')

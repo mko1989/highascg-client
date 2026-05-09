@@ -133,7 +133,6 @@ export class SceneState {
 		const s = new Set(this.armedScreenIndices)
 		if (s.has(screenIdx)) {
 			s.delete(screenIdx)
-			if (s.size === 0) s.add(this.activeScreenIndex)
 		} else {
 			s.add(screenIdx)
 		}

@@ -71,10 +71,13 @@ function attachWebSocketServer(httpServer, ctx, options = {}) {
 
 	ctx._wsBroadcast = broadcast
  
-	// Hook into StateManager variables for real-time push
+	// Hook into StateManager for real-time push
 	if (ctx.state && typeof ctx.state.on === 'function') {
 		ctx.state.on('variables', (changed) => {
 			broadcast('variable_update', changed)
+		})
+		ctx.state.on('change', (path, value) => {
+			broadcast('change', { path, value })
 		})
 	}
 

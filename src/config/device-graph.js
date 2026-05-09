@@ -1,6 +1,6 @@
 'use strict'
 
-const { normalizeDeviceGraph, validateDeviceGraph, graphFromTandemTopology } = require('./device-graph-core')
+const { normalizeDeviceGraph, validateDeviceGraph } = require('./device-graph-core')
 const { suggestConnectorsAndDevicesFromLive, mergeHardwareSync } = require('./device-graph-suggest')
 const {
 	edgeConnectAllowed,
@@ -8,17 +8,14 @@ const {
 	addEdgeToGraph,
 	removeEdgeById,
 	isCasparOutputConnector,
-	isPhInputConnector,
-	isPhOutputConnector,
 	isDestinationInputConnector,
 	isDecklinkIoInputConnector,
 } = require('./device-graph-edges')
-const { DEFAULT_DEVICE_ID, PH_DEVICE_ID, DEST_DEVICE_ID } = require('./device-graph-constants')
+const { DEFAULT_DEVICE_ID, DEST_DEVICE_ID } = require('./device-graph-constants')
 
 module.exports = {
 	normalizeDeviceGraph,
 	validateDeviceGraph,
-	graphFromTandemTopology,
 	mergeHardwareSync,
 	suggestConnectorsAndDevicesFromLive,
 	edgeConnectAllowed,
@@ -26,11 +23,8 @@ module.exports = {
 	addEdgeToGraph,
 	removeEdgeById,
 	isCasparOutputConnector,
-	isPhInputConnector,
-	isPhOutputConnector,
 	isDestinationInputConnector,
 	isDecklinkIoInputConnector,
 	DEFAULT_DEVICE_ID,
-	PH_DEVICE_ID,
 	DEST_DEVICE_ID,
 }

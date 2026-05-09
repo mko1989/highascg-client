@@ -148,12 +148,21 @@ export function makeDraggable(el, sourceType, sourceValue, label, extra = {}) {
 }
 
 export function renderSourceList(container, items, sourceType, filter, onPreview) {
+	const filtered = filter ? items.filter((i) => (i.label || i.id || i).toLowerCase().includes(filter.toLowerCase())) : items
+	
+	const renderKey = JSON.stringify({
+		ids: filtered.map(i => i.id || i.label || i),
+		type: sourceType,
+		filter
+	})
+	if (container._lastRenderKey === renderKey) return
+	container._lastRenderKey = renderKey
+
 	container.innerHTML = ''
 	if (!items || items.length === 0) {
 		container.innerHTML = '<p class="sources-empty">No items</p>'
 		return
 	}
-	const filtered = filter ? items.filter((i) => (i.label || i.id || i).toLowerCase().includes(filter.toLowerCase())) : items
 	filtered.forEach((item) => {
 		const id = item.id ?? item
 		const label = item.label ?? String(id)
@@ -243,12 +252,20 @@ export function mergeMediaProbeOverlay(stateMedia, probeList) {
  * @param {string} filter
  */
 export function renderTemplatesBrowser(container, templates, filter) {
-	container.innerHTML = ''
 	const filtered = filter
 		? (templates || []).filter((i) =>
 				(i.label || i.id || '').toLowerCase().includes(filter.toLowerCase()),
 			)
 		: templates || []
+	
+	const renderKey = JSON.stringify({
+		ids: filtered.map(t => t.id || t.label),
+		filter
+	})
+	if (container._lastRenderKey === renderKey) return
+	container._lastRenderKey = renderKey
+
+	container.innerHTML = ''
 	if (filtered.length === 0) {
 		container.innerHTML = '<p class="sources-empty">No templates (run Refresh — Caspar TLS)</p>'
 		return
@@ -274,10 +291,21 @@ export function renderMediaBrowser(container, media, filter, onMediaDeleted, opt
 	const collapsed = options.collapsedFolders || new Set()
 	const onToggle = options.onToggleFolder
 	const onMove = options.onMoveItem
-	container.innerHTML = ''
+	
 	const filtered = filter
 		? media.filter((i) => (i.label || i.id || i).toLowerCase().includes(filter.toLowerCase()))
 		: media
+
+	const renderKey = JSON.stringify({
+		media: filtered.map(m => ({ id: m.id, res: m.resolution, dur: m.durationMs })),
+		filter,
+		collapsed: Array.from(collapsed),
+		selected: Array.from(options.selected || [])
+	})
+	if (container._lastRenderKey === renderKey) return
+	container._lastRenderKey = renderKey
+
+	container.innerHTML = ''
 	if (filtered.length === 0) {
 		container.innerHTML = '<p class="sources-empty">No media files</p>'
 		return
@@ -434,12 +462,19 @@ export function renderMediaBrowser(container, media, filter, onMediaDeleted, opt
  * @param {string} filter
  */
 export function renderEffectsTab(container, filter) {
-	container.innerHTML = ''
 	const lowerFilter = (filter || '').toLowerCase()
 	const filtered = lowerFilter
 		? MIXER_EFFECTS.filter((e) => e.label.toLowerCase().includes(lowerFilter) || e.category.toLowerCase().includes(lowerFilter))
 		: MIXER_EFFECTS
 
+	const renderKey = JSON.stringify({
+		ids: filtered.map(e => e.type),
+		filter
+	})
+	if (container._lastRenderKey === renderKey) return
+	container._lastRenderKey = renderKey
+
+	container.innerHTML = ''
 	if (filtered.length === 0) {
 		container.innerHTML = '<p class="sources-empty">No matching effects</p>'
 		return
@@ -502,18 +537,19 @@ export function buildLiveSources(channelMap, connectors = []) {
 		for (let i = 1; i <= decklinkCount; i++) {
 			// Find connector that matches this decklink slot (0-indexed index in caspar config usually matches index in device-view)
 			// But we look for ioDirection: 'in' and index: i-1
-			const conn = connectors.find(c => c.caspar?.ioDirection === 'in' && c.index === (i - 1))
+			const conn = connectors.find(c => (c.kind === 'decklink_io' || c.kind === 'decklink') && c.caspar?.ioDirection === 'in' && c.index === (i - 1))
+			if (!conn) continue
 			sources.push({
 				type: 'route',
 				routeType: 'decklink',
 				value: `route://${inputsCh}-${i}`,
-				label: `decklink ${i}`,
+				label: conn.label || `decklink ${i}`,
 				resolution,
 				fps,
 				decklinkSlot: i,
 				inputsChannel: inputsCh,
-				connectorId: conn?.id || null,
-				decklinkDevice: conn?.externalRef != null ? parseInt(String(conn.externalRef), 10) : (i - 1)
+				connectorId: conn.id,
+				decklinkDevice: conn.externalRef != null ? parseInt(String(conn.externalRef), 10) : (i - 1)
 			})
 		}
 	}
@@ -560,13 +596,20 @@ export function decklinkSlotStatusMessage(status, slot) {
  * @param {string} filter
  */
 export function renderPlaceholdersBrowser(container, placeholders, filter) {
-	container.innerHTML = ''
 	const filtered = filter
 		? (placeholders || []).filter((i) =>
 				(i.label || i.id || '').toLowerCase().includes(filter.toLowerCase()),
 			)
 		: placeholders || []
 	
+	const renderKey = JSON.stringify({
+		ids: filtered.map(p => p.id),
+		filter
+	})
+	if (container._lastRenderKey === renderKey) return
+	container._lastRenderKey = renderKey
+
+	container.innerHTML = ''
 	if (filtered.length === 0) {
 		container.innerHTML = '<p class="sources-empty">No placeholders. Click + to add one.</p>'
 		return

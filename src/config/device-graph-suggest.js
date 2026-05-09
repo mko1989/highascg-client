@@ -1,15 +1,7 @@
 'use strict'
 
-const { classifyPhInterfaceKind } = require('./pixelhue-iface')
 const { normalizeDeviceGraph } = require('./device-graph-core')
-const {
-	DEFAULT_DEVICE_ID,
-	PH_DEVICE_ID,
-	DEST_DEVICE_ID,
-	AUTO_CASPAR_KINDS,
-	AUTO_PH_KINDS,
-	slug,
-} = require('./device-graph-constants')
+const { DEFAULT_DEVICE_ID, DEST_DEVICE_ID, AUTO_CASPAR_KINDS, slug } = require('./device-graph-constants')
 
 function suggestConnectorsAndDevicesFromLive(live, appConfig) {
 	const devices = [{ id: DEFAULT_DEVICE_ID, role: 'caspar_host', label: 'Caspar / HighAsCG host' }]
@@ -242,20 +234,6 @@ function suggestConnectorsAndDevicesFromLive(live, appConfig) {
 		})
 	}
 
-	const ph = live?.pixelhue
-	if (ph && ph.available && Array.isArray(ph.interfaces)) {
-		devices.push({ id: PH_DEVICE_ID, role: 'pixelhue_switcher', label: 'PixelHue', ...(ph.sn ? { hostRef: String(ph.sn) } : {}) })
-		for (const iface of ph.interfaces) {
-			if (!iface || typeof iface !== 'object') continue
-			const rawId = iface.interfaceId != null ? iface.interfaceId : iface.id
-			if (rawId == null) continue
-			const iid = String(rawId)
-			const nmBase = (iface.general && iface.general.name) || iface.name || iface.interfaceName || `IF ${iid}`
-			const dir = classifyPhInterfaceKind(iface)
-			if (dir === 'out') connectors.push({ id: `ph_out_${iid}`, deviceId: PH_DEVICE_ID, kind: 'ph_out', label: String(nmBase).slice(0, 120), externalRef: iid })
-			else connectors.push({ id: `ph_if_${iid}`, deviceId: PH_DEVICE_ID, kind: 'ph_in', label: String(nmBase).slice(0, 120), externalRef: iid })
-		}
-	}
 	const destinationItems = Array.isArray(live?.caspar?.destinationIntent?.items) ? live.caspar.destinationIntent.items : []
 	if (destinationItems.length) {
 		devices.push({ id: DEST_DEVICE_ID, role: 'destinations', label: 'Screen destinations' })
@@ -286,11 +264,10 @@ function mergeHardwareSync(baseGraph, suggested) {
 	const newDev = new Map()
 	for (const d of g.devices) newDev.set(d.id, d)
 	for (const d of sug.devices) if (d && d.id) newDev.set(d.id, d)
-	if (!sug.devices.some((d) => d && d.id === PH_DEVICE_ID)) newDev.delete(PH_DEVICE_ID)
 	g.devices = [...newDev.values()]
 	const keepConnector = (c) => {
+		if (!c || typeof c !== 'object') return false
 		if (AUTO_CASPAR_KINDS.has(c.kind) && c.deviceId === DEFAULT_DEVICE_ID) return false
-		if (AUTO_PH_KINDS.has(c.kind) && c.deviceId === PH_DEVICE_ID) return false
 		return true
 	}
 	const byId = new Map()
@@ -349,7 +326,6 @@ function mergeHardwareSync(baseGraph, suggested) {
 	}
 	const cIds = new Set(g.connectors.map((c) => c.id))
 	g.edges = (g.edges || []).filter((e) => cIds.has(e.sourceId) && cIds.has(e.sinkId) && e.sourceId !== e.sinkId)
-	if (!g.devices.some((d) => d.id === PH_DEVICE_ID)) g.connectors = g.connectors.filter((c) => c.deviceId !== PH_DEVICE_ID)
 	return normalizeDeviceGraph(g)
 }
 

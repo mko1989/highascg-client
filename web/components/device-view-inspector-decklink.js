@@ -5,7 +5,7 @@ import * as Actions from './device-view-actions.js'
 import { setStatus } from './device-view-ui-utils.js'
 import { api } from '../lib/api-client.js'
 
-export function renderDeckLinkIoControls(h, conn, { currentSettings, lastPayload, skipPh, statusEl, load, setCasparRestartDirty }) {
+export function renderDeckLinkIoControls(h, conn, { currentSettings, lastPayload, statusEl, load, setCasparRestartDirty }) {
 	const ioDir = String(conn?.caspar?.ioDirection || 'in').toLowerCase() === 'out' ? 'out' : 'in'
 	const devNum = parseInt(String(conn?.externalRef || '0'), 10) || 0
 	const channelMap = lastPayload?.live?.caspar?.channelMap || currentSettings?.channelMap || {}
@@ -38,7 +38,7 @@ export function renderDeckLinkIoControls(h, conn, { currentSettings, lastPayload
 					await api.post('/api/device-view', { removeExtraLiveSource: { value: routeValue } })
 				} catch (e) { /* best effort */ }
 				// 3. Set connector back to output
-				await Actions.updateConnector(conn.id, { caspar: { ioDirection: 'out' } }, skipPh)
+				await Actions.updateConnector(conn.id, { caspar: { ioDirection: 'out' } })
 				setCasparRestartDirty(true)
 				setStatus(statusEl, `DeckLink ${devNum} removed as input`, true)
 				await load()
@@ -77,7 +77,7 @@ export function renderDeckLinkIoControls(h, conn, { currentSettings, lastPayload
 			inputBtn.disabled = true
 			try {
 				// 1. Set connector as input
-				await Actions.updateConnector(conn.id, { caspar: { ioDirection: 'in' } }, skipPh)
+				await Actions.updateConnector(conn.id, { caspar: { ioDirection: 'in' } })
 				// 2. Play DeckLink on inputs channel via AMCP
 				const layer = devNum > 0 ? devNum : 1
 				try {
@@ -117,7 +117,7 @@ export function renderDeckLinkIoControls(h, conn, { currentSettings, lastPayload
 			disabled: ioDir === 'out',
 			style: 'width:100%;margin-top:6px;opacity:0.7'
 		})
-		outBtn.onclick = () => Actions.updateConnector(conn.id, { caspar: { ioDirection: 'out' } }, skipPh).then(load)
+		outBtn.onclick = () => Actions.updateConnector(conn.id, { caspar: { ioDirection: 'out' } }).then(load)
 		ioWrap.appendChild(outBtn)
 	}
 

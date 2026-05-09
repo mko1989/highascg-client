@@ -6,30 +6,10 @@
 const fs = require('fs')
 const path = require('path')
 const moduleRegistry = require('../module-registry')
+const pluginManager = require('../plugins/plugin-manager')
 
 function loadOptionalModules(config, log) {
-	log('info', '[modules] PixelWeb module enabled — attempting to load.')
-	moduleRegistry.tryLoad('pixelweb', log)
-
-	const envFlag = process.env.HIGHASCG_PREVIS
-	const previsEnabled = envFlag === '1' || String(envFlag).toLowerCase() === 'true' || (config?.features?.previs3d === true)
-	if (previsEnabled) {
-		log('info', '[modules] Previs/tracking module enabled — attempting to load previs, tracking, autofollow.')
-		for (const name of ['previs', 'tracking', 'autofollow']) {
-			moduleRegistry.tryLoad(name, log)
-		}
-	} else {
-		log('info', '[modules] Previs/tracking module disabled (set HIGHASCG_PREVIS=1 or config.features.previs3d=true to enable).')
-	}
-
-	const cgStudioFlag = process.env.HIGHASCG_CG_STUDIO
-	const cgStudioEnabled = cgStudioFlag === '1' || String(cgStudioFlag).toLowerCase() === 'true' || (config?.features?.cgStudio === true)
-	if (cgStudioEnabled) {
-		log('info', '[modules] Template Editor (cg-studio) module enabled — attempting to load.')
-		moduleRegistry.tryLoad('cg-studio', log)
-	} else {
-		log('info', '[modules] Template Editor module disabled (set HIGHASCG_CG_STUDIO=1 or config.features.cgStudio=true to enable).')
-	}
+	pluginManager.loadEnabledPlugins(config, log)
 }
 
 function buildVendorDirs(logger) {

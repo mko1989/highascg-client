@@ -16,12 +16,14 @@ export function initPreviewPanel(host, options) {
 
 	let layout = (localStorage.getItem(kL) === 'tb' || localStorage.getItem(kL) === 'lr') ? localStorage.getItem(kL) : 'lr'
 	let prvPct = parseFloat(localStorage.getItem(kS) || '0.5'); if (isNaN(prvPct) || prvPct < 0.15 || prvPct > 0.85) prvPct = 0.5
-	let collapsed = localStorage.getItem(kC) === '1'; let bodyH = parseInt(localStorage.getItem(kH) || '200', 10) || 200
+	let collapsed = localStorage.getItem(kC) === '1'
+	if (localStorage.getItem(kC) === null && options.defaultCollapsed != null) collapsed = !!options.defaultCollapsed
+	let bodyH = parseInt(localStorage.getItem(kH) || '200', 10) || 200
 
 	const root = document.createElement('div'); root.className = 'preview-panel' + (collapsed ? ' preview-panel--collapsed' : '') + (fillParentHeight ? ' preview-panel--fill' : '') + (composePrvPgmLayoutToggle ? ' preview-panel--compose-dual' : '')
 	const cCls = layout === 'tb' ? 'preview-panel__compose-pair--tb' : 'preview-panel__compose-pair--lr'
 	const bodyCls = 'preview-panel__body' + (fillParentHeight ? ' preview-panel__body--fill' : '')
-	root.innerHTML = `<div class="preview-panel__header"><button class="preview-panel__toggle" aria-expanded="${!collapsed}"></button><span class="preview-panel__title">${title}</span><button class="preview-panel__compose-layout" hidden></button><span class="preview-panel__res"></span><button class="preview-panel__grab">Grab</button></div><div class="${bodyCls}"${fillParentHeight ? '' : ` style="height:${bodyH}px"`}><div class="preview-panel__resize"></div><div class="preview-panel__canvas-outer">${composePrvPgmLayoutToggle ? `<div class="preview-panel__canvas-wrap"><div class="preview-panel__compose-pair ${cCls}"><div class="preview-panel__compose-cell preview-panel__compose-cell--prv"><div class="preview-panel__video-container" data-preview-webrtc="prv"></div><canvas class="preview-panel__canvas" data-compose-canvas="prv"></canvas></div><div class="preview-panel__compose-gutter"></div><div class="preview-panel__compose-cell preview-panel__compose-cell--pgm"><div class="preview-panel__video-container" data-preview-webrtc="pgm"></div><canvas class="preview-panel__canvas" data-compose-canvas="pgm"></canvas></div></div></div>` : `<div class="preview-panel__canvas-wrap"><div class="preview-panel__video-container"></div><canvas class="preview-panel__canvas"></canvas></div>`}<div class="preview-panel__visual-layout-overlay" style="display:none;position:absolute;inset:8px;pointer-events:none;"></div></div></div>`
+	root.innerHTML = `<div class="preview-panel__header"><button class="preview-panel__toggle" aria-expanded="${!collapsed}"></button><span class="preview-panel__title">${title}</span><button class="preview-panel__compose-layout" hidden></button><span class="preview-panel__res"></span><button class="preview-panel__grab">PRT PGM</button></div><div class="${bodyCls}"${fillParentHeight ? '' : ` style="height:${bodyH}px"`}><div class="preview-panel__resize"></div><div class="preview-panel__canvas-outer">${composePrvPgmLayoutToggle ? `<div class="preview-panel__canvas-wrap"><div class="preview-panel__compose-pair ${cCls}"><div class="preview-panel__compose-cell preview-panel__compose-cell--prv"><div class="preview-panel__video-container" data-preview-webrtc="prv"></div><canvas class="preview-panel__canvas" data-compose-canvas="prv"></canvas></div><div class="preview-panel__compose-gutter"></div><div class="preview-panel__compose-cell preview-panel__compose-cell--pgm"><div class="preview-panel__video-container" data-preview-webrtc="pgm"></div><canvas class="preview-panel__canvas" data-compose-canvas="pgm"></canvas></div></div></div>` : `<div class="preview-panel__canvas-wrap"><div class="preview-panel__video-container"></div><canvas class="preview-panel__canvas"></canvas></div>`}<div class="preview-panel__visual-layout-overlay" style="display:none;position:absolute;inset:8px;pointer-events:none;"></div></div></div>`
 	host.appendChild(root)
 
 	const btn = root.querySelector('.preview-panel__toggle'); const cLayoutBtn = root.querySelector('.preview-panel__compose-layout'); const resEl = root.querySelector('.preview-panel__res'); const grabBtn = root.querySelector('.preview-panel__grab'); const body = root.querySelector('.preview-panel__body'); const resizeH = root.querySelector('.preview-panel__resize'); const wrap = root.querySelector('.preview-panel__canvas-wrap'); const cPairEl = root.querySelector('.preview-panel__compose-pair'); const cGutter = root.querySelector('.preview-panel__compose-gutter'); const layoutOverlay = root.querySelector('.preview-panel__visual-layout-overlay')
@@ -128,7 +130,7 @@ export function initPreviewPanel(host, options) {
 	const renderDestinationLayoutOverlay = () => {
 		if (!showDestinationVisualOverlay || !layoutOverlay) return
 		const cfg = settingsState.getSettings() || {}
-		const dests = Array.isArray(cfg?.tandemTopology?.destinations) ? cfg.tandemTopology.destinations : []
+		const dests = Array.isArray(cfg?.screenDestinations?.destinations) ? cfg.screenDestinations.destinations : []
 		const graphLayout = cfg?.deviceGraph?.layout && typeof cfg.deviceGraph.layout === 'object' ? cfg.deviceGraph.layout : {}
 		const cm = stateStore?.getState?.()?.channelMap || {}
 		const boxes = []
@@ -412,5 +414,10 @@ export function initPreviewPanel(host, options) {
 		rebuildComposeCellsIfNeeded()
 		scheduleDraw()
 	})
-	body.hidden = collapsed; updateLive(); return { scheduleDraw, destroy: () => { if (rafDraw) cancelAnimationFrame(rafDraw); if (offTimer) clearTimeout(offTimer); window.removeEventListener('resize', scheduleDraw); unsubS(); unsubSe(); unsubCm?.(); if (pollTimer) clearInterval(pollTimer); if (liveView) liveView.destroy(); root.remove() } }
+	body.hidden = collapsed; 
+	updateLive(); 
+	// Force an initial draw and cell rebuild to ensure canvases are populated even before first state update.
+	rebuildComposeCellsIfNeeded();
+	scheduleDraw();
+	return { scheduleDraw, destroy: () => { if (rafDraw) cancelAnimationFrame(rafDraw); if (offTimer) clearTimeout(offTimer); window.removeEventListener('resize', scheduleDraw); unsubS(); unsubSe(); unsubCm?.(); if (pollTimer) clearInterval(pollTimer); if (liveView) liveView.destroy(); root.remove() } }
 }

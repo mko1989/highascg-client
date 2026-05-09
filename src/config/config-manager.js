@@ -4,6 +4,7 @@ const fs = require('fs')
 const path = require('path')
 const EventEmitter = require('events')
 const defaults = require('./defaults')
+const { finalizeScreenDestinationsConfig } = require('./screen-destinations')
 
 /**
  * Top-level keys that should be saved to separate files when in modular mode.
@@ -22,10 +23,10 @@ const MODULAR_KEYS = [
 	'audioOutputs',
 	'streamOutputs',
 	'casparServer',
-	'tandemTopology',
+	'screenDestinations',
 	'deviceGraph',
 	'companion',
-	'pixelhue',
+	'plugins',
 ]
 
 class ConfigManager extends EventEmitter {
@@ -54,12 +55,12 @@ class ConfigManager extends EventEmitter {
 			if (fs.existsSync(this.configPath)) {
 				const stats = fs.statSync(this.configPath)
 				if (stats.isDirectory()) {
-					this.config = this._loadModular(this.configPath)
+					this.config = finalizeScreenDestinationsConfig(this._loadModular(this.configPath))
 					this.logger.info(`[Config] Loaded modular config from directory: ${this.configPath}`)
 				} else {
 					const raw = fs.readFileSync(this.configPath, 'utf8')
 					const parsed = JSON.parse(raw)
-					this.config = this._merge(defaults, parsed)
+					this.config = finalizeScreenDestinationsConfig(this._merge(defaults, parsed))
 					this.logger.info(`[Config] Loaded monolithic config from ${this.configPath}`)
 				}
 			} else {
@@ -79,7 +80,7 @@ class ConfigManager extends EventEmitter {
 						listenAddress: process.env.OSC_BIND_ADDRESS || defaults.osc.listenAddress,
 					},
 				}
-				this.config = this._merge(defaults, bootstrap)
+				this.config = finalizeScreenDestinationsConfig(this._merge(defaults, bootstrap))
 				this.save(this.config)
 			}
 			this.isLoaded = true
@@ -87,7 +88,7 @@ class ConfigManager extends EventEmitter {
 			return this.config
 		} catch (e) {
 			this.logger.error(`[Config] Failed to load ${this.configPath}: ${e.message}`)
-			this.config = { ...defaults }
+			this.config = finalizeScreenDestinationsConfig({ ...defaults })
 			return this.config
 		}
 	}
@@ -160,6 +161,15 @@ class ConfigManager extends EventEmitter {
 				} catch (e) {
 					this.logger.error(`[Config] Failed to load ${filename}: ${e.message}`)
 				}
+			}
+		}
+
+		if (files.includes('tandem_topology.json')) {
+			try {
+				const raw = fs.readFileSync(path.join(dir, 'tandem_topology.json'), 'utf8')
+				result.tandemTopology = JSON.parse(raw)
+			} catch (e) {
+				this.logger.error(`[Config] Failed to load tandem_topology.json: ${e.message}`)
 			}
 		}
 

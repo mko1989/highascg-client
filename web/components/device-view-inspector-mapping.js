@@ -64,7 +64,7 @@ export function renderMappingNodeInspector(host, deviceId, live, { lastPayload, 
 			} else {
 				const srcConn = (graph?.connectors || []).find(c => c.id === edge.sourceId)
 				if (srcConn && srcConn.deviceId === 'caspar' && srcConn.kind === 'gpu_out') {
-					const dests = Array.isArray(lastPayload?.tandemTopology?.destinations) ? lastPayload.tandemTopology.destinations : []
+					const dests = Array.isArray(lastPayload?.screenDestinations?.destinations) ? lastPayload.screenDestinations.destinations : []
 					const d = dests.find(x => String(x.id) === String(srcConn.externalRef))
 					if (d) resText = `${d.width || 1920}×${d.height || 1080}`
 				}

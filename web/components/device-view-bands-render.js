@@ -24,8 +24,7 @@ function addPortNodeDot(portEl, connectorId, onPortStartCable, key, data, dotSid
 		if (onPortStartCable) onPortStartCable(key, connectorId, data)
 	})
 	portEl.appendChild(dot)
-	if (dotSide === 'left') portEl.classList.add('device-view__port--ph-sink')
-	if (dotSide === 'right' && data?.phOut) portEl.classList.add('device-view__port--ph-source')
+	if (dotSide === 'left') portEl.classList.add('device-view__port--connector-dot-left')
 }
 
 export function renderGpuBand(ctx) {

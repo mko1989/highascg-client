@@ -304,6 +304,7 @@ export function renderCasparBand(ctx) {
 					labelHtml: it.labelHtml,
 					icon: it.icon,
 					isVirtual: it.isVirtual,
+					connected: it.connected,
 				})
 			})
 
@@ -336,6 +337,9 @@ export function renderCasparBand(ctx) {
 
 	const resolveStatusClass = (it) => {
 		if (!it.connectorId) return stateClass('off')
+		if (it.kind === 'gpu_out') {
+			return stateClass(it.connected ? 'ok' : 'off')
+		}
 		const conn = connectorById(lastPayload, it.connectorId)
 		if (!conn) return ''
 		if (it.kind === 'decklink_in' || it.kind === 'decklink_io') {

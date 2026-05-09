@@ -1,8 +1,0 @@
-{
-  "enabled": true,
-  "host": "192.168.0.34",
-  "unicoPort": 19998,
-  "secure": true,
-  "apiPort": null,
-  "targetSerial": ""
-}

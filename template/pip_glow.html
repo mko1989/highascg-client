@@ -59,6 +59,7 @@
 		minOpacity: 0.4,
 		radius: 0,
 		side: 'outside',
+		segmentation: 0,
 		inner: null,
 	}
 
@@ -97,6 +98,18 @@
 		frame.className = 'side-' + (state.side || 'outside')
 		if (state.pulse) frame.classList.add('pulse')
 		else frame.classList.remove('pulse')
+
+		if (state.segmentation > 0) {
+			var s = state.segmentation * 4
+			var gap = 5
+			var step = 360 / s
+			var mask = 'repeating-conic-gradient(from -' + (gap/2) + 'deg, transparent 0deg, transparent ' + gap + 'deg, black ' + gap + 'deg, black ' + step + 'deg)'
+			frame.style.maskImage = mask
+			frame.style.webkitMaskImage = mask
+		} else {
+			frame.style.maskImage = ''
+			frame.style.webkitMaskImage = ''
+		}
 	}
 
 	window['play'] = function () {}
@@ -115,6 +128,7 @@
 			if (d.radius != null) state.radius = parseFloat(d.radius) || 0
 			if (d.side != null) state.side = String(d.side)
 			if (d.width != null) state.width = parseFloat(d.width) || 0
+			if (d.segmentation != null) state.segmentation = parseFloat(d.segmentation) || 0
 			state.inner = readInner(d)
 			apply()
 		} catch (e) { console.warn('pip_glow update:', e) }

@@ -34,7 +34,7 @@ export class MappingState {
 	}
 
 	async setActiveNode(nodeId, payload) {
-		const { graph, tandemTopology } = payload
+		const { graph, screenDestinations } = payload
 		this.activeNodeId = nodeId
 		this.activeNode = (graph?.devices || []).find(d => d.id === nodeId) || null
 		
@@ -86,7 +86,7 @@ export class MappingState {
 					} else {
 						const srcConn = (graph?.connectors || []).find(c => c.id === srcId)
 						if (srcConn && srcConn.deviceId === 'caspar' && srcConn.kind === 'gpu_out') {
-							const dests = Array.isArray(tandemTopology?.destinations) ? tandemTopology.destinations : []
+							const dests = Array.isArray(screenDestinations?.destinations) ? screenDestinations.destinations : []
 							const d = dests.find(x => String(x.id) === String(srcConn.externalRef))
 							if (d) {
 								this.canvasWidth = Math.max(64, parseInt(d.width, 10) || 1920)

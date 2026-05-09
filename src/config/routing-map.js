@@ -3,6 +3,8 @@
  */
 'use strict'
 
+const { routingDestinationsFromConfig } = require('./screen-destinations')
+
 function readCasparSetting(cfg, key) {
 	if (!cfg || typeof cfg !== 'object') return undefined
 	const cs = cfg.casparServer && typeof cfg.casparServer === 'object' ? cfg.casparServer : null
@@ -11,47 +13,84 @@ function readCasparSetting(cfg, key) {
 	return undefined
 }
 
+function inferGraphMainUsage(config) {
+	const out = {
+		maxMainCount: 0,
+		pgmOnlyMainIndices: new Set(),
+	}
+	const graph = config?.deviceGraph
+	if (!graph || !Array.isArray(graph.edges) || !Array.isArray(graph.connectors)) return out
+	const byConnId = new Map(graph.connectors.map((c) => [String(c?.id || ''), c]))
+	for (const e of graph.edges) {
+		const srcId = String(e?.sourceId || '')
+		if (!srcId) continue
+		const m = srcId.match(/^dst_ch(\d+)$/i)
+		if (m) {
+			const n = parseInt(m[1], 10)
+			if (Number.isFinite(n) && n >= 1) {
+				out.maxMainCount = Math.max(out.maxMainCount, n)
+				out.pgmOnlyMainIndices.add(n - 1)
+			}
+			continue
+		}
+		const srcConn = byConnId.get(srcId)
+		if (!srcConn || srcConn.kind !== 'destination_in') continue
+		const ref = String(srcConn.externalRef || '').trim()
+		if (!ref) continue
+		const topDests = routingDestinationsFromConfig(config) ?? []
+		const match = topDests.find((d) => String(d?.id || '') === ref)
+		if (!match) continue
+		const idx = Math.max(0, parseInt(String(match.mainScreenIndex ?? 0), 10) || 0)
+		out.maxMainCount = Math.max(out.maxMainCount, idx + 1)
+	}
+	return out
+}
+
 function resolveMainScreenCount(config) {
 	const cs = config?.casparServer && typeof config.casparServer === 'object' ? config.casparServer : null
 	const a = parseInt(String(config?.screen_count ?? ''), 10); const b = parseInt(String(cs?.screen_count ?? ''), 10)
 	const nA = Number.isFinite(a) && a >= 1 ? a : 1
 	const nB = Number.isFinite(b) && b >= 1 ? b : 1
-	const top = config?.tandemTopology && typeof config.tandemTopology === 'object' ? config.tandemTopology : null
-	const destArray = top != null && Array.isArray(top.destinations) ? top.destinations : null
-	const routableDests = Array.isArray(destArray)
-		? destArray.filter((d) => {
-			const mode = String(d?.mode || 'pgm_prv')
-			return mode !== 'multiview' && mode !== 'stream'
-		})
-		: []
+	const graphMainUsage = inferGraphMainUsage(config)
+	const routedDests = routingDestinationsFromConfig(config)
+	if (routedDests === null) {
+		return Math.max(1, Math.max(nA, nB, graphMainUsage.maxMainCount))
+	}
+	if (routedDests.length === 0) {
+		return Math.max(1, graphMainUsage.maxMainCount)
+	}
+	const routableDests = routedDests.filter((d) => {
+		const mode = String(d?.mode || 'pgm_prv')
+		return mode !== 'multiview' && mode !== 'stream'
+	})
 	// When destinations exist, drive screen count from topology only — stale casparServer.screen_count must not spawn extra PGM/PRV pairs.
 	if (routableDests.length > 0) {
 		const fromDest = Math.max(
 			...routableDests.map((d) => Math.max(0, parseInt(String(d?.mainScreenIndex ?? 0), 10) || 0) + 1)
 		)
-		return Math.max(1, fromDest)
+		return Math.max(1, fromDest, graphMainUsage.maxMainCount)
 	}
-	// Topology object with an explicit destinations array but no PGM/PRV mains (cleared UI, or only multiview/stream): one main bus — do not inherit stale screen_count from disk.
-	if (top != null && Array.isArray(top.destinations) && routableDests.length === 0) {
-		return 1
-	}
-	// Pixel-mapping outputs attach to an existing program channel (wide canvas + DeckLink subregions/ports).
-	// They must not inflate screen pairs or consume extra Caspar channel slots.
-	return Math.max(1, Math.max(nA, nB))
+	// Destinations exist but none are PGM/PRV mains (only multiview/stream): one main bus — do not inherit stale screen_count from disk.
+	return Math.max(1, graphMainUsage.maxMainCount)
 }
 
 function resolvePreviewEnabledByMain(config, screenCount) {
-	const top = config?.tandemTopology && typeof config.tandemTopology === 'object' ? config.tandemTopology : null
-	const dests = Array.isArray(top?.destinations) ? top.destinations : []
+	const dests = routingDestinationsFromConfig(config) ?? []
+	const graphMainUsage = inferGraphMainUsage(config)
 	const withMode = dests.filter(d => {
 		const mode = String(d?.mode || 'pgm_prv')
 		return mode !== 'multiview' && mode !== 'stream'
 	})
-	if (!withMode.length) return Array.from({ length: screenCount }, () => true)
+	if (!withMode.length) {
+		return Array.from({ length: screenCount }, (_, idx) => !graphMainUsage.pgmOnlyMainIndices.has(idx))
+	}
 	const out = Array.from({ length: screenCount }, () => true)
 	for (let idx = 0; idx < screenCount; idx++) {
 		const perMain = withMode.filter(d => (parseInt(String(d.mainScreenIndex ?? 0), 10) || 0) === idx)
-		if (!perMain.length) continue
+		if (!perMain.length) {
+			if (graphMainUsage.pgmOnlyMainIndices.has(idx)) out[idx] = false
+			continue
+		}
 		const picked = perMain.find(d => String(d.mode || 'pgm_prv') === 'pgm_prv') || perMain[0]
 		out[idx] = String(picked.mode || 'pgm_prv') !== 'pgm_only'
 	}
@@ -87,8 +126,7 @@ function resolveStreamOutputCasparChannel(config, map, sc) {
 	if (scObj.dedicatedOutputChannel === true || scObj.dedicatedOutputChannel === 'true') {
 		return { kind: 'dedicated' }
 	}
-	const top = config?.tandemTopology && typeof config.tandemTopology === 'object' ? config.tandemTopology : null
-	const dests = Array.isArray(top?.destinations) ? top.destinations : []
+	const dests = routingDestinationsFromConfig(config) ?? []
 	const streamDests = dests.filter((d) => d && String(d.mode || '') === 'stream')
 	if (streamDests.length === 1) {
 		const mainIdx = Math.max(0, parseInt(String(streamDests[0].mainScreenIndex ?? 0), 10) || 0)
@@ -186,9 +224,7 @@ function getChannelMap(config, activeBuses = null) {
 
 	let nextCh = Math.max(0, ...programChannels, ...previewChannels.filter(c => c != null), ...switcherBusChannels.filter(c => c != null)) + 1
 	
-	const mvDests = Array.isArray(config?.tandemTopology?.destinations) 
-		? config.tandemTopology.destinations.filter(d => d && String(d.mode || '').toLowerCase() === 'multiview')
-		: []
+	const mvDests = (routingDestinationsFromConfig(config) ?? []).filter((d) => d && String(d.mode || '').toLowerCase() === 'multiview')
 	
 	const multiviewChannels = []
 	if (mvDests.length > 0) {

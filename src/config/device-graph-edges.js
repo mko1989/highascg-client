@@ -1,14 +1,12 @@
 'use strict'
 
 const { normalizeDeviceGraph, validateDeviceGraph } = require('./device-graph-core')
-const { DEFAULT_DEVICE_ID, PH_DEVICE_ID, DEST_DEVICE_ID, slug } = require('./device-graph-constants')
+const { DEFAULT_DEVICE_ID, DEST_DEVICE_ID, slug } = require('./device-graph-constants')
 
 function isCasparOutputConnector(c) {
 	const ioOut = c && c.deviceId === DEFAULT_DEVICE_ID && c.kind === 'decklink_io' && String(c.caspar?.ioDirection || '').toLowerCase() === 'out'
 	return !!(c && c.deviceId === DEFAULT_DEVICE_ID && (c.kind === 'gpu_out' || c.kind === 'decklink_out' || c.kind === 'caspar_mv_out' || c.kind === 'stream_out' || c.kind === 'record_out' || c.kind === 'audio_out' || ioOut))
 }
-function isPhInputConnector(c) { return !!(c && c.deviceId === PH_DEVICE_ID && c.kind === 'ph_in') }
-function isPhOutputConnector(c) { return !!(c && c.deviceId === PH_DEVICE_ID && c.kind === 'ph_out') }
 function isDestinationInputConnector(c) { return !!(c && c.deviceId === DEST_DEVICE_ID && c.kind === 'destination_in') }
 function isDecklinkIoInputConnector(c) { return !!(c && c.deviceId === DEFAULT_DEVICE_ID && c.kind === 'decklink_io' && String(c.caspar?.ioDirection || 'in').toLowerCase() !== 'out') }
 function isPixelMapInputConnector(c) { return !!(c && c.kind === 'pixel_map_in') }
@@ -104,8 +102,6 @@ function removeEdgeById(baseGraph, edgeId) {
 
 module.exports = {
 	isCasparOutputConnector,
-	isPhInputConnector,
-	isPhOutputConnector,
 	isDestinationInputConnector,
 	isDecklinkIoInputConnector,
 	edgeConnectAllowed,

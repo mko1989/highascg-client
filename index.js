@@ -24,7 +24,6 @@ const { createOscLifecycle } = require('./src/bootstrap/osc-lifecycle'); const {
 const { notifyWebSocketClientConnected } = require('./src/bootstrap/startup-led-test-pattern'); const { writeSystemInventoryFile } = require('./src/bootstrap/system-inventory-file')
 const { parseInfoConfigForDecklinks } = require('./src/utils/decklink-enum')
 const { runConnectionQueryCycle } = require('./src/utils/query-cycle')
-const { proxyUnicoUpgrade } = require('./src/api/routes-pixelweb')
 const moduleRegistry = require('./src/module-registry')
 
 const Args = require('./src/bootstrap/args'); const Config = require('./src/bootstrap/config'); const Modules = require('./src/bootstrap/modules'); const Shutdown = require('./src/bootstrap/shutdown')
@@ -117,14 +116,6 @@ function main() {
 			templatesDir: path.join(__dirname, 'template'),
 			vendorDirs: Modules.buildVendorDirs(logger),
 			routeApi: (m, p, b, r) => routeRequest(m, p, b, appCtx, r),
-			routeUpgrade: (req, socket, head) => {
-				const p = String((req.url || '').split('?')[0] || '')
-				const m = p.match(/^\/instance\/[^/]+\/(.+)$/)
-				const normalized = m ? `/${m[1]}` : p
-				if (!normalized.startsWith('/unico/')) return false
-				proxyUnicoUpgrade({ req: { ...req, url: normalized }, socket, head, ctx: appCtx })
-				return true
-			},
 			log: m => logger.info(m),
 		})
 		const wsBroadcastMs = cli.wsBroadcastMs || parseInt(process.env.HIGHASCG_WS_BROADCAST_MS || '0', 10) || 0
@@ -176,14 +167,6 @@ function main() {
 				templatesDir: path.join(__dirname, 'templates'), 
 				vendorDirs: [], 
 				routeApi: (m, p, b, r) => routeRequest(m, p, b, safeCtx, r),
-				routeUpgrade: (req, socket, head) => {
-					const p = String((req.url || '').split('?')[0] || '')
-					const m = p.match(/^\/instance\/[^/]+\/(.+)$/)
-					const normalized = m ? `/${m[1]}` : p
-					if (!normalized.startsWith('/unico/')) return false
-					proxyUnicoUpgrade({ req: { ...req, url: normalized }, socket, head, ctx: safeCtx })
-					return true
-				},
 				log: m => logger.info(`[SafeMode HTTP] ${m}`) 
 			})
 			logger.info(`[SafeMode] UI active on port ${config.server.httpPort}. Use the web interface to fix configuration.`)

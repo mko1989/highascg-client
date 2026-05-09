@@ -32,7 +32,7 @@ export function connectorById(payload, id) {
 	if (!sid.startsWith('dst_in_')) return null
 	const externalRef = sid.slice('dst_in_'.length).trim()
 	if (!externalRef) return null
-	const destinations = Array.isArray(payload?.tandemTopology?.destinations) ? payload.tandemTopology.destinations : []
+	const destinations = Array.isArray(payload?.screenDestinations?.destinations) ? payload.screenDestinations.destinations : []
 	const d = destinations.find((x) => String(x?.id || '').trim() === externalRef) || null
 	// Fallback synthetic destination connector keeps cable UX stable if connector lists are stale.
 	return {

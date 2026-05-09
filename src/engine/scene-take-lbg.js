@@ -311,7 +311,7 @@ async function runSceneTakeLbg(amcp, opts) {
 			targetOpacity,
 			incomingStartsHidden,
 			loadOpts,
-			loadPlan: loadPlans.find((p) => p.commandName === 'LOADBG') || null,
+			loadPlan: (layer.source && layer.source.type === 'template') ? null : (loadPlans.find((p) => p.commandName === 'LOADBG') || null),
 			playPlan: playPlans.find((p) => p.commandName === 'PLAY') || null,
 			pipOverlays: pipOverlaysFromLayer(layer),
 		})

@@ -4,8 +4,8 @@
 'use strict'
 
 const { JSON_HEADERS, jsonBody, parseBody } = require('./response')
-const { normalizeDeviceGraph, validateDeviceGraph, graphFromTandemTopology, mergeHardwareSync, suggestConnectorsAndDevicesFromLive } = require('../config/device-graph')
-const { normalizeTandemTopology } = require('../config/tandem-topology')
+const { normalizeDeviceGraph, validateDeviceGraph, mergeHardwareSync, suggestConnectorsAndDevicesFromLive } = require('../config/device-graph')
+const { normalizeScreenDestinations } = require('../config/screen-destinations')
 
 const Snapshot = require('./device-view-snapshot')
 const Apply = require('./device-view-apply')
@@ -52,7 +52,7 @@ function augmentGraphWithSources(graph, live) {
 async function handleGet(path, ctx, query) {
 	ctx.augmentGraphWithSources = augmentGraphWithSources
 	if (path !== '/api/device-view' && path !== '/api/device-view/gpu-map-debug') return null
-	const live = await Snapshot.buildLiveSnapshot(ctx, query.pixelhue !== '0')
+	const live = await Snapshot.buildLiveSnapshot(ctx)
 	if (path === '/api/device-view/gpu-map-debug') {
 		return {
 			status: 200, headers: JSON_HEADERS,
@@ -76,8 +76,7 @@ async function handleGet(path, ctx, query) {
 			graph,
 			live,
 			suggested: suggestConnectorsAndDevicesFromLive(live, ctx.config || {}),
-			tandemTopology: normalizeTandemTopology(ctx.config?.tandemTopology),
-			bootstrap: graphFromTandemTopology(normalizeTandemTopology(ctx.config?.tandemTopology)),
+			screenDestinations: normalizeScreenDestinations(ctx.config?.screenDestinations),
 			audioOutputs: Array.isArray(ctx.config?.audioOutputs) ? ctx.config.audioOutputs : [],
 			mappingTemplates: Array.isArray(ctx.config?.mappingTemplates) ? ctx.config.mappingTemplates : [],
 		})
@@ -96,10 +95,10 @@ async function handlePost(body, ctx) {
 	else if (j.addMappingNode) res = CRUD.handleAddMappingNode(j, ctx)
 	else if (j.updateDestination) res = CRUD.handleUpdateDestination(j, ctx)
 	else if (j.removeDestination) res = CRUD.handleRemoveDestination(j, ctx)
-	else if (j.addEdge) res = CRUD.handleAddEdge(j, ctx, await Snapshot.buildLiveSnapshot(ctx, j.pixelhue !== false))
+	else if (j.addEdge) res = CRUD.handleAddEdge(j, ctx, await Snapshot.buildLiveSnapshot(ctx))
 	else if (j.removeEdge) res = CRUD.handleRemoveEdge(j, ctx)
 	else if (j.removeAllEdges) res = CRUD.handleRemoveAllEdges(j, ctx)
-	else if (j.updateConnector) res = CRUD.handleUpdateConnector(j, ctx, await Snapshot.buildLiveSnapshot(ctx, j.pixelhue !== false))
+	else if (j.updateConnector) res = CRUD.handleUpdateConnector(j, ctx, await Snapshot.buildLiveSnapshot(ctx))
 	else if (j.deviceGraph && typeof j.deviceGraph === 'object') {
 		const next = normalizeDeviceGraph(j.deviceGraph)
 		const v = validateDeviceGraph(next)
@@ -109,20 +108,20 @@ async function handlePost(body, ctx) {
 				res = { status: 503, error: 'Failed to save config (check permissions on highascg.config.json / HIGHASCG_CONFIG_PATH)' }
 			} else {
 				ctx.config.deviceGraph = next
-				const live = await Snapshot.buildLiveSnapshot(ctx, j.pixelhue !== false)
+				const live = await Snapshot.buildLiveSnapshot(ctx)
 				augmentGraphWithSources(next, live)
 				res = { ok: true, graph: next }
 			}
 		}
 	}
 	else if (j.syncFromLive === true) {
-		const suggested = suggestConnectorsAndDevicesFromLive(await Snapshot.buildLiveSnapshot(ctx, j.pixelhue !== false), ctx.config || {})
+		const suggested = suggestConnectorsAndDevicesFromLive(await Snapshot.buildLiveSnapshot(ctx), ctx.config || {})
 		const next = mergeHardwareSync(ctx.config?.deviceGraph, suggested)
 		if (!persistConfigPatch(ctx, { deviceGraph: next })) {
 			res = { status: 503, error: 'Failed to save config (check permissions on highascg.config.json / HIGHASCG_CONFIG_PATH)' }
 		} else {
 			ctx.config.deviceGraph = next
-			const live = await Snapshot.buildLiveSnapshot(ctx, j.pixelhue !== false)
+			const live = await Snapshot.buildLiveSnapshot(ctx)
 			augmentGraphWithSources(next, live)
 			res = { ok: true, graph: next, suggestedCount: suggested.connectors.length }
 		}
@@ -135,7 +134,7 @@ async function handlePost(body, ctx) {
 			res = { status: 503, error: 'Failed to save config (check permissions on highascg.config.json / HIGHASCG_CONFIG_PATH)' }
 		} else {
 			ctx.config.deviceGraph = norm
-			const live = await Snapshot.buildLiveSnapshot(ctx, j.pixelhue !== false)
+			const live = await Snapshot.buildLiveSnapshot(ctx)
 			augmentGraphWithSources(norm, live)
 			res = { ok: true, graph: norm, removedConnectorId: id }
 		}

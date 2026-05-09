@@ -10,82 +10,9 @@
       "id": "destinations",
       "role": "destinations",
       "label": "Screen destinations"
-    },
-    {
-      "id": "mapping_motxcst9_1",
-      "role": "pixel_mapping",
-      "label": "Pixel Mapping 1",
-      "settings": {
-        "numOutputs": 3,
-        "outputs": [
-          {
-            "id": "out_1",
-            "mode": "1080p5000",
-            "label": "Output 1"
-          },
-          {
-            "id": "out_2",
-            "mode": "1080p5000",
-            "label": "Output 2"
-          },
-          {
-            "id": "out_3",
-            "mode": "1080p5000",
-            "label": "Output 3"
-          }
-        ],
-        "mappings": [
-          {
-            "id": "map_motxxe6a",
-            "type": "video_slice",
-            "label": "Output 2",
-            "rect": {
-              "x": 1920,
-              "y": 0,
-              "w": 1920,
-              "h": 1080
-            },
-            "rotation": 0,
-            "outputId": "out_2"
-          },
-          {
-            "id": "map_motxxgzm",
-            "type": "video_slice",
-            "label": "Output 3",
-            "rect": {
-              "x": 3840,
-              "y": 0,
-              "w": 1920,
-              "h": 1080
-            },
-            "rotation": 0,
-            "outputId": "out_3"
-          },
-          {
-            "id": "auto_out_1",
-            "type": "video_slice",
-            "label": "Output 1",
-            "outputId": "out_1",
-            "rotation": 0,
-            "rect": {
-              "x": 0,
-              "y": 0,
-              "w": 1920,
-              "h": 1080
-            }
-          }
-        ]
-      }
     }
   ],
   "connectors": [
-    {
-      "id": "dst_in_dst_mot0clok_1",
-      "deviceId": "destinations",
-      "kind": "destination_in",
-      "label": "Multiview 1",
-      "externalRef": "dst_mot0clok_1"
-    },
     {
       "id": "dst_in_led1",
       "deviceId": "destinations",
@@ -94,55 +21,22 @@
       "externalRef": "led1"
     },
     {
-      "id": "dlsdi_1",
+      "id": "gpu_p0",
       "deviceId": "caspar_host",
-      "kind": "decklink_io",
-      "index": 0,
-      "label": "SDI 1",
+      "kind": "gpu_out",
+      "label": "P0",
       "caspar": {
-        "ioDirection": "out"
+        "bus": "pgm",
+        "mainIndex": 0
       },
-      "externalRef": "1"
+      "externalRef": "DP-6/DP-7"
     },
     {
-      "id": "dlsdi_2",
-      "deviceId": "caspar_host",
-      "kind": "decklink_io",
-      "index": 1,
-      "label": "SDI 2",
-      "caspar": {
-        "ioDirection": "out"
-      },
-      "externalRef": "2"
-    },
-    {
-      "id": "dlsdi_3",
-      "deviceId": "caspar_host",
-      "kind": "decklink_io",
-      "index": 2,
-      "label": "SDI 3",
-      "caspar": {
-        "ioDirection": "in"
-      },
-      "externalRef": "3"
-    },
-    {
-      "id": "dlsdi_4",
-      "deviceId": "caspar_host",
-      "kind": "decklink_io",
-      "index": 3,
-      "label": "DeckLink 4",
-      "caspar": {
-        "ioDirection": "in"
-      },
-      "externalRef": "4"
-    },
-    {
-      "id": "caspar_mv_out",
-      "deviceId": "caspar_host",
-      "kind": "caspar_mv_out",
-      "label": "Multiview channel (virtual)",
-      "externalRef": "3"
+      "id": "dst_in_dst_moyi2ux5_1",
+      "deviceId": "destinations",
+      "kind": "destination_in",
+      "label": "PGM 2",
+      "externalRef": "dst_moyi2ux5_1"
     },
     {
       "id": "str_1",
@@ -154,8 +48,8 @@
         "type": "rtmp",
         "name": "Str1",
         "quality": "medium",
-        "rtmpServerUrl": "rtmp://x.rtmp.youtube.com/live2",
-        "streamKey": "aek2-2g0j-jvr0-qca4-9j89",
+        "rtmpServerUrl": "",
+        "streamKey": "",
         "srtUrl": "",
         "videoCodec": "h264",
         "videoBitrateKbps": 4500,
@@ -182,195 +76,49 @@
         "audioBitrateKbps": 128
       },
       "externalRef": "record_1"
-    },
-    {
-      "id": "audio_1",
-      "deviceId": "caspar_host",
-      "kind": "audio_out",
-      "label": "Audio 1",
-      "externalRef": "hw:2,3"
-    },
-    {
-      "id": "mapping_motxcst9_1_in",
-      "deviceId": "mapping_motxcst9_1",
-      "kind": "pixel_map_in",
-      "label": "Input Feed"
-    },
-    {
-      "id": "mapping_motxcst9_1_out_1",
-      "deviceId": "mapping_motxcst9_1",
-      "kind": "pixel_map_out",
-      "index": 0,
-      "label": "Output 1"
-    },
-    {
-      "id": "mapping_motxcst9_1_out_2",
-      "deviceId": "mapping_motxcst9_1",
-      "kind": "pixel_map_out",
-      "index": 1,
-      "label": "Output 2"
-    },
-    {
-      "id": "mapping_motxcst9_1_out_3",
-      "deviceId": "mapping_motxcst9_1",
-      "kind": "pixel_map_out",
-      "index": 2,
-      "label": "Output 3"
-    },
-    {
-      "id": "gpu_p0",
-      "deviceId": "caspar_host",
-      "kind": "gpu_out",
-      "label": "P0",
-      "caspar": {
-        "bus": "pgm",
-        "mainIndex": 0
-      },
-      "externalRef": "DP-6/DP-7"
-    },
-    {
-      "id": "gpu_p1",
-      "deviceId": "caspar_host",
-      "kind": "gpu_out",
-      "label": "P1",
-      "caspar": {
-        "bus": "pgm",
-        "mainIndex": 0,
-        "edidOverride": "",
-        "mode": "custom"
-      },
-      "externalRef": "DP-4"
-    },
-    {
-      "id": "gpu_p2",
-      "deviceId": "caspar_host",
-      "kind": "gpu_out",
-      "label": "P2",
-      "caspar": {
-        "bus": "pgm",
-        "mainIndex": 1
-      },
-      "externalRef": "DP-0"
-    },
-    {
-      "id": "gpu_p3",
-      "deviceId": "caspar_host",
-      "kind": "gpu_out",
-      "label": "P3",
-      "caspar": {
-        "bus": "pgm",
-        "mainIndex": 0
-      },
-      "externalRef": "DP-2/DP-3"
-    },
-    {
-      "id": "dli_1",
-      "deviceId": "caspar_host",
-      "kind": "decklink_in",
-      "index": 0,
-      "label": "Mixer In 1",
-      "externalRef": "0"
-    },
-    {
-      "id": "dli_2",
-      "deviceId": "caspar_host",
-      "kind": "decklink_in",
-      "index": 1,
-      "label": "Mixer In 2",
-      "externalRef": "0"
-    },
-    {
-      "id": "dli_3",
-      "deviceId": "caspar_host",
-      "kind": "decklink_in",
-      "index": 2,
-      "label": "Mixer In 3",
-      "externalRef": "3"
-    },
-    {
-      "id": "dli_4",
-      "deviceId": "caspar_host",
-      "kind": "decklink_in",
-      "index": 3,
-      "label": "Mixer In 4",
-      "externalRef": "0"
-    },
-    {
-      "id": "dli_5",
-      "deviceId": "caspar_host",
-      "kind": "decklink_in",
-      "index": 4,
-      "label": "Mixer In 5",
-      "externalRef": "0"
-    },
-    {
-      "id": "dli_6",
-      "deviceId": "caspar_host",
-      "kind": "decklink_in",
-      "index": 5,
-      "label": "Mixer In 6",
-      "externalRef": "0"
-    },
-    {
-      "id": "dli_7",
-      "deviceId": "caspar_host",
-      "kind": "decklink_in",
-      "index": 6,
-      "label": "Mixer In 7",
-      "externalRef": "0"
-    },
-    {
-      "id": "dli_8",
-      "deviceId": "caspar_host",
-      "kind": "decklink_in",
-      "index": 7,
-      "label": "Mixer In 8",
-      "externalRef": "0"
     }
   ],
   "edges": [
     {
-      "id": "e_dst_in_dst_mot0clok_1_gpu_p2",
-      "sourceId": "dst_in_dst_mot0clok_1",
-      "sinkId": "gpu_p2"
-    },
-    {
-      "id": "e_dst_in_led1_gpu_p1",
+      "id": "e_dst_in_led1_gpu_p0",
       "sourceId": "dst_in_led1",
-      "sinkId": "gpu_p1"
+      "sinkId": "gpu_p0"
     },
     {
-      "id": "e_dst_in_led1_mapping_motxcst9_1_in",
-      "sourceId": "dst_in_led1",
-      "sinkId": "mapping_motxcst9_1_in"
+      "id": "e_dst_in_dst_moyi2ux5_1_str_1",
+      "sourceId": "dst_in_dst_moyi2ux5_1",
+      "sinkId": "str_1"
     },
     {
-      "id": "e_mapping_motxcst9_1_out_1_dlsdi_4",
-      "sourceId": "mapping_motxcst9_1_out_1",
-      "sinkId": "dlsdi_4"
-    },
-    {
-      "id": "e_mapping_motxcst9_1_out_2_dlsdi_2",
-      "sourceId": "mapping_motxcst9_1_out_2",
-      "sinkId": "dlsdi_2"
-    },
-    {
-      "id": "e_mapping_motxcst9_1_out_3_dlsdi_1",
-      "sourceId": "mapping_motxcst9_1_out_3",
-      "sinkId": "dlsdi_1"
-    },
-    {
-      "id": "e_dst_in_led1_audio_1",
-      "sourceId": "dst_in_led1",
-      "sinkId": "audio_1"
+      "id": "e_dst_in_dst_moyi2ux5_1_rec_1",
+      "sourceId": "dst_in_dst_moyi2ux5_1",
+      "sinkId": "rec_1"
     }
   ],
   "layout": {
     "led1": {
       "x": 0,
       "y": 0,
-      "w": 453,
-      "h": 114
+      "w": 170,
+      "h": 120
     }
-  }
+  },
+  "sources": [
+    {
+      "id": "dst_in_led1",
+      "label": "LED wall 1",
+      "videoMode": "1080p5000",
+      "width": 1920,
+      "height": 1080,
+      "fps": 50
+    },
+    {
+      "id": "dst_in_dst_moyi2ux5_1",
+      "label": "PGM 2",
+      "videoMode": "1080p5000",
+      "width": 1920,
+      "height": 1080,
+      "fps": 50
+    }
+  ]
 }

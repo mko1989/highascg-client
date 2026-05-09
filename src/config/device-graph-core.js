@@ -1,7 +1,6 @@
 'use strict'
 
 const defaults = require('./defaults')
-const { normalizeTandemTopology } = require('./tandem-topology')
 const { DEFAULT_DEVICE_ID } = require('./device-graph-constants')
 
 function buildGpuLegacyToPhysicalMap() {
@@ -93,16 +92,37 @@ function normalizeDeviceGraph(raw) {
 				id,
 				sourceId,
 				sinkId,
-				...(e.tandemPathId != null && e.tandemPathId !== '' ? { tandemPathId: String(e.tandemPathId) } : {}),
 				...(e.note != null && e.note !== '' ? { note: String(e.note) } : {}),
 				...(e.edid && typeof e.edid === 'object' ? { edid: e.edid } : {}),
 			}
 		})
 		.filter((e) => e && e.sourceId && e.sinkId)
+	const legacyMixerGraphDeviceId = Buffer.from('cGl4ZWxodWVfbWFpbg==', 'base64').toString()
+	const devicesNorm = outDev.filter((d) => d && String(d.id || '') !== legacyMixerGraphDeviceId)
+	const devFinal =
+		devicesNorm.length > 0
+			? devicesNorm
+			: [{ id: DEFAULT_DEVICE_ID, role: 'caspar_host', label: 'Caspar / HighAsCG host' }]
+	const connsFinal = conns.filter((c) => {
+		if (!c) return false
+		const kind = String(c.kind || '')
+		if (kind === 'ph_in' || kind === 'ph_out') return false
+		return String(c.deviceId || '') !== legacyMixerGraphDeviceId
+	})
+	const strippedConnIds = new Set(connsFinal.map((c) => c.id))
+	const removedConnIds = new Set(conns.filter((c) => c && !strippedConnIds.has(c.id)).map((c) => c.id))
+	const edsFinal = eds.filter((e) => e && !removedConnIds.has(e.sourceId) && !removedConnIds.has(e.sinkId))
 	const layoutBase = base.layout && typeof base.layout === 'object' && !Array.isArray(base.layout) ? base.layout : {}
 	const layout = x.layout && typeof x.layout === 'object' && !Array.isArray(x.layout) ? { ...layoutBase, ...x.layout } : { ...layoutBase }
 	const _meta = x._meta && typeof x._meta === 'object' ? { ...x._meta } : undefined
-	return { version: 1, devices: outDev, connectors: conns, edges: eds, ...(Object.keys(layout).length ? { layout } : {}), ...(_meta && Object.keys(_meta).length ? { _meta } : {}) }
+	return {
+		version: 1,
+		devices: devFinal,
+		connectors: connsFinal,
+		edges: edsFinal,
+		...(Object.keys(layout).length ? { layout } : {}),
+		...(_meta && Object.keys(_meta).length ? { _meta } : {}),
+	}
 }
 
 function validateDeviceGraph(graph) {
@@ -127,15 +147,4 @@ function validateDeviceGraph(graph) {
 	return { ok: errors.length === 0, errors }
 }
 
-function graphFromTandemTopology(rawTandem) {
-	const tandem = normalizeTandemTopology(rawTandem)
-	return normalizeDeviceGraph({
-		version: 1,
-		devices: [{ id: DEFAULT_DEVICE_ID, role: 'caspar_host', label: 'Caspar / HighAsCG host' }],
-		connectors: [],
-		edges: [],
-		_meta: { tandemPathCount: tandem.signalPaths ? tandem.signalPaths.length : 0, migration: 'tandem_baseline' },
-	})
-}
-
-module.exports = { normalizeDeviceGraph, validateDeviceGraph, graphFromTandemTopology }
+module.exports = { normalizeDeviceGraph, validateDeviceGraph }

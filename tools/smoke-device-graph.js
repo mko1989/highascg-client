@@ -5,13 +5,12 @@ const assert = require('node:assert/strict')
 const {
 	normalizeDeviceGraph,
 	validateDeviceGraph,
-	graphFromTandemTopology,
 	suggestConnectorsAndDevicesFromLive,
 	mergeHardwareSync,
 	addEdgeToGraph,
 	edgeConnectAllowed,
 	DEFAULT_DEVICE_ID,
-	PH_DEVICE_ID,
+	DEST_DEVICE_ID,
 } = require('../src/config/device-graph')
 
 test('normalizeDeviceGraph has default host device', () => {
@@ -45,19 +44,10 @@ test('validateDeviceGraph self-loop', () => {
 	assert.ok(v.errors.some((x) => /self/.test(x)))
 })
 
-test('graphFromTandemTopology baseline', () => {
-	const t = { version: 1, destinations: [], signalPaths: [{ id: 'p1' }], edidNotes: '' }
-	const g = graphFromTandemTopology(t)
-	const v = validateDeviceGraph(g)
-	assert.equal(v.ok, true)
-	assert.ok(g._meta && g._meta.tandemPathCount >= 1)
-})
-
 test('suggest + merge keeps custom connector', () => {
 	const live = {
 		gpu: { displays: [{ name: 'DP-1', resolution: '1920x1080' }] },
 		decklink: { inputs: [], screenOutputs: [{ screen: 1, device: 0 }], multiviewDevice: 0 },
-		pixelhue: { available: false },
 	}
 	const sug = suggestConnectorsAndDevicesFromLive(live)
 	assert.ok(sug.connectors.some((c) => c.kind === 'gpu_out'))
@@ -77,38 +67,32 @@ test('suggest + merge keeps custom connector', () => {
 	assert.equal(merged.connectors.some((c) => c.id === 'gpu_old'), false)
 })
 
-test('addEdge: caspar out → ph in', () => {
+test('addEdge: destination feed ← caspar gpu out', () => {
 	const g = normalizeDeviceGraph({
 		devices: [
 			{ id: DEFAULT_DEVICE_ID, role: 'caspar_host', label: 'C' },
-			{ id: PH_DEVICE_ID, role: 'pixelhue_switcher', label: 'P' },
+			{ id: DEST_DEVICE_ID, role: 'destinations', label: 'Dst' },
 		],
 		connectors: [
 			{ id: 'gpu_0', deviceId: DEFAULT_DEVICE_ID, kind: 'gpu_out', label: 'G' },
-			{ id: 'ph_1', deviceId: PH_DEVICE_ID, kind: 'ph_in', label: 'H', externalRef: '1' },
+			{ id: 'dst_in_led1', deviceId: DEST_DEVICE_ID, kind: 'destination_in', label: 'LED', externalRef: 'led1' },
 		],
 		edges: [],
 	})
-	const a = addEdgeToGraph(g, 'gpu_0', 'ph_1')
+	const a = addEdgeToGraph(g, 'dst_in_led1', 'gpu_0')
 	assert.equal(a.ok, true)
-	const v = validateDeviceGraph(a.graph)
-	assert.equal(v.ok, true)
 	assert.equal((a.graph.edges || []).length, 1)
 })
 
-test('addEdge: wrong order rejected', () => {
+test('addEdge: caspar output → caspar output rejected', () => {
 	const g = normalizeDeviceGraph({
-		devices: [
-			{ id: DEFAULT_DEVICE_ID, role: 'caspar_host', label: 'C' },
-			{ id: PH_DEVICE_ID, role: 'pixelhue_switcher', label: 'P' },
-		],
+		devices: [{ id: DEFAULT_DEVICE_ID, role: 'caspar_host', label: 'C' }],
 		connectors: [
-			{ id: 'gpu_0', deviceId: DEFAULT_DEVICE_ID, kind: 'gpu_out', label: 'G' },
-			{ id: 'ph_1', deviceId: PH_DEVICE_ID, kind: 'ph_in', label: 'H' },
+			{ id: 'gpu_a', deviceId: DEFAULT_DEVICE_ID, kind: 'gpu_out', label: 'A' },
+			{ id: 'gpu_b', deviceId: DEFAULT_DEVICE_ID, kind: 'gpu_out', label: 'B' },
 		],
 		edges: [],
 	})
-	const r = addEdgeToGraph(g, 'ph_1', 'gpu_0')
-	assert.equal(r.ok, false)
-	assert.equal(edgeConnectAllowed(g, 'ph_1', 'gpu_0').ok, false)
+	assert.equal(addEdgeToGraph(g, 'gpu_a', 'gpu_b').ok, false)
+	assert.equal(edgeConnectAllowed(g, 'gpu_a', 'gpu_b').ok, false)
 })

@@ -41,7 +41,7 @@ export function initSourcesPanel(root, stateStore, opts = {}) {
 		setStatus(`Mapping ${connectorId} as live input…`, 'info')
 		try {
 			await api.post('/api/device-view', { updateConnector: { id: connectorId, patch: { caspar: { ioDirection: 'in' } } } })
-			const payload = await api.get('/api/device-view?pixelhue=0')
+			const payload = await api.get('/api/device-view')
 			const connectors = [
 				...(Array.isArray(payload?.graph?.connectors) ? payload.graph.connectors : []),
 				...(Array.isArray(payload?.suggested?.connectors) ? payload.suggested.connectors : []),
@@ -147,6 +147,19 @@ export function initSourcesPanel(root, stateStore, opts = {}) {
 	// Actually we should listen to the stateStore offline status change.
 	// In StateStore.setOffline it calls _emit('offline', offline). Wait, let's check _emit in state-store.js
 
-	stateStore.on('*', p => { if (!p || p === '*' || !['timeline.tick', 'timeline.playback', 'variables'].includes(p)) render() })
-	timelineState.on('change', render); render(); if (['media', 'templates'].includes(currentTab)) refreshMedia()
+	let renderTimer = null
+	const debouncedRender = () => {
+		if (renderTimer) return
+		renderTimer = requestAnimationFrame(() => {
+			render()
+			renderTimer = null
+		})
+	}
+
+	stateStore.on('*', p => {
+		if (!p || p === '*' || !['timeline.tick', 'timeline.playback', 'variables', 'channels', 'logs', 'dmx:colors'].includes(p)) {
+			debouncedRender()
+		}
+	})
+	timelineState.on('change', debouncedRender); render(); if (['media', 'templates'].includes(currentTab)) refreshMedia()
 }

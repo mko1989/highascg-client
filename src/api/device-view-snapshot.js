@@ -6,11 +6,10 @@
 const os = require('os')
 const { getDisplayDetails, getGpuConnectorInventory } = require('../utils/hardware-info')
 const { readSystemInventoryFile } = require('../bootstrap/system-inventory-file')
-const { casparSnapshot } = require('./routes-tandem-device')
+const { casparSnapshot } = require('./device-view-caspar-snapshot')
 const { resolveMainScreenCount, getChannelMap } = require('../config/routing')
-const phClient = require('../pixelhue/client')
+const { destinationsFromConfig } = require('../config/screen-destinations')
 const { probeDecklinkHardware, probeDecklinkFromCasparLog } = require('../utils/decklink-enum')
-const { classifyPhInterfaceKind } = require('../config/pixelhue-iface')
 const { buildGpuPhysicalMap } = require('../utils/gpu-physical-map')
 const { listPortAudioDevices } = require('../audio/audio-devices')
 
@@ -21,56 +20,6 @@ function isPseudoGpuConnectorName(name) {
 	if (/^gpu\d+($|[\s:])/.test(s)) return true
 	if (/^renderd\d+($|[\s:])/.test(s)) return true
 	return false
-}
-
-function firstDefined(obj, keys) {
-	for (const k of keys) { if (obj && Object.prototype.hasOwnProperty.call(obj, k) && obj[k] != null && obj[k] !== '') return obj[k] }
-	return null
-}
-
-function normalizeSignalText(value) {
-	if (value == null || value === '') return 'unknown'
-	const s = String(value).trim().toLowerCase()
-	if (['1', 'true', 'online'].includes(s)) return 'active'
-	if (['0', 'false', 'offline'].includes(s)) return 'loss'
-	return s || 'unknown'
-}
-
-let lastGoodPixelhueLive = null
-
-async function buildPixelhueLive(ctx) {
-	const px = ctx.config?.pixelhue; if (!px?.enabled || !String(px.host || '').trim()) return { available: false, reason: 'disabled' }
-	try {
-		const c = await phClient.resolveConnection(ctx, { force: false })
-		const ifRes = await phClient.unicoRequest(c, phClient.PATH.ifaceList, 'GET')
-		const interfaces = (ifRes.json?.data?.list || []).map(x => {
-			const aux = x?.auxiliaryInfo || {}; const conn = aux.connectorInfo || {}; const video = aux.videoInfo || {}
-			let signal = firstDefined(x, ['signalStatusLabel', 'signalStatusText', 'signalText', 'signalStatus']) || firstDefined(aux, ['signalStatusLabel', 'signalStatusText', 'signalStatus']) || firstDefined(video, ['signalStatusLabel', 'signalStatusText']) || firstDefined(conn, ['status'])
-			if (!signal && x?.state != null) signal = x.state === 1 ? 'active' : 'loss'
-			const w = firstDefined(video, ['width', 'sourceWidth']) || firstDefined(aux, ['width'])
-			const h = firstDefined(video, ['height', 'sourceHeight']) || firstDefined(aux, ['height'])
-			const fps = firstDefined(video, ['fps', 'frameRate']) || firstDefined(aux, ['fps'])
-			return {
-				...x,
-				live: {
-					name: firstDefined(x.general || {}, ['name']) || x.interfaceName || '',
-					interfaceId: x.interfaceId != null ? Number(x.interfaceId) : null,
-					connectorType: String(conn.type || ''),
-					interfaceType: String(conn.interfaceType || ''),
-					workMode: String(conn.workMode != null ? conn.workMode : ''),
-					phKind: classifyPhInterfaceKind(x),
-					signal: normalizeSignalText(signal),
-					resolution: (w > 0 && h > 0) ? `${Number(w)}x${Number(h)}` : '',
-					fps: fps ? String(fps) : '',
-				},
-			}
-		})
-		lastGoodPixelhueLive = { interfaces, apiPort: Number(c.apiPort), sn: String(c.sn), collectedAt: new Date().toISOString() }
-		return { available: true, apiPort: c.apiPort, sn: c.sn, interfaces, stale: false }
-	} catch (e) {
-		if (lastGoodPixelhueLive) return { available: true, ...lastGoodPixelhueLive, stale: true, staleReason: e.message }
-		return { available: false, error: e.message }
-	}
 }
 
 function buildDecklinkSummary(ctx, decklinkHardware) {
@@ -148,7 +97,7 @@ function buildDecklinkSummary(ctx, decklinkHardware) {
 }
 
 function buildDestinationCasparIntent(ctx) {
-	const list = ctx.config?.tandemTopology?.destinations || []; const map = getChannelMap(ctx.config || {})
+	const list = destinationsFromConfig(ctx.config || {}); const map = getChannelMap(ctx.config || {})
 	const items = []; let pgmOnlyCount = 0, generatedPreviewCount = 0
 	for (const d of list) {
 		if (!d) continue; const mainIdx = Math.max(0, parseInt(String(d.mainScreenIndex ?? 0), 10) || 0)
@@ -189,9 +138,9 @@ function buildGeneratedChannelOrder(ctx) {
 	return out.sort((a, b) => a.ch - b.ch)
 }
 
-async function buildLiveSnapshot(ctx, includePh) {
-	const warnings = []; const inv = readSystemInventoryFile(); let displays = inv?.payload?.gpu?.displays || []
-	try { if (!displays.length) displays = getDisplayDetails() || [] } catch (e) { warnings.push(`gpu_enum: ${e.message}`) }
+async function buildLiveSnapshot(ctx) {
+	const warnings = []; const inv = readSystemInventoryFile(); let displays = []
+	try { displays = getDisplayDetails() || [] } catch (e) { warnings.push(`gpu_enum: ${e.message}`) }
 	let decklinkHw =
 		inv?.payload?.decklink && Array.isArray(inv.payload.decklink.connectors)
 			? inv.payload.decklink
@@ -230,7 +179,6 @@ async function buildLiveSnapshot(ctx, includePh) {
 			decklinkHw = { source: 'caspar_config', connectors: connectors.sort((a, b) => a.index - b.index), detected: true }
 		}
 	}
-	const ph = includePh ? await buildPixelhueLive(ctx) : { available: false, reason: 'skipped' }
 	const caspar = casparSnapshot(ctx); caspar.destinationIntent = buildDestinationCasparIntent(ctx)
 	caspar.generatedChannelOrder = buildGeneratedChannelOrder(ctx); caspar.applyPlan = null // built on demand
 	
@@ -250,10 +198,7 @@ async function buildLiveSnapshot(ctx, includePh) {
 		}
 	})
 
-	const gpuConnectors =
-		Array.isArray(inv?.payload?.gpu?.connectors) && inv.payload.gpu.connectors.length
-			? inv.payload.gpu.connectors
-			: getGpuConnectorInventory()
+	const gpuConnectors = getGpuConnectorInventory() || []
 	const sanitizedGpuConnectors = (Array.isArray(gpuConnectors) ? gpuConnectors : [])
 		.filter((c) => !isPseudoGpuConnectorName(c?.shortName || c?.name))
 	const gpuPhysicalMap = buildGpuPhysicalMap({
@@ -283,7 +228,8 @@ async function buildLiveSnapshot(ctx, includePh) {
 				refreshHz: d.refreshHz, 
 				modes: (d.modes || []).slice(0, 16),
 				casparScreenIndex: d.casparScreenIndex,
-				casparMode: d.casparMode
+				casparMode: d.casparMode,
+				connected: d.connected
 			})),
 			connectors: sanitizedGpuConnectors,
 			physicalMap: gpuPhysicalMap,
@@ -293,9 +239,8 @@ async function buildLiveSnapshot(ctx, includePh) {
 			portaudio: portaudioDevices,
 		},
 		caspar,
-		pixelhue: ph,
 		warnings,
 	}
 }
 
-module.exports = { buildLiveSnapshot, buildDecklinkSummary, buildDestinationCasparIntent, buildGeneratedChannelOrder, buildPixelhueLive }
+module.exports = { buildLiveSnapshot, buildDecklinkSummary, buildDestinationCasparIntent, buildGeneratedChannelOrder }

@@ -36,12 +36,8 @@ export function mountLookTransitionControls(mount, dt, onChange, idPrefix, opts 
 	const transitionRow = document.createElement('div')
 	transitionRow.className = 'scenes-look-transition'
 	transitionRow.innerHTML = `
-		<span class="scenes-look-transition__label"></span>
 		<select id="${idPrefix}-type" class="scenes-look-transition__select" aria-label="Transition type"></select>
-		<label class="scenes-look-transition__dur"><span>Duration</span>
-			<input type="text" id="${idPrefix}-dur" class="scenes-look-transition__num inspector-math-input" inputmode="decimal" />
-			<span class="scenes-look-transition__unit">frames</span>
-		</label>
+		<input type="text" id="${idPrefix}-dur" class="scenes-look-transition__num inspector-math-input" inputmode="decimal" placeholder="Dur" title="Duration in frames" style="width: 40px;" />
 		<select id="${idPrefix}-tween" class="scenes-look-transition__select" aria-label="Easing"></select>
 	`
 	const labelEl = transitionRow.querySelector('.scenes-look-transition__label')

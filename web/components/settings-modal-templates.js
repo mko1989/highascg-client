@@ -13,6 +13,7 @@ export function getMainModalHtml() {
 					<button class="settings-tab active" data-tab="simulation">Simulation</button>
 					<button class="settings-tab" data-tab="companion">Companion</button>
 					<button class="settings-tab" data-tab="media-usb">Media (USB)</button>
+					<button class="settings-tab" data-tab="plugins">Plugins</button>
 					<button class="settings-tab" data-tab="variables">Variables</button>
 					<button class="settings-tab" data-tab="nuclear">Nuclear</button>
 				</div>
@@ -35,6 +36,43 @@ export function getMainModalHtml() {
 						<div class="settings-group"><label>Default subfolder template</label><input type="text" id="set-usb-subfolder" placeholder="usb/{label}/{date}"></div>
 						<div class="settings-group"><label>When file already exists</label><select id="set-usb-policy"><option value="rename">Rename</option><option value="skip">Skip</option><option value="overwrite">Overwrite</option></select></div>
 						<div class="settings-group checkbox"><label><input type="checkbox" id="set-usb-verify" /> Verify SHA1 after copy</label></div>
+					</div>
+					<div class="settings-pane" id="settings-pane-plugins">
+						<h3 class="settings-category">Plugins</h3>
+						<p class="settings-note">Enable or disable plugins. Toggle one or several, then apply.</p>
+						<div class="settings-group">
+							<p class="settings-note" id="set-plugin-status"></p>
+						</div>
+						<div class="settings-group">
+							<div id="set-plugins-list"></div>
+						</div>
+						<div class="settings-group">
+							<button type="button" class="btn btn--primary" id="set-plugin-apply-toggles">Apply plugin toggles</button>
+							<button type="button" class="btn btn--secondary" id="set-plugin-refresh">Refresh list</button>
+						</div>
+						<details class="settings-group">
+							<summary>Advanced plugin actions</summary>
+							<div class="settings-group">
+								<label>Add plugin (ID)</label>
+								<input type="text" id="set-plugin-add-id" placeholder="my-plugin">
+							</div>
+							<div class="settings-group">
+								<label>Module name</label>
+								<input type="text" id="set-plugin-add-module" placeholder="my-plugin">
+							</div>
+							<div class="settings-group">
+								<label>Source</label>
+								<select id="set-plugin-add-source">
+									<option value="local">local</option>
+									<option value="bundled">bundled</option>
+									<option value="github">github (future)</option>
+								</select>
+							</div>
+							<div class="settings-group">
+								<button type="button" class="btn btn--secondary" id="set-plugin-add-btn">Add plugin</button>
+							</div>
+							<button type="button" class="btn btn--primary" id="set-plugin-restart-app">Restart HighAsCG App</button>
+						</details>
 					</div>
 					<div class="settings-pane" id="settings-pane-variables"></div>
 					<div class="settings-pane" id="settings-pane-nuclear">

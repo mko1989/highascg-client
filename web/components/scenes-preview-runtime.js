@@ -7,7 +7,7 @@ import { audioRouteToAudioFilter } from '../lib/audio-routes.js'
 import { resolveLayerFillForAmcp } from '../lib/mixer-fill.js'
 import { shouldApplyStraightAlphaKeyer } from '../lib/media-ext.js'
 import { buildPipOverlayAmcpLinesAll, buildPipOverlayRemoveLines } from '../lib/pip-overlay-amcp.js'
-import { getPipOverlaysFromLayer } from '../lib/pip-overlay-registry.js'
+import { getPipOverlaysFromLayer, resolvePipOverlayCasparLayer } from '../lib/pip-overlay-registry.js'
 import { amcpParam, chLayerAmcp } from './scenes-shared.js'
 
 const PREVIEW_PUSH_DEBOUNCE_MS = 30
@@ -103,8 +103,8 @@ export function createScenesPreviewRuntime(opts) {
 			const ln = Number(cell.layer)
 			if (!Number.isFinite(ch) || !Number.isFinite(ln)) continue
 			if (ch !== Number(previewCh)) continue
-			// Keep preview cleanup scoped to look stack only.
-			if (ln < PREVIEW_SCENE_LAYER_MIN || ln >= 200) continue
+			// Keep preview cleanup scoped to look stack range (decade-based 10,20... + PIP HTML overhead).
+			if (ln < PREVIEW_SCENE_LAYER_MIN || ln >= 10000) continue
 			out.add(ln)
 		}
 		return out
@@ -132,7 +132,7 @@ export function createScenesPreviewRuntime(opts) {
 	}
 
 	/**
-	 * Wait until the preview AMCP push queue is idle (e.g. after `sendSceneToPreviewCard` for tandem PixelHue).
+	 * Wait until the preview AMCP push queue is idle (e.g. after `sendSceneToPreviewCard`).
 	 */
 	async function waitForPreviewPushComplete() {
 		await new Promise((r) => setTimeout(r, 0))
@@ -168,7 +168,7 @@ export function createScenesPreviewRuntime(opts) {
 
 	/** @param {string} sceneId @param {object} scene */
 	function buildPreviewContentSnapshot(sceneId, scene) {
-		/** @type {Map<number, { value: string, loop: boolean, straightAlpha: boolean, contentFit: string, audioRoute: string, volume: number, muted: boolean }>} */
+		/** @type {Map<number, { value: string, loop: boolean, straightAlpha: boolean, contentFit: string, audioRoute: string, volume: number, muted: boolean, pipOverlays: any[] }>} */
 		const contentByLayer = new Map()
 		for (const l of scene.layers || []) {
 			if (!l?.source?.value) continue
@@ -180,6 +180,7 @@ export function createScenesPreviewRuntime(opts) {
 				audioRoute: l.audioRoute || '1+2',
 				volume: l.volume != null ? l.volume : 1,
 				muted: !!l.muted,
+				pipOverlays: getPipOverlaysFromLayer(l)
 			})
 		}
 		return { sceneId, contentByLayer }
@@ -187,22 +188,13 @@ export function createScenesPreviewRuntime(opts) {
 
 	/** Same clips on the same layers — only geometry / opacity / rotation may have changed. */
 	function isGeometryOnlyPreview(sceneId, scene) {
-		if (!lastPreviewContentSnapshot || lastPreviewContentSnapshot.sceneId !== sceneId) return false
+		if (!lastPreviewContentSnapshot) return false
 		const prev = lastPreviewContentSnapshot.contentByLayer
 		const cur = buildPreviewContentSnapshot(sceneId, scene).contentByLayer
 		if (prev.size !== cur.size) return false
 		for (const [num, meta] of cur) {
 			const p = prev.get(num)
-			if (
-				!p ||
-				p.value !== meta.value ||
-				p.loop !== meta.loop ||
-				p.straightAlpha !== meta.straightAlpha ||
-				p.contentFit !== meta.contentFit ||
-				p.audioRoute !== meta.audioRoute ||
-				p.volume !== meta.volume ||
-				p.muted !== meta.muted
-			) {
+			if (!p || JSON.stringify(p) !== JSON.stringify(meta)) {
 				return false
 			}
 		}
@@ -219,6 +211,7 @@ export function createScenesPreviewRuntime(opts) {
 			audioRoute: layer.audioRoute || '1+2',
 			volume: layer.volume != null ? layer.volume : 1,
 			muted: !!layer.muted,
+			pipOverlays: getPipOverlaysFromLayer(layer),
 		}
 	}
 
@@ -226,14 +219,6 @@ export function createScenesPreviewRuntime(opts) {
 		if (!sceneId) return
 		const scene = sceneState.getScene(sceneId)
 		if (!scene) return
-		const targetMainIdx = sceneState.activeScreenIndex
-
-		const previewCh = Number(getPreviewChannel())
-		const hasPreviewBus = Number.isFinite(previewCh) && previewCh > 0
-		const used = new Set()
-		const prvRes = getPreviewOutputResolution()
-		const previewCanvas = { width: prvRes.w, height: prvRes.h, framerate: prvRes.fps ?? 50 }
-		const authoringCanvas = sceneState.getCanvasForScreen(sceneState.activeScreenIndex)
 
 		const cm = getChannelMap()
 		const targetIdxs = (() => {
@@ -241,7 +226,7 @@ export function createScenesPreviewRuntime(opts) {
 			if (scope === 'all') return Array.from({ length: cm.screenCount || 1 }, (_, i) => i)
 			const n = parseInt(scope, 10)
 			if (Number.isFinite(n) && n >= 0 && n < (cm.screenCount || 1)) return [n]
-			return [sceneState.activeScreenIndex]
+			return sceneState.armedScreenIndices?.length ? sceneState.armedScreenIndices : [sceneState.activeScreenIndex]
 		})()
 
 		try {
@@ -250,6 +235,12 @@ export function createScenesPreviewRuntime(opts) {
 			async function getMediaListOnce() { return mediaListPromise }
 
 			for (const mIdx of targetIdxs) {
+				const prvRes =
+					cm.previewResolutions?.[mIdx] ||
+					cm.programResolutions?.[mIdx] ||
+					getPreviewOutputResolution()
+				const previewCanvas = { width: prvRes.w, height: prvRes.h, framerate: prvRes.fps ?? 50 }
+				const authoringCanvas = sceneState.getCanvasForScreen(mIdx)
 				const previewCh = cm.previewChannels?.[mIdx] ?? null
 				if (!previewCh || previewCh <= 0) {
 					sceneState.setPreviewSceneId(sceneId, mIdx)
@@ -263,51 +254,50 @@ export function createScenesPreviewRuntime(opts) {
 					Number(lastPreviewChannel) === Number(previewCh)
 				const geometryOnly = isGeometryOnlyPreview(sceneId, scene) && sameSceneOnSamePrv
 				const incrementalPreviewEdit = sameSceneOnSamePrv
-				const relevantLayerNumbers = (() => {
-					const s = new Set()
-					for (const l of scene.layers || []) {
-						const n = Number(l?.layerNumber)
-						if (!Number.isFinite(n) || n < PREVIEW_SCENE_LAYER_MIN) continue
-						if (l?.source?.value || getPipOverlaysFromLayer(l).length > 0) s.add(n)
-					}
-					return s
-				})()
+				const layerNumsPip = (scene.layers || []).map((l) => Number(l.layerNumber)).filter((n) => n > 0)
+				const nextPipLayerInPreview = (L) => {
+					const a = layerNumsPip.filter((n) => n > L)
+					return a.length ? Math.min(...a) : 10000
+				}
 
-				const layersToReset = new Set(relevantLayerNumbers)
-				if (!incrementalPreviewEdit) {
-					const occupiedNow = getOccupiedPreviewLookLayersFromState(previewCh)
-					if (occupiedNow.size > 0) {
-						for (const n of occupiedNow) layersToReset.add(n)
-					} else if (lastPreviewLayers && lastPreviewLayers.size > 0) {
-						// Fallback for startup races where state matrix has not arrived yet.
-						for (const n of lastPreviewLayers) {
-							if (Number.isFinite(n) && n >= PREVIEW_SCENE_LAYER_MIN) layersToReset.add(n)
+				const newLookLayers = new Set()
+				for (const l of scene.layers || []) {
+					const ln = Number(l.layerNumber)
+					if (ln >= PREVIEW_SCENE_LAYER_MIN) {
+						newLookLayers.add(ln)
+						const nextP = nextPipLayerInPreview(ln)
+						const pips = getPipOverlaysFromLayer(l)
+						for (let i = 0; i < pips.length; i++) {
+							const oR = resolvePipOverlayCasparLayer(ln, i, nextP)
+							if (Number.isFinite(oR)) newLookLayers.add(oR)
 						}
 					}
 				}
 
-				if (!geometryOnly && !incrementalPreviewEdit) {
+				const layersToReset = new Set()
+				if (!incrementalPreviewEdit) {
+					const occupiedNow = getOccupiedPreviewLookLayersFromState(previewCh)
+					if (occupiedNow.size > 0) {
+						for (const n of occupiedNow) {
+							if (!newLookLayers.has(n)) layersToReset.add(n)
+						}
+					} else if (lastPreviewLayers && lastPreviewLayers.size > 0) {
+						for (const n of lastPreviewLayers) {
+							if (Number.isFinite(n) && n >= PREVIEW_SCENE_LAYER_MIN && !newLookLayers.has(n)) {
+								layersToReset.add(n)
+							}
+						}
+					}
+				}
+
+				if (!geometryOnly) {
 					for (const ln of [...layersToReset].sort((a, b) => a - b)) {
 						const dl = chLayerAmcp(previewCh, ln)
 						queue.push(`STOP ${dl}`, `MIXER ${dl} CLEAR`, ...buildPipOverlayRemoveLines(previewCh, ln, 10000))
 					}
 				}
 
-				if (incrementalPreviewEdit && lastPreviewContentSnapshot?.contentByLayer) {
-					for (const [prevLn] of lastPreviewContentSnapshot.contentByLayer.entries()) {
-						if (!relevantLayerNumbers.has(Number(prevLn))) {
-							const dl = chLayerAmcp(previewCh, prevLn)
-							queue.push(`STOP ${dl}`, `MIXER ${dl} CLEAR`, ...buildPipOverlayRemoveLines(previewCh, prevLn, 10000))
-						}
-					}
-				}
-
 				const sortedLayers = [...(scene.layers || [])].sort((a, b) => (a.layerNumber || 0) - (b.layerNumber || 0))
-				const layerNumsPip = (scene.layers || []).map((l) => Number(l.layerNumber)).filter((n) => n > 0)
-				const nextPipLayerInPreview = (L) => {
-					const a = layerNumsPip.filter((n) => n > L)
-					return a.length ? Math.min(...a) : 10000
-				}
 
 				for (const layer of sortedLayers) {
 					const ln = layer.layerNumber
@@ -331,20 +321,21 @@ export function createScenesPreviewRuntime(opts) {
 						`MIXER ${cl} KEYER ${shouldApplyStraightAlphaKeyer(!!layer.straightAlpha, layer.source?.value) ? 1 : 0}`,
 						`MIXER ${cl} VOLUME ${vol}`,
 					]
-					const prevMeta = incrementalPreviewEdit ? lastPreviewContentSnapshot?.contentByLayer?.get(Number(ln)) : null
+					const prevMeta = lastPreviewContentSnapshot?.contentByLayer?.get(Number(ln))
 					const curMeta = layerContentMetaForSnapshot(layer)
-					const clipChanged = !prevMeta || !curMeta || JSON.stringify(prevMeta) !== JSON.stringify(curMeta)
-					if (geometryOnly) queue.push(...mixerPart)
-					else if (incrementalPreviewEdit) {
-						if (clipChanged) queue.push(playCmd)
+					const contentUnchanged = prevMeta && curMeta && JSON.stringify(prevMeta) === JSON.stringify(curMeta)
+					
+					if (geometryOnly || contentUnchanged) {
 						queue.push(...mixerPart)
-					} else queue.push(playCmd, ...mixerPart)
+					} else {
+						queue.push(playCmd, ...mixerPart)
+					}
 
 					const nextP = nextPipLayerInPreview(ln)
 					if (geometryOnly) queue.push(...buildPipOverlayRemoveLines(previewCh, ln, nextP))
 					const pipOverlays = getPipOverlaysFromLayer(layer)
 					if (pipOverlays.length > 0) {
-						queue.push(...buildPipOverlayAmcpLinesAll(pipOverlays, previewCh, ln, f, { w: prvRes.w, h: prvRes.h }, nextP))
+						queue.push(...buildPipOverlayAmcpLinesAll(pipOverlays, previewCh, ln, f, { w: prvRes.w, h: prvRes.h }, nextP, prevMeta?.pipOverlays))
 					}
 				}
 
@@ -403,7 +394,7 @@ export function createScenesPreviewRuntime(opts) {
 		schedulePreviewPush,
 		flushPreviewPush,
 		scheduleFlushPreviewFromInspector,
-		/** Await the current PRV push queue (e.g. chain PixelHue after Caspar preview). */
+		/** Await the current PRV push queue before continuing (e.g. after preview recall). */
 		drainPreviewPushQueue,
 		waitForPreviewPushComplete,
 		sendSceneToPreviewCard,

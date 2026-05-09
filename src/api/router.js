@@ -39,10 +39,8 @@ const routesLogs = require('./routes-logs')
 const routesHostStats = require('./routes-host-stats')
 const routesPipOverlay = require('./routes-pip-overlay')
 const routesModules = require('./routes-modules')
-const routesPixelhue = require('./routes-pixelhue')
-const routesTandemDevice = require('./routes-tandem-device')
 const routesDeviceView = require('./routes-device-view')
-const routesPixelweb = require('./routes-pixelweb')
+const routesPlugins = require('./routes-plugins')
 const moduleRegistry = require('../module-registry')
 
 /**
@@ -58,36 +56,6 @@ async function routeRequest(method, path, body, ctx, req) {
 	let p = qIdx >= 0 ? pathRaw.slice(0, qIdx) : pathRaw
 	const instanceMatch = p.match(/^\/instance\/[^/]+\/(.+)$/)
 	if (instanceMatch) p = '/' + instanceMatch[1]
-	if (p === '/control' || p === '/api/config') {
-		const mappedPath = p === '/control' ? '/pixelweb/control' : '/pixelweb/api/config'
-		const mappedPathWithQuery =
-			qIdx >= 0 ? `${mappedPath}?${pathRaw.slice(qIdx + 1)}` : mappedPath
-		return await routesPixelweb.proxyPixelweb({
-			method,
-			pathWithQuery: mappedPathWithQuery,
-			req,
-			body,
-			ctx,
-		})
-	}
-	if (p.startsWith('/pixelweb')) {
-		return await routesPixelweb.proxyPixelweb({
-			method,
-			pathWithQuery: pathRaw,
-			req,
-			body,
-			ctx,
-		})
-	}
-	if (p.startsWith('/unico/')) {
-		return await routesPixelweb.proxyUnico({
-			method,
-			pathWithQuery: pathRaw,
-			req,
-			body,
-			ctx,
-		})
-	}
 
 	if (!p.startsWith('/api/')) {
 		return { status: 404, headers: JSON_HEADERS, body: jsonBody({ error: 'Not found' }) }
@@ -100,6 +68,10 @@ async function routeRequest(method, path, body, ctx, req) {
 	{
 		const mr = routesModules.handle(method, p)
 		if (mr) return mr
+	}
+	{
+		const pg = routesPlugins.handleGet(method, p, ctx)
+		if (pg) return pg
 	}
 
 	if (method === 'GET' && (p === '/api/caspar-config/generate' || p === '/api/caspar-config/mode-choices' || p === '/api/caspar-config/override')) {
@@ -181,16 +153,14 @@ async function routeRequest(method, path, body, ctx, req) {
 	}
 	if (
 		method === 'POST' &&
-		(p === '/api/system/setup/restart-window-manager' || p === '/api/system/setup/reboot')
+		(p === '/api/system/setup/restart-window-manager' ||
+			p === '/api/system/setup/reboot' ||
+			p === '/api/system/setup/restart-app')
 	) {
 		const r = await routesSystemSetup.handlePost(p, body, ctx)
 		if (r) return r
 	}
 
-	{
-		const tr = await routesTandemDevice.handle(method, p, body, ctx)
-		if (tr) return tr
-	}
 	{
 		const dv =
 			(p === '/api/device-view' || p === '/api/device-view/gpu-map-debug')
@@ -203,10 +173,6 @@ async function routeRequest(method, path, body, ctx, req) {
 		if (dv) return dv
 	}
 
-	{
-		const pr = await routesPixelhue.handle(method, p, body, query, ctx)
-		if (pr) return pr
-	}
 	if (method === 'GET' && p === '/api/hardware/displays') {
 		const r = await routesSettings.handleHardwareGet(p)
 		if (r) return r
@@ -227,6 +193,10 @@ async function routeRequest(method, path, body, ctx, req) {
 			const msg = e?.message || String(e)
 			return { status: 502, headers: JSON_HEADERS, body: jsonBody({ error: msg }) }
 		}
+	}
+	{
+		const pg = await routesPlugins.handlePost(method, p, body, ctx)
+		if (pg) return pg
 	}
 	if (method === 'POST' && p === '/api/settings/apply-os') {
 		try {

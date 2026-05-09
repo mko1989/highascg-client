@@ -134,7 +134,12 @@ function runSudoNoPrompt(candidates) {
 }
 
 async function handlePost(path, body, ctx) {
-	if (path !== '/api/system/setup/restart-window-manager' && path !== '/api/system/setup/reboot') return null
+	if (
+		path !== '/api/system/setup/restart-window-manager' &&
+		path !== '/api/system/setup/reboot' &&
+		path !== '/api/system/setup/restart-app'
+	)
+		return null
 	const pw = checkNuclearPassword(body, ctx)
 	if (!pw.ok) return { status: pw.status || 403, headers: JSON_HEADERS, body: jsonBody({ error: pw.error }) }
 
@@ -151,6 +156,25 @@ async function handlePost(path, body, ctx) {
 			}
 		}
 		return { status: 200, headers: JSON_HEADERS, body: jsonBody({ ok: true, action: 'restart-window-manager' }) }
+	}
+	if (path === '/api/system/setup/restart-app') {
+		// Respond first so the client receives confirmation, then terminate gracefully.
+		setTimeout(() => {
+			try {
+				process.kill(process.pid, 'SIGTERM')
+			} catch {
+				process.exit(0)
+			}
+		}, 150)
+		return {
+			status: 200,
+			headers: JSON_HEADERS,
+			body: jsonBody({
+				ok: true,
+				action: 'restart-app',
+				note: 'Restart signal sent. If HighAsCG is supervised (systemd), it should restart automatically.',
+			}),
+		}
 	}
 
 	const r = runSudoNoPrompt([

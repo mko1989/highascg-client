@@ -181,17 +181,73 @@ function buildPipOverlayAmcpLines(overlay, channel, contentPhysicalLayer, conten
 }
 
 /**
+ * @param {number} channel
+ * @param {number} contentPhysicalLayer
+ * @param {object} overlay
+ * @param {object} contentFill
+ * @param {object} channelPx
+ * @param {number} [stackIndex]
+ * @param {number} [nextContentLayer]
+ * @returns {string[]}
+ */
+export function buildPipOverlayUpdateLines(channel, contentPhysicalLayer, overlay, contentFill, channelPx, stackIndex = 0, nextContentLayer) {
+	if (!overlay?.type) return []
+	const oLayer = resolvePipOverlayCasparLayer(contentPhysicalLayer, stackIndex, nextContentLayer)
+	const cl = `${channel}-${oLayer}`
+
+	const chW = channelPx?.w > 0 ? channelPx.w : 1920
+	const chH = channelPx?.h > 0 ? channelPx.h : 1080
+
+	const cf = normalizeContentFill(contentFill)
+	const pParams = mergeOverlayParams(overlay)
+	const side = String(pParams.side || 'outside').toLowerCase()
+	const forceExpanded = side === 'outside'
+	const outset = outsetPxForPipOverlay(overlay)
+
+	const p = Number(contentPhysicalLayer)
+	const idx = stackIndex | 0
+	const aligned = Number.isFinite(p) && oLayer === p + PIP_OVERLAY_ALIGN_GAP + idx
+
+	let inner
+	let mixFill
+	if (aligned && !forceExpanded) {
+		inner = { l: 0, t: 0, w: 1, h: 1 }
+		mixFill = cf
+	} else {
+		const overlayFill = expandFillOutward(cf, outset, chW, chH)
+		inner = innerRectInOverlayNorm(cf, overlayFill)
+		mixFill = overlayFill
+	}
+
+	const data = buildPipOverlayCgPayload(overlay, inner)
+	return [
+		`CG ${cl} UPDATE 0 "${data.replace(/"/g, '\\"')}"`,
+		deferMixerAmcpLine(`MIXER ${cl} FILL ${mixFill.x} ${mixFill.y} ${mixFill.scaleX} ${mixFill.scaleY} 0`),
+	]
+}
+
+/**
  * @param {{ type: string, params?: object }[]} overlays
  * @param {{ w: number, h: number }} channelPx
  * @param {number|undefined} [nextContentLayer]
+ * @param {{ type: string, params?: object }[]} [previousOverlays]
  * @returns {string[]}
  */
-export function buildPipOverlayAmcpLinesAll(overlays, channel, contentPhysicalLayer, contentFill, channelPx, nextContentLayer) {
+export function buildPipOverlayAmcpLinesAll(overlays, channel, contentPhysicalLayer, contentFill, channelPx, nextContentLayer, previousOverlays) {
 	const lines = []
 	if (!Array.isArray(overlays)) return lines
+	const prev = Array.isArray(previousOverlays) ? previousOverlays : []
+
 	for (let i = 0; i < overlays.length && i < PIP_OVERLAY_MAX_STACK; i++) {
-		const chunk = buildPipOverlayAmcpLines(overlays[i], channel, contentPhysicalLayer, contentFill, channelPx, i, nextContentLayer)
-		lines.push(...chunk)
+		const cur = overlays[i]
+		const old = prev[i]
+		if (cur && old && cur.type === old.type) {
+			const chunk = buildPipOverlayUpdateLines(channel, contentPhysicalLayer, cur, contentFill, channelPx, i, nextContentLayer)
+			lines.push(...chunk)
+		} else {
+			const chunk = buildPipOverlayAmcpLines(cur, channel, contentPhysicalLayer, contentFill, channelPx, i, nextContentLayer)
+			lines.push(...chunk)
+		}
 	}
 	return lines
 }
