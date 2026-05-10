@@ -159,8 +159,6 @@ function getChannelMap(config, activeBuses = null) {
 	const previewEnabledByMain = useVirtual ? Array.from({ length: screenCount }, (_, i) => { const v = virtualMainChannels[i] || {}; return !(v.prv == null || String(v.prv).trim() === '') })
 		: resolvePreviewEnabledByMain(config, screenCount) || Array.from({ length: screenCount }, () => true)
 
-	const mv = config?.multiview_enabled ?? cs.multiview_enabled
-	const multiviewEnabled = mv !== false && mv !== 'false'
 	const decklinkCount = Math.min(8, Math.max(0, parseInt(String(config?.decklink_input_count ?? cs.decklink_input_count ?? 0), 10) || 0))
 	const inputsHostChannelEnabled = readCasparSetting(config, 'decklink_inputs_host_channel_enabled') === true || readCasparSetting(config, 'decklink_inputs_host_channel_enabled') === 'true'
 	const inputsEnabled = decklinkCount > 0 || inputsHostChannelEnabled
@@ -229,15 +227,14 @@ function getChannelMap(config, activeBuses = null) {
 	const multiviewChannels = []
 	if (mvDests.length > 0) {
 		mvDests.forEach(() => multiviewChannels.push(nextCh++))
-	} else if (multiviewEnabled) {
-		multiviewChannels.push(nextCh++)
 	}
 	const multiviewCh = multiviewChannels[0] || null
 	const mvMode = String(readCasparSetting(config, 'multiview_mode') ?? '1080p5000')
 	const inMode = String(readCasparSetting(config, 'inputs_channel_mode') ?? '1080p5000')
 	const decklinkInputsHost = String(readCasparSetting(config, 'decklink_inputs_host') ?? 'multiview_if_match').toLowerCase()
 
-	const inputsOnMvr = inputsEnabled && multiviewEnabled && multiviewCh != null && mvMode === inMode && decklinkInputsHost !== 'preview_1'
+	const inputsOnMvr =
+		inputsEnabled && multiviewCh != null && mvMode === inMode && decklinkInputsHost !== 'preview_1'
 	let inputsCh = null; if (inputsEnabled) {
 		if (decklinkInputsHost === 'preview_1') inputsCh = previewChannels[0] || 1
 		else if (inputsOnMvr) inputsCh = multiviewCh
@@ -288,7 +285,13 @@ function getChannelMap(config, activeBuses = null) {
 	}
 
 	const result = {
-		screenCount, multiviewEnabled, inputsEnabled, inputsOnMvr, decklinkInputsHost, decklinkCount,
+		screenCount,
+		/** True only when at least one multiview Caspar channel is allocated (topology includes a multiview destination). */
+		multiviewEnabled: multiviewChannels.length > 0,
+		inputsEnabled,
+		inputsOnMvr,
+		decklinkInputsHost,
+		decklinkCount,
 		programCh: (n) => programChannels[n - 1] || programChannels[0],
 		previewCh: (n) => {
 			const idx = n - 1

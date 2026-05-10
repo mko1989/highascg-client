@@ -1,0 +1,36 @@
+#!/bin/bash
+
+export DISPLAY=:0
+export XAUTHORITY=/home/casparcg/.Xauthority
+
+# Disable screen blanking
+xset s off
+xset s noblank
+xset -dpms
+
+# Hide mouse cursor
+unclutter -idle 1 -root &
+
+# --- Single instance lock (prevents duplicate starts) ---
+(
+  exec 9>/tmp/caspar-openbox-autostart.lock
+  if ! flock -n 9; then
+    exit 0
+  fi
+
+  ulimit -c unlimited
+  cd /opt/casparcg || exit 1
+  /usr/bin/casparcg-scanner &
+
+  while true; do
+    cd /opt/casparcg || exit 1
+    mkdir -p /opt/casparcg/cef-cache
+    find /opt/casparcg/cef-cache -mindepth 1 -delete 2>/dev/null || true
+
+    /usr/bin/casparcg-server-beta /opt/casparcg/config/casparcg.config >> /tmp/caspar.log 2>&1
+
+    # Wait until nothing listens on AMCP (default 5250 — change if your config uses another port)
+    while ss -tlnp 2>/dev/null | grep -qE ':5250\b'; do sleep 1; done
+    sleep 2
+  done
+) &

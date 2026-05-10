@@ -169,7 +169,6 @@ export async function initEditor(container) {
 	// Dispatch selection from GrapesJS
 	editor.on('component:selected', (component) => {
 		// Tell HighAsCG that we selected something
-		window.dispatchEvent(new CustomEvent('dashboard-select', { detail: null })) // clear dashboard selection
 		window.dispatchEvent(new CustomEvent('scene-layer-select', { detail: null }))
 		
 		// Wait a tick for previous selections to clear, then claim it

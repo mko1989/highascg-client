@@ -6,6 +6,8 @@ import { mountLayerPresetControls } from './scene-layer-row.js'
 import { showScenesToast } from './scenes-editor-support.js'
 import { LOOK_PRESET_RECALL_PGM, LOOK_PRESET_RECALL_PRV } from '../lib/look-preset-events.js'
 import { api } from '../lib/api-client.js'
+let selectedLookPresetId = null
+
 /**
  * @param {HTMLElement} root
  * @param {object} opts
@@ -245,15 +247,22 @@ export function renderLookPresetsMode(root, { onSceneRefresh } = {}) {
 	for (const p of presets) {
 		const sc = sceneState.getScene(p.sceneId)
 		const card = document.createElement('div')
-		card.className = 'look-preset-card'
+		card.className = `look-preset-card ${p.id === selectedLookPresetId ? 'look-preset-card--selected' : ''}`
 		
+		const prvIdAt = (idx) => sceneState.getPreviewSceneIdForMain(Number(idx) || 0)
 		const isLoadedOnPrv = Array.isArray(p.items) && p.items.length > 0
-			? p.items.every(it => it.sceneId === sceneState.previewSceneIdByScreen?.[String(it.mainIdx)])
-			: p.sceneId === sceneState.previewSceneIdByScreen?.[String(p.targetMain || 0)]
+			? p.items.every((it) => it.sceneId === prvIdAt(it.mainIdx))
+			: p.sceneId === prvIdAt(p.targetMain || 0)
 		
 		if (isLoadedOnPrv) {
 			card.classList.add('look-preset-card--loaded-prv')
 		}
+
+		card.addEventListener('click', (e) => {
+			if (e.target.closest('button')) return
+			selectedLookPresetId = p.id
+			renderLookPresetsMode(root, { onSceneRefresh })
+		})
 
 		const line1 = document.createElement('div')
 		line1.className = 'look-preset-card__row'
@@ -285,6 +294,7 @@ export function renderLookPresetsMode(root, { onSceneRefresh } = {}) {
 			<button type="button" class="scenes-btn scenes-btn--sm" data-lp-r-prv>Preview</button>
 			<button type="button" class="scenes-btn scenes-btn--sm" data-lp-r-take>Take</button>
 			<button type="button" class="scenes-btn scenes-btn--sm" data-lp-r-cut>Cut</button>
+			<button type="button" class="scenes-btn scenes-btn--sm" data-lp-ovw>Overwrite</button>
 			<button type="button" class="scenes-btn scenes-btn--sm scenes-btn--danger" data-lp-rm>Remove</button>
 		`
 		if (!sc) {
@@ -311,6 +321,17 @@ export function renderLookPresetsMode(root, { onSceneRefresh } = {}) {
 						detail: { sceneId: p.sceneId, lookPreset: p, forceCut: true },
 					}),
 				)
+			})
+			row2.querySelector('[data-lp-ovw]')?.addEventListener('click', () => {
+				const src = sourceKindLabel(p.sourceKind)
+				if (window.confirm(`Overwrite "${p.name}" with current ${src}?`)) {
+					if (sceneState.overwriteLookPreset(p.id)) {
+						showScenesToast('Look preset overwritten.', 'info')
+						renderLookPresetsMode(root, { onSceneRefresh })
+					} else {
+						showScenesToast(`Nothing valid on ${src} to save.`, 'warn')
+					}
+				}
 			})
 		}
 		row2.querySelector('[data-lp-rm]')?.addEventListener('click', () => {

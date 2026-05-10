@@ -25,6 +25,7 @@ const { notifyWebSocketClientConnected } = require('./src/bootstrap/startup-led-
 const { parseInfoConfigForDecklinks } = require('./src/utils/decklink-enum')
 const { runConnectionQueryCycle } = require('./src/utils/query-cycle')
 const moduleRegistry = require('./src/module-registry')
+const { applyUiSelectionPayloadToVariables } = require('./src/api/apply-ui-selection-variables')
 
 const Args = require('./src/bootstrap/args'); const Config = require('./src/bootstrap/config'); const Modules = require('./src/bootstrap/modules'); const Shutdown = require('./src/bootstrap/shutdown')
 
@@ -65,7 +66,16 @@ function main() {
 			sceneDeck: (pSceneDeck && typeof pSceneDeck === 'object' && Array.isArray(pSceneDeck.looks)) ? { looks: pSceneDeck.looks, previewSceneId: String(pSceneDeck.previewSceneId || '').trim() || null, layerPresets: pSceneDeck.layerPresets || [], lookPresets: pSceneDeck.lookPresets || [] } : { looks: [], previewSceneId: null, layerPresets: [], lookPresets: [] },
 			persistence, amcp: null, timelineEngine: null, oscState: null, _casparStatus: { connected: false, host: config.caspar.host, port: config.caspar.port }, configManager, samplingManager: null,
 			resetConfigToDefaults: () => configManager.factoryReset(),
-			log: (level, msg) => { const l = level === 'error' ? logger.error : (level === 'warn' ? logger.warn : (level === 'info' ? logger.info : debugLog.debug)); l(msg) }
+			log: (level, msg) => { const l = level === 'error' ? logger.error : (level === 'warn' ? logger.warn : (level === 'info' ? logger.info : debugLog.debug)); l(msg) },
+			setUiSelection: (ctx, data) => {
+				try {
+					if (!ctx?.state || typeof applyUiSelectionPayloadToVariables !== 'function') return
+					applyUiSelectionPayloadToVariables(ctx.state, data && typeof data === 'object' ? data : {})
+				} catch (e) {
+					const m = e instanceof Error ? e.message : String(e)
+					ctx.log?.('warn', `[selection] ${m}`)
+				}
+			},
 		}
 		writeSystemInventoryFile(appCtx.log, config); const invSec = Math.max(0, parseInt(process.env.HIGHASCG_SYSTEM_INVENTORY_REFRESH_SEC || '0', 10) || 0)
 		if (invSec > 0) appCtx._startupInventoryInterval = setInterval(() => writeSystemInventoryFile(appCtx.log, config), invSec * 1000)

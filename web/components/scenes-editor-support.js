@@ -59,7 +59,7 @@ export function appendScenesEditorShell(root) {
 	const tabsHost = document.createElement('div')
 	tabsHost.className = 'scenes-tabs-host'
 	const mainHost = document.createElement('div')
-	mainHost.className = 'scenes-main dashboard-main scenes-split__main'
+	mainHost.className = 'scenes-main scenes-split__main'
 
 	const vh = typeof window !== 'undefined' ? window.innerHeight : 800
 	const splitPx = { current: Math.round(Math.min(420, Math.max(220, vh * 0.32))) }
@@ -131,10 +131,16 @@ export function bindScenesPreviewSplitDrag({ splitHandle, previewHost, previewPa
 export function createTakeSceneToProgram(deps) {
 	let takeBusy = false
 
-	return async function takeSceneToProgram(sceneId, forceCut) {
+	/**
+	 * @param {string} sceneId
+	 * @param {boolean} forceCut
+	 * @param {{ targetMains?: number[] }} [takeOpts] When set (e.g. from a deck column), take only those mains — not armed pills alone.
+	 */
+	return async function takeSceneToProgram(sceneId, forceCut, takeOpts = {}) {
 		if (takeBusy) return
 		const scene = sceneState.getScene(sceneId)
 		if (!scene) return
+
 		const hasContent = (scene.layers || []).some((l) => l?.source?.value)
 		if (!hasContent) {
 			deps.showToast('Add at least one layer with a source before taking live.', 'error')
@@ -143,13 +149,19 @@ export function createTakeSceneToProgram(deps) {
 		takeBusy = true
 		try {
 			const cm = deps.getChannelMap() || {}
-			const programChannels = Array.isArray(cm.programChannels) ? cm.programChannels : [deps.getProgramChannel()]
+			const programChannels = (Array.isArray(cm.programChannels) && cm.programChannels.length > 0) ? cm.programChannels : [deps.getProgramChannel()]
 			const targetMains = (() => {
-				const scope = String(scene.mainScope ?? sceneState.activeScreenIndex)
-				if (scope === 'all') return Array.from({ length: programChannels.length }, (_, i) => i)
-				const n = parseInt(scope, 10)
-				if (Number.isFinite(n) && n >= 0 && n < programChannels.length) return [n]
-				return sceneState.armedScreenIndices?.length ? sceneState.armedScreenIndices : [sceneState.activeScreenIndex]
+				if (Array.isArray(takeOpts?.targetMains) && takeOpts.targetMains.length > 0) {
+					const picked = takeOpts.targetMains
+						.map((x) => parseInt(String(x), 10))
+						.filter((idx) => Number.isFinite(idx) && idx >= 0 && idx < programChannels.length)
+					if (picked.length > 0) return picked
+					// Explicit column/deck take — do not fall back to another main (would hit wrong PGM / HTTP 500 if routing differs).
+					return []
+				}
+				const fallback = sceneState.armedScreenIndices?.length ? sceneState.armedScreenIndices : [sceneState.activeScreenIndex]
+				const valid = fallback.filter(idx => idx >= 0 && idx < programChannels.length)
+				return valid.length > 0 ? valid : [0]
 			})()
 			const scenePayloadForState = buildIncomingScenePayload(scene)
 			const incomingJsonBase = buildIncomingScenePayload(scene, {
@@ -159,14 +171,6 @@ export function createTakeSceneToProgram(deps) {
 			const prevLive = deps.stateStore.getState()?.scene?.live || {}
 			const mergedLive = { ...prevLive }
 			const touched = []
-			console.info('[looks][take] start', {
-				sceneId: scene.id,
-				sceneName: scene.name || 'Untitled look',
-				mainScope: String(scene.mainScope ?? sceneState.activeScreenIndex),
-				targetMains,
-				programChannels,
-				forceCut: !!forceCut,
-			})
 			for (const mainIdx of targetMains) {
 				const programCh = programChannels[mainIdx]
 				if (!Number.isFinite(Number(programCh)) || Number(programCh) <= 0) continue
@@ -179,13 +183,6 @@ export function createTakeSceneToProgram(deps) {
 					forceCut,
 					useServerLive: true,
 				}
-				console.info('[looks][take] dispatch', {
-					sceneId: scene.id,
-					mainIdx,
-					channel: Number(programCh),
-					forceCut: !!forceCut,
-					layerCount: Array.isArray(incomingJsonBase?.layers) ? incomingJsonBase.layers.length : 0,
-				})
 				const takeRes = await deps.api.post('/api/scene/take', body)
 				sceneState.setLiveSceneId(sceneId, mainIdx)
 				if (takeRes?.sceneLive && typeof takeRes.sceneLive === 'object') {
@@ -206,17 +203,20 @@ export function createTakeSceneToProgram(deps) {
 			}
 			deps.stateStore.applyChange('scene.live', mergedLive)
 			deps.primePreviewSnapshotFromScene(sceneId)
-			if (touched.length > 0) {
+			if (touched.length === 0) {
+				deps.showToast(
+					Array.isArray(takeOpts?.targetMains) && takeOpts.targetMains.length > 0
+						? 'That screen is not in the current channel map (or routing list is stale). Reload the page or fix Settings → outputs.'
+						: 'No program output mapped for this screen. Check Settings → channel routing.',
+					'error',
+				)
+			} else {
 				const mode = forceCut ? 'Cut' : 'Take'
 				const routeText = touched
 					.map((x) => `M${x.mainIdx + 1} ch${x.channel}`)
 					.join(', ')
 				deps.showToast(`${mode}: “${scene.name || 'Look'}” → ${routeText}`, 'info')
 			}
-			console.info('[looks][take] done', {
-				sceneId: scene.id,
-				touched,
-			})
 		} catch (e) {
 			deps.showToast(e?.message || String(e), 'error')
 		} finally {

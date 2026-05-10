@@ -2,7 +2,7 @@
  * Shared scenes editor helpers — AMCP snippets, transition row UI, take payload.
  */
 
-import { TRANSITION_TYPES, TRANSITION_TWEENS } from '../lib/dashboard-state.js'
+import { TRANSITION_TYPES, TRANSITION_TWEENS } from '../lib/program-output-state.js'
 import { parseNumberInput } from '../lib/math-input.js'
 import { sceneState } from '../lib/scene-state.js'
 import { getPipOverlaysFromLayer } from '../lib/pip-overlay-registry.js'

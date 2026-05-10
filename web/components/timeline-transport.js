@@ -3,7 +3,7 @@
  */
 
 import { timelineState } from '../lib/timeline-state.js'
-import { TRANSITION_TYPES, TRANSITION_TWEENS } from '../lib/dashboard-state.js'
+import { TRANSITION_TYPES, TRANSITION_TWEENS } from '../lib/program-output-state.js'
 import { api } from '../lib/api-client.js'
 import { fmtSmpte, parseTcInput } from './timeline-canvas.js'
 import { parseNumberInput } from '../lib/math-input.js'

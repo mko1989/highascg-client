@@ -1,5 +1,6 @@
 'use strict'
 
+const { channelXmlComment } = require('./config-generator-xml-comments')
 const { STANDARD_VIDEO_MODES } = require('./config-modes')
 const { pushCustomMode } = require('./config-generator-custom-modes')
 const { buildChannelPlan } = require('./config-generator-channel-plan')
@@ -80,18 +81,24 @@ function buildChannelsSection(config, routeMap) {
 		})
 	}
 
-	const hostXml = buildInputsHostChannel(config, plan.decklinkCount, plan.inputsHostChannelEnabled, routeMap.inputsOnMvr)
+	const hostXml = buildInputsHostChannel(
+		config,
+		plan.decklinkCount,
+		plan.inputsHostChannelEnabled,
+		routeMap.inputsOnMvr,
+		routeMap.inputsCh,
+	)
 	if (hostXml) setChannelXml(routeMap.inputsCh, hostXml)
 
 	for (const a of plan.extraAudio) {
 		if (a.dims.isCustom) pushCustomMode(customVideoModes, customModeIds, a.dims)
 		const audioCh = Array.isArray(routeMap.audioOnlyChannels) ? routeMap.audioOnlyChannels[a.i - 1] : null
-		setChannelXml(audioCh, buildExtraAudioChannel(config, a.i, a.dims))
+		setChannelXml(audioCh, buildExtraAudioChannel(config, a.i, a.dims, audioCh))
 	}
 
-	if (plan.streamingChannelDedicatedSlot) setChannelXml(routeMap.streamingCh, buildStreamingChannel(config))
-	
-	const monitorXml = buildMonitorChannelXml(config)
+	if (plan.streamingChannelDedicatedSlot) setChannelXml(routeMap.streamingCh, buildStreamingChannel(config, routeMap.streamingCh))
+
+	const monitorXml = buildMonitorChannelXml(config, routeMap.monitorCh)
 	if (monitorXml) setChannelXml(routeMap.monitorCh, monitorXml)
 
 	const usedNums = [...channelXmlByNumber.keys()]
@@ -102,13 +109,15 @@ function buildChannelsSection(config, routeMap) {
 		const xml = channelXmlByNumber.get(ch)
 		if (xml) channelsXml.push(xml)
 		else {
-			channelsXml.push(`        <channel>
+			channelsXml.push(
+				`${channelXmlComment(`Caspar channel ${ch}: Placeholder (routing reserved this index but no consumer block was emitted; regenerate from Settings or report)`)}        <channel>
             <video-mode>1080p5000</video-mode>
             <consumers/>
             <mixer>
                 <audio-osc>true</audio-osc>
             </mixer>
-        </channel>`)
+        </channel>`,
+			)
 		}
 	}
 

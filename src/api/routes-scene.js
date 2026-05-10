@@ -92,7 +92,15 @@ async function handleSceneTake(body, ctx) {
 		const currentScene = useClientCurrentScene
 			? requestedCurrentScene
 			: (liveSceneState.getChannel(channel)?.scene || null)
-		const mainIdx = Array.isArray(routeMap.programChannels) ? routeMap.programChannels.indexOf(channel) : -1
+		let mainIdx = Array.isArray(routeMap.programChannels) ? routeMap.programChannels.indexOf(channel) : -1
+		if (mainIdx < 0 && routeMap.programCh && Number.isFinite(routeMap.screenCount)) {
+			for (let i = 0; i < routeMap.screenCount; i++) {
+				if (routeMap.programCh(i + 1) === channel) {
+					mainIdx = i
+					break
+				}
+			}
+		}
 		const bus1 = mainIdx >= 0 ? (routeMap.switcherBus1Channels?.[mainIdx] ?? routeMap.previewChannels?.[mainIdx] ?? null) : null
 		const bus2 = null
 		if (typeof ctx.log === 'function') {
@@ -102,9 +110,12 @@ async function handleSceneTake(body, ctx) {
 				`[scene-take] scene=${String(inc?.id || 'n/a')}${sceneName ? ` (${sceneName})` : ''} scope=${String(inc?.mainScope || 'n/a')} ch=${channel} main=${mainIdx >= 0 ? mainIdx + 1 : 'n/a'} bus1=${bus1 ?? 'n/a'} bus2=${bus2 ?? 'n/a'} forceCut=${!!b.forceCut}`,
 			)
 		}
-		// PGM-only screens are intentionally single-channel (resource-saving mode): no bus switch path.
-		if (mainIdx < 0) {
-			throw new Error(`scene take requires a valid output channel, got ${channel}`)
+		// Unknown PGM slot (map drift vs client, or auxiliary channel): skip PGM↔PRV exchange — still run LOADBG/PLAY on `channel`.
+		if (mainIdx < 0 && typeof ctx.log === 'function') {
+			ctx.log(
+				'warn',
+				`[scene-take] channel ${channel} not in routing programChannels — using direct-program path (no pgm/prv exchange)`,
+			)
 		}
 		// 2-channel PGM/PRV workflow: build incoming on PRV, then transition PGM route to PRV.
 		if (bus1 != null && bus2 == null) {
@@ -163,7 +174,7 @@ async function handleSceneTake(body, ctx) {
 			return
 		}
 		if (typeof ctx.log === 'function') {
-			ctx.log('info', `[scene-take] direct-program path ch=${channel} (2-channel pgm/prv mode)`)
+			ctx.log('info', `[scene-take] direct-program path ch=${channel} (no pgm/prv bus exchange)`)
 		}
 		await runSceneTakeLbg(ctx.amcp, { ...takeOpts, self: ctx })
 		if (inc && typeof inc === 'object' && inc.id) {

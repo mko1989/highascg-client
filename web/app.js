@@ -15,7 +15,7 @@ import { initWorkspaceLayout } from './lib/workspace-layout.js'
 import { initHeaderBar } from './components/header-bar.js'
 import { initAudioMixerPanel } from './components/audio-mixer-panel.js'
 import { mountPgmTopLayerPlaybackTimer } from './components/playback-timer.js'
-import { dashboardState } from './lib/dashboard-state.js'
+import { programOutputState } from './lib/program-output-state.js'
 import { settingsState } from './lib/settings-state.js'
 import { streamState, applyBrowserMonitorFromSettings } from './lib/stream-state.js'
 import { showSettingsModal } from './components/settings-modal.js'
@@ -124,7 +124,7 @@ async function init() {
 	void initOptionalModules({ stateStore, ws, api, sceneState, settingsState, streamState })
 	_oscClient = new OscClient({ wsClient: ws }); window.highascg_osc_client = _oscClient
 
-	Handlers.attachWsHandlers(ws, { stateStore, sceneState, timelineState, multiviewState, dashboardState, projectState, dmxState, variableStore: getVariableStore(ws), appLogic })
+	Handlers.attachWsHandlers(ws, { stateStore, sceneState, timelineState, multiviewState, programOutputState, projectState, dmxState, variableStore: getVariableStore(ws), appLogic })
 	sceneState.on('change', () => appLogic.scheduleSceneDeckSync())
 	sceneState.on('imported', () => appLogic.scheduleSceneDeckSync())
 	sceneState.on('previewScene', () => appLogic.scheduleSceneDeckSync())
@@ -198,7 +198,7 @@ async function init() {
 		})
 		renderPlaybackChannelChips()
 	}
-	mountTimer(); dashboardState.on('screenChange', () => pgmHeaderTimerDestroy?.refresh()); sceneState.on('screenChange', () => pgmHeaderTimerDestroy?.refresh())
+	mountTimer(); sceneState.on('screenChange', () => pgmHeaderTimerDestroy?.refresh())
 	stateStore.on('*', (path) => {
 		if (path === 'channelMap') renderPlaybackChannelChips()
 		if (['channelMap', 'channels', null].includes(path)) pgmHeaderTimerDestroy?.refresh()
@@ -220,14 +220,16 @@ async function init() {
 		if (settings?.offline_mode) await stateStore.hydrateFromCache()
 		const state = await api.get('/api/state'); if (state) {
 			stateStore.setState(state); if (state.variables) getVariableStore(ws)?.mergeFromServer(state.variables)
-			sceneState.setCanvasResolutions(state.channelMap?.programResolutions); appLogic.syncMultiviewCanvas(state.channelMap)
+			sceneState.setCanvasResolutions(state.channelMap?.programResolutions)
+			programOutputState.setCanvasResolutions(state.channelMap?.programResolutions)
+			appLogic.syncMultiviewCanvas(state.channelMap)
 			appLogic.scheduleMultiviewRefresh(); appLogic.emitCasparConnectedIfNeeded(state)
 			if (state.scene?.live) sceneState.applyServerLiveChannels(state.scene.live, state.channelMap)
 			httpConnected = true; appLogic.updateStatus(true); appLogic.refreshEye()
 		}
 		if (!settings?.offline_mode) {
 			try {
-				const proj = await api.get('/api/project'); if (proj?.version) { projectState.importProject(proj, sceneState, timelineState, multiviewState, dashboardState); window.dispatchEvent(new Event('project-loaded')) }
+				const proj = await api.get('/api/project'); if (proj?.version) { projectState.importProject(proj, sceneState, timelineState, multiviewState, programOutputState); window.dispatchEvent(new Event('project-loaded')) }
 			} catch {}
 		}
 	} catch (err) { console.warn('[HighAsCG] Bootstrap failed:', err.message) }

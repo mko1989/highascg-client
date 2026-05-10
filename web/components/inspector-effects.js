@@ -1,6 +1,6 @@
 /**
  * Inspector — per-effect-type parameter editors + effects list/drop-zone.
- * Renders editors for mixer effects on scene layers, timeline clips, and dashboard cells.
+ * Renders editors for mixer effects on scene layers and timeline clips.
  *
  * @see 22_WO_MIXER_EFFECTS.md T2.1–T2.3
  * @see effect-registry.js for definitions

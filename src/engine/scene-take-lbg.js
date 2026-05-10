@@ -96,6 +96,20 @@ function extFromPath(filename) {
 
 const STRAIGHT_ALPHA_STILL_EXT = new Set(['png', 'webp', 'tiff', 'tif', 'tga'])
 
+/** Caspar often rejects `LOADBG … MIX …` on still/image producers (COMMAND_UNKNOWN_DATA). Use plain LOADBG + PLAY; motion crossfade still uses bank stacks / mixer. */
+const STILL_IMAGE_LOADBG_NO_TRANSITION_EXT = new Set([
+	'png',
+	'jpg',
+	'jpeg',
+	'gif',
+	'bmp',
+	'webp',
+	'tiff',
+	'tif',
+	'tga',
+	'dpx',
+])
+
 function shouldApplyStraightAlphaKeyer(clip, straightAlpha) {
 	if (!straightAlpha) return false
 	const ext = extFromPath(clip)
@@ -229,6 +243,12 @@ async function runSceneTakeLbg(amcp, opts) {
 			loadOpts.transition = globalT.type
 			loadOpts.duration = globalT.duration
 			loadOpts.tween = globalT.tween
+		}
+		const clipExt = extFromPath(clip)
+		if (loadOpts.transition && STILL_IMAGE_LOADBG_NO_TRANSITION_EXT.has(clipExt)) {
+			delete loadOpts.transition
+			delete loadOpts.duration
+			delete loadOpts.tween
 		}
 
 		const keyer = shouldApplyStraightAlphaKeyer(clip, !!layer.straightAlpha) ? 1 : 0

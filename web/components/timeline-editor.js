@@ -34,7 +34,7 @@ export function initTimelineEditor(root, stateStore) {
 	let _flagBoard = null
 	let previewPanel = null
 	// sendTo.screenIdx: 0-based screen index, null = all screens
-	// Default PRV only — avoid sending timeline to program until the user enables PGM or uses Take / scene take / dashboard column.
+	// Default PRV only — avoid sending timeline to program until the user enables PGM or uses Take / scene take.
 	const view = {
 		sendTo: { preview: true, program: false, screenIdx: 0 },
 		follow: true,

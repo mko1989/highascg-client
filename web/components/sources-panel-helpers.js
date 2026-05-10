@@ -538,18 +538,17 @@ export function buildLiveSources(channelMap, connectors = []) {
 			// Find connector that matches this decklink slot (0-indexed index in caspar config usually matches index in device-view)
 			// But we look for ioDirection: 'in' and index: i-1
 			const conn = connectors.find(c => (c.kind === 'decklink_io' || c.kind === 'decklink') && c.caspar?.ioDirection === 'in' && c.index === (i - 1))
-			if (!conn) continue
 			sources.push({
 				type: 'route',
 				routeType: 'decklink',
 				value: `route://${inputsCh}-${i}`,
-				label: conn.label || `decklink ${i}`,
+				label: conn?.label || `decklink ${i}`,
 				resolution,
 				fps,
 				decklinkSlot: i,
 				inputsChannel: inputsCh,
-				connectorId: conn.id,
-				decklinkDevice: conn.externalRef != null ? parseInt(String(conn.externalRef), 10) : (i - 1)
+				connectorId: conn?.id,
+				decklinkDevice: conn?.externalRef != null ? parseInt(String(conn.externalRef), 10) : (i - 1)
 			})
 		}
 	}

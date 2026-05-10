@@ -185,6 +185,7 @@ function suggestConnectorsAndDevicesFromLive(live, appConfig) {
 				rtmpServerUrl: String(so.rtmpServerUrl || ''),
 				streamKey: String(so.streamKey || ''),
 				srtUrl: String(so.srtUrl || ''),
+				udpUrl: String(so.udpUrl || ''),
 				videoCodec: String(so.videoCodec || 'h264').toLowerCase(),
 				videoBitrateKbps: Math.max(200, parseInt(String(so.videoBitrateKbps ?? 4500), 10) || 4500),
 				encoderPreset: String(so.encoderPreset || 'veryfast').toLowerCase(),

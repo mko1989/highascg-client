@@ -3,14 +3,24 @@
  * @see main_plan.md FEAT-2
  */
 import { api } from './api-client.js'
-import { dashboardState } from './dashboard-state.js'
 import { sceneState, previewChannelLayerForSceneLayer } from './scene-state.js'
-import { dashboardCasparLayer } from './dashboard-state.js'
 import { multiviewState } from './multiview-state.js'
-import { getContentResolution } from './mixer-fill.js'
 import { clipPixelRectAtLocalTime } from './timeline-clip-interp.js'
 
 let _timer = null
+
+/**
+ * Serializable clone for Companion variables (`layerSnapshot` / `ui_selection_look_layer_json`).
+ * @param {object | null | undefined} layer
+ */
+function layerSnapshotForCompanion(layer) {
+	if (!layer || typeof layer !== 'object') return null
+	try {
+		return JSON.parse(JSON.stringify(layer))
+	} catch {
+		return null
+	}
+}
 
 /**
  * @param {import('./state-store.js').StateStore} stateStore
@@ -39,6 +49,7 @@ export function buildSelectionPayload(stateStore, sel) {
 			label: `L${layer?.layerNumber ?? '?'}`,
 			scene: {
 				sceneId: sel.sceneId,
+				sceneName: sc?.name || '',
 				layerIndex: sel.layerIndex,
 				channel: previewCh,
 				casparLayer: previewChannelLayerForSceneLayer(sc, sel.layerIndex),
@@ -49,43 +60,8 @@ export function buildSelectionPayload(stateStore, sel) {
 				opacity: layer?.opacity ?? 1,
 				source: layer?.source || null,
 			},
+			layerSnapshot: layerSnapshotForCompanion(layer),
 		}
-	}
-
-	if (sel.type === 'dashboardLayer' && typeof sel.layerIdx === 'number') {
-		const layerIdx = sel.layerIdx
-		const ls = dashboardState.getLayerSetting(layerIdx)
-		const name = dashboardState.getLayerName(layerIdx)
-		const screenIdx = dashboardState.activeScreenIndex ?? 0
-		const programCh = cm.programChannels?.[screenIdx] ?? cm.programChannels?.[0] ?? 1
-		const res = cm.programResolutions?.[screenIdx] || { w: 1920, h: 1080 }
-		const colIdx = dashboardState.getActiveColumnIndex()
-		const cell = colIdx >= 0 ? dashboardState.getCell(colIdx, layerIdx) : null
-		const contentRes = cell?.source ? getContentResolution(cell.source, stateStore, screenIdx) : null
-		return {
-			context: 'dashboard_layer',
-			label: name || `Layer ${layerIdx + 1}`,
-			dashboard: {
-				colIdx,
-				layerIdx,
-				channel: programCh,
-				casparLayer: dashboardCasparLayer(layerIdx),
-				res,
-				screenIdx,
-				x: ls.x,
-				y: ls.y,
-				w: ls.w,
-				h: ls.h,
-				stretch: ls.stretch || 'none',
-				aspectLocked: !!ls.aspectLocked,
-				contentRes: contentRes && contentRes.w > 0 ? { w: contentRes.w, h: contentRes.h } : null,
-				source: cell?.source || null,
-			},
-		}
-	}
-
-	if (sel.type === 'dashboard' && typeof sel.layerIdx === 'number') {
-		return buildSelectionPayload(stateStore, { type: 'dashboardLayer', layerIdx: sel.layerIdx })
 	}
 
 	if (sel.type === 'timelineClip' && sel.timelineId && sel.clip && typeof sel.layerIdx === 'number') {

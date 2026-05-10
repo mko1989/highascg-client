@@ -27,6 +27,8 @@ export function initScenesEditor(root, stateStore, opts = {}) {
 	const getThumbForSource = (source, channelForLive) => {
 		if (!source || !source.value) return null
 		if (isMediaOrFileSource(source)) return getThumbnailUrl(source.value, SCENE_THUMB_MAX_W, 0)
+		// No PRV bus (pgm-only, etc.): do not fall back to PGM or ch 1 — that mislabels “preview” as program output.
+		if (channelForLive == null || !Number.isFinite(Number(channelForLive)) || Number(channelForLive) <= 0) return null
 		return getLiveThumbnailUrl(channelForLive)
 	}
 	const getComposeStreamNames = () => {
@@ -110,7 +112,16 @@ export function initScenesEditor(root, stateStore, opts = {}) {
 				const scene = meta.composeCell === 'pgm' ? (sceneState.getLiveSceneSnapshot(mainIdx) || (id ? sceneState.getScene(id) : null)) : (id ? sceneState.getScene(id) : null)
 				drawDualComposeCellPreview(ctx, W, H, cellW, cellH, c => {
 					const r = Logic.getResolutionForScreen(mainIdx, sceneState, stateStore)
-					drawOutputCanvasBounds(c, r.w, r.h); drawSceneComposeStack(c, r.w, r.h, { scene: scene || { layers: [] }, selectedLayerIndex: scene?.id === sceneState.editingSceneId ? selectedLayerIndex : null, isLive: false, skipBg: true, composePrvPgmLayout: layout, composeDualStreamPreview: true, getThumbUrl: s => getThumbForSource(s, meta.composeCell === 'prv' ? (getPreviewChannel() || getPlaybackChannel()) : getPlaybackChannel()), onThumbLoaded: () => previewPanel.scheduleDraw() })
+					const cm = getChannelMap()
+					const prvForMain = cm.previewChannels?.[mainIdx]
+					const pgmForMain = cm.playbackChannels?.[mainIdx] ?? cm.programChannels?.[mainIdx] ?? getPlaybackChannel()
+					const thumbCh =
+						meta.composeCell === 'prv'
+							? prvForMain != null && prvForMain > 0
+								? prvForMain
+								: null
+							: pgmForMain
+					drawOutputCanvasBounds(c, r.w, r.h); drawSceneComposeStack(c, r.w, r.h, { scene: scene || { layers: [] }, selectedLayerIndex: scene?.id === sceneState.editingSceneId ? selectedLayerIndex : null, isLive: false, skipBg: true, composePrvPgmLayout: layout, composeDualStreamPreview: true, getThumbUrl: s => getThumbForSource(s, thumbCh), onThumbLoaded: () => previewPanel.scheduleDraw() })
 				}); drawComposePrvPgmCellEdgeBar(ctx, cellW, cellH, { layout, cell: meta.composeCell }); return
 			}
 			const id = sceneState.editingSceneId || sceneState.previewSceneId; const scene = id ? sceneState.getScene(id) : null
@@ -162,19 +173,29 @@ export function initScenesEditor(root, stateStore, opts = {}) {
 				deckThumbnailMode: true,
 			})
 		}, takeSceneToProgram, showToast: showScenesToast, dispatchLayerSelect, previewPanel, sendSceneToPreviewCard: previewRuntime.sendSceneToPreviewCard, selectedLayerIndexRef,
-		globalTakeFromPreview: () => {
+		globalTakeFromPreview: async () => {
 			const armed = sceneState.armedScreenIndices?.length ? sceneState.armedScreenIndices : [sceneState.activeScreenIndex]
+			let any = false
 			for (const mIdx of armed) {
-				const sid = sceneState.previewSceneIdByScreen?.[String(mIdx)]
-				if (sid) takeSceneToProgram(sid, false)
+				const sid = sceneState.getPreviewSceneIdForMain(mIdx)
+				if (sid) {
+					any = true
+					await takeSceneToProgram(sid, false, { targetMains: [mIdx] })
+				}
 			}
+			if (!any) showScenesToast('No look on preview. Click a look’s thumbnail (canvas) first.', 'error')
 		},
-		globalCutFromPreview: () => {
+		globalCutFromPreview: async () => {
 			const armed = sceneState.armedScreenIndices?.length ? sceneState.armedScreenIndices : [sceneState.activeScreenIndex]
+			let any = false
 			for (const mIdx of armed) {
-				const sid = sceneState.previewSceneIdByScreen?.[String(mIdx)]
-				if (sid) takeSceneToProgram(sid, true)
+				const sid = sceneState.getPreviewSceneIdForMain(mIdx)
+				if (sid) {
+					any = true
+					await takeSceneToProgram(sid, true, { targetMains: [mIdx] })
+				}
 			}
+			if (!any) showScenesToast('No look on preview. Click a look’s thumbnail first.', 'error')
 		}
 	})
 		if (preserveDeckScroll) {

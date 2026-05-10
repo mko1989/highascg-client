@@ -10,9 +10,10 @@ const { readCasparSetting } = require('./routing-map')
  */
 function buildChannelPlan(config, routeMap) {
 	const screenCount = routeMap.screenCount
-	const multiviewEnabled = config.multiview_enabled !== false && config.multiview_enabled !== 'false'
-	const decklinkCount = Math.min(8, Math.max(0, parseInt(String(config.decklink_input_count || 0), 10) || 0))
-	const extraAudioCount = Math.min(4, Math.max(0, parseInt(String(config.extra_audio_channel_count || 0), 10) || 0))
+	// Must match {@link ../routing-map#getChannelMap}: nested casparServer.decklink_input_count counts too,
+	// or routing burns inputsCh/nextCh while this plan assumed 0 → rogue empty `<channel>` placeholders.
+	const decklinkCount = typeof routeMap.decklinkCount === 'number' ? routeMap.decklinkCount : 0
+	const extraAudioCount = Array.isArray(routeMap.audioOnlyChannels) ? routeMap.audioOnlyChannels.length : 0
 
 	const screens = []
 	for (let n = 1; n <= screenCount; n++) {
@@ -32,6 +33,9 @@ function buildChannelPlan(config, routeMap) {
 		const dims = getModeDimensions(mode, config, ch)
 		multiviews.push({ ch, dims })
 	}
+
+	/** Emit multiview `<channel>` blocks only when routing allocated multiview slot(s). */
+	const multiviewEnabled = multiviewChannels.length > 0
 
 	return {
 		screens,

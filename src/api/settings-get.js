@@ -39,6 +39,7 @@ async function handleGet(path, ctx) {
 				rtmpServerUrl: '',
 				streamKey: '',
 				srtUrl: '',
+				udpUrl: '',
 				videoCodec: 'h264',
 				videoBitrateKbps: 4500,
 				encoderPreset: 'veryfast',

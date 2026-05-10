@@ -76,8 +76,8 @@ export function createScenesPreviewRuntime(opts) {
 
 	let previewPushBusy = false
 	let previewPushPending = false
-	/** @type {string | null} */
-	let previewPushTargetId = null
+	/** @type {{ sceneId: string, targetMains?: number[] } | null} */
+	let previewPushRequest = null
 
 	let previewDebounce = null
 
@@ -117,10 +117,12 @@ export function createScenesPreviewRuntime(opts) {
 		}
 		previewPushBusy = true
 		try {
-			const id = previewPushTargetId ?? sceneState.editingSceneId
-			previewPushTargetId = null
+			const req = previewPushRequest
+			previewPushRequest = null
+			const id = req?.sceneId ?? sceneState.editingSceneId
+			const restrictMains = req?.targetMains
 			if (id) {
-				await pushSceneToPreview(id)
+				await pushSceneToPreview(id, restrictMains)
 			}
 		} finally {
 			previewPushBusy = false
@@ -146,7 +148,7 @@ export function createScenesPreviewRuntime(opts) {
 		if (previewDebounce != null) clearTimeout(previewDebounce)
 		previewDebounce = setTimeout(() => {
 			previewDebounce = null
-			previewPushTargetId = null
+			previewPushRequest = null
 			void drainPreviewPushQueue()
 		}, PREVIEW_PUSH_DEBOUNCE_MS)
 	}
@@ -154,7 +156,7 @@ export function createScenesPreviewRuntime(opts) {
 	function flushPreviewPush() {
 		if (previewDebounce != null) clearTimeout(previewDebounce)
 		previewDebounce = null
-		previewPushTargetId = null
+		previewPushRequest = null
 		void drainPreviewPushQueue()
 	}
 
@@ -215,19 +217,28 @@ export function createScenesPreviewRuntime(opts) {
 		}
 	}
 
-	async function pushSceneToPreview(sceneId) {
+	/**
+	 * @param {string} sceneId
+	 * @param {number[]|undefined} restrictMains - If set, only push AMCP / set preview state for these main indices (deck column, look recall, etc.).
+	 */
+	async function pushSceneToPreview(sceneId, restrictMains) {
 		if (!sceneId) return
 		const scene = sceneState.getScene(sceneId)
 		if (!scene) return
 
 		const cm = getChannelMap()
-		const targetIdxs = (() => {
+		let targetIdxs = (() => {
 			const scope = String(scene.mainScope || 'all')
 			if (scope === 'all') return Array.from({ length: cm.screenCount || 1 }, (_, i) => i)
 			const n = parseInt(scope, 10)
 			if (Number.isFinite(n) && n >= 0 && n < (cm.screenCount || 1)) return [n]
 			return sceneState.armedScreenIndices?.length ? sceneState.armedScreenIndices : [sceneState.activeScreenIndex]
 		})()
+		if (Array.isArray(restrictMains) && restrictMains.length > 0) {
+			const allow = new Set(restrictMains.map((x) => Number(x)).filter((n) => Number.isFinite(n)))
+			targetIdxs = targetIdxs.filter((i) => allow.has(i))
+		}
+		if (targetIdxs.length === 0) return
 
 		try {
 			const commandsByChannel = new Map()
@@ -357,10 +368,14 @@ export function createScenesPreviewRuntime(opts) {
 		}
 	}
 
-	function sendSceneToPreviewCard(sceneId) {
+	/**
+	 * @param {string} sceneId
+	 * @param {{ targetMains?: number[] }} [opts]
+	 */
+	function sendSceneToPreviewCard(sceneId, opts = {}) {
 		if (previewDebounce != null) clearTimeout(previewDebounce)
 		previewDebounce = null
-		previewPushTargetId = sceneId
+		previewPushRequest = { sceneId, targetMains: opts.targetMains }
 		void drainPreviewPushQueue()
 	}
 

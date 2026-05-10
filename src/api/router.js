@@ -28,6 +28,7 @@ const routesSettings = require('./routes-settings')
 const routesAudio = require('./routes-audio')
 const routesProject = require('./routes-project')
 const routesLedTestCard = require('./routes-led-test-card')
+const { applyUiSelectionPayloadToVariables } = require('./apply-ui-selection-variables')
 const routesFtb = require('./routes-ftb')
 const routesSystemStaged = require('./routes-system-staged')
 const routesIngest = require('./routes-ingest')
@@ -62,7 +63,14 @@ async function routeRequest(method, path, body, ctx, req) {
 	}
 
 	if (method === 'POST' && p === '/api/selection') {
-		return { status: 200, headers: JSON_HEADERS, body: jsonBody({ ok: true }) }
+		try {
+			const payload = parseBody(body)
+			if (ctx.state) applyUiSelectionPayloadToVariables(ctx.state, payload && typeof payload === 'object' ? payload : {})
+			return { status: 200, headers: JSON_HEADERS, body: jsonBody({ ok: true }) }
+		} catch (e) {
+			const msg = e instanceof Error ? e.message : String(e)
+			return { status: 500, headers: JSON_HEADERS, body: jsonBody({ ok: false, error: msg }) }
+		}
 	}
 
 	{

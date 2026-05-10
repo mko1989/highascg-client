@@ -1,5 +1,5 @@
 /**
- * Canvas drawing helpers for dashboard / scenes / timeline preview stacks.
+ * Canvas drawing helpers for scenes / timeline preview stacks.
  */
 
 export {
@@ -9,7 +9,6 @@ export {
 	getThumbnailEntry,
 } from './preview-canvas-draw-base.js'
 export {
-	drawDashboardProgramStack,
 	drawSceneComposeStack,
 	drawTimelineStack,
 } from './preview-canvas-draw-stacks.js'

@@ -47,5 +47,25 @@
       "connectorNumber": 3,
       "location": 3
     }
-  ]
+  ],
+  "screen_count": 2,
+  "streaming": {
+    "enabled": false,
+    "protocol": "UDP",
+    "captureMode": "udp",
+    "localCaptureDevice": "auto",
+    "x11Display": ":0",
+    "ndiNamingMode": "auto",
+    "ndiSourcePattern": "CasparCG Channel {ch}",
+    "ndiChannelNames": {},
+    "quality": "medium",
+    "basePort": 40000,
+    "hardwareAccel": true,
+    "maxBitrate": 2000,
+    "resolution": "half",
+    "fps": 25,
+    "drmDevice": "/dev/dri/card0",
+    "autoRelocateBasePort": true
+  },
+  "extraLiveSources": []
 }

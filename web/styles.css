@@ -9,11 +9,10 @@
 @import url('./styles/03a-offline-sync-publish-ingest-menu.css');
 @import url('./styles/03b-ingest-drag-upload-progress.css');
 @import url('./styles/03c-sources-items-effects.css');
-@import url('./styles/04-media-lists-drag-dashboard.css');
-@import url('./styles/05a-dashboard-cells.css');
+@import url('./styles/04-media-lists-sources-tree.css');
 @import url('./styles/05b-timeline-editor.css');
 @import url('./styles/05c-multiview-editor.css');
-@import url('./styles/05d-inspector-fields-dashboard.css');
+@import url('./styles/05d-inspector-fields.css');
 @import url('./styles/06a1-scenes-deck-toolbar.css');
 @import url('./styles/06a2-scenes-deck-cards.css');
 @import url('./styles/06a3-scenes-deck-multi.css');

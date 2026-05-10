@@ -1,0 +1,7 @@
+<html>
+    <enable-gpu>false</enable-gpu>
+    <command-line-args>--disable-gpu --disable-gpu-compositing --disable-software-rasterizer --use-gl=swiftshader --disable-features=Vulkan,UseSkiaRenderer,WebRTC-HW-Encoding,WebRTC-HW-Decoding --no-sandbox</command-line-args>
+</html>
+
+echo "options nvidia-drm modeset=0" | sudo tee /etc/modprobe.d/nvidia-drm.conf
+sudo update-initramfs -u

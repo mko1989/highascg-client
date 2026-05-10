@@ -5,7 +5,7 @@
   "caspar_global_portaudio": true,
   "caspar_portaudio_host_api": "auto",
   "transitionModel": "switcher_bus",
-  "screen_count": 1,
+  "screen_count": 2,
   "screen_1_mode": "1080p5000",
   "screen_1_stretch": "none",
   "screen_1_windowed": true,
@@ -120,9 +120,9 @@
   "multiview_colour_space": "RGB",
   "multiview_force_linear_filter": true,
   "decklink_inputs_host_channel_enabled": false,
-  "decklink_input_count": 0,
+  "decklink_input_count": 1,
   "decklink_inputs_host": "multiview_if_match",
-  "decklink_input_1_device": 0,
+  "decklink_input_1_device": 1,
   "decklink_input_2_device": 0,
   "decklink_input_3_device": 0,
   "decklink_input_4_device": 0,
@@ -133,7 +133,9 @@
   "inputs_channel_mode": "1080p5000",
   "ndi_auto_load": true,
   "configPath": "/home/casparcg/highascg/config/casparcg.config",
-  "casparConfigOverride": "<configuration>\n    <paths>\n        <media-path>media/</media-path>\n        <log-path disable=\"false\">log/</log-path>\n        <data-path>data/</data-path>\n        <template-path>template/</template-path>\n    </paths>\n    <lock-clear-phrase>secret</lock-clear-phrase>\n    <log-level>info</log-level>\n    <system-audio>\n        <device-name/>\n    </system-audio>\n    <portaudio>\n        <host-api>auto</host-api>\n        <output-channels>2</output-channels>\n        <channels>2</channels>\n        <buffer-size-frames>128</buffer-size-frames>\n        <latency-compensation-ms>40</latency-compensation-ms>\n        <auto-tune-latency>true</auto-tune-latency>\n        <fifo-ms>50</fifo-ms>\n    </portaudio>\n    <channels>\n        <channel>\n            <video-mode>1080p5000</video-mode>\n            <consumers>\n                <screen>\n                    <device>1</device>\n                    <stretch>none</stretch>\n                    <windowed>true</windowed>\n                    <key-only>false</key-only>\n                    <vsync>true</vsync>\n                    <borderless>false</borderless>\n                    <interactive>false</interactive>\n                    <always-on-top>true</always-on-top>\n                    <x>0</x><y>0</y>\n                    <width>1920</width><height>1080</height>\n                    <sbs-key>false</sbs-key>\n                    <colour-space>RGB</colour-space>\n                    <force-linear-filter>true</force-linear-filter>\n                </screen>\n            </consumers>\n            <mixer>\n                <audio-osc>false</audio-osc>\n            </mixer>\n        </channel>\n    </channels>\n    <video-modes/>\n    <controllers><tcp><port>5250</port><protocol>AMCP</protocol></tcp>\n    </controllers>\n    <osc>\n        <default-port>6250</default-port>\n        <disable-send-to-amcp-clients>false</disable-send-to-amcp-clients>\n        <predefined-clients>\n            <predefined-client>\n                <address>127.0.0.1</address>\n                <port>6251</port>\n            </predefined-client>\n        </predefined-clients>\n    </osc>\n\n    <amcp><media-server><host>localhost</host><port>8000</port></media-server></amcp>\n    <ndi><auto-load>true</auto-load></ndi>\n    <decklink/>\n    <html>\n        <enable-gpu>false</enable-gpu>\n    </html>\n</configuration>",
+  "casparConfigOverride": "",
   "default_alsa_card": "",
-  "default_alsa_device": ""
+  "default_alsa_device": "",
+  "decklink_input_4_direction": "out",
+  "decklink_input_1_direction": "in"
 }

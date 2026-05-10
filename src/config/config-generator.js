@@ -85,7 +85,8 @@ ${customVideoModes.join('\n')}
         <template-path>template/</template-path>
     </paths>
     <lock-clear-phrase>secret</lock-clear-phrase>
-${customLiveRootXml}${audioSectionXml}    <channels>
+${customLiveRootXml}${audioSectionXml}    <!-- HighAsCG: Each channel block starts with a comment naming its Caspar index and role (PGM program, PRV preview, DeckLink inputs host, multiview, streaming, monitor). -->
+    <channels>
 ${channelsXml.join('\n')}
     </channels>
 ${finalVideoModesXml}

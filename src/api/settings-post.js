@@ -123,6 +123,7 @@ async function handlePost(path, body, ctx) {
 					rtmpServerUrl: String(x.rtmpServerUrl || '').trim(),
 					streamKey: String(x.streamKey || '').trim(),
 					srtUrl: String(x.srtUrl || '').trim(),
+					udpUrl: String(x.udpUrl || '').trim(),
 					videoCodec,
 					videoBitrateKbps: Math.max(200, parseInt(String(x.videoBitrateKbps ?? 4500), 10) || 4500),
 					encoderPreset,

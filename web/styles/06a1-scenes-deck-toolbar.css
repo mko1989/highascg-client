@@ -1,5 +1,5 @@
 /**
- * Scenes deck toolbar, look cards, PGM/PRV badges.
+ * Scenes deck toolbar, look cards (live/preview shown via card border rings).
  */
 
 .fixture-inspector__sep {
@@ -27,8 +27,6 @@
 .inspector-keyframe-row .inspector-field__key { white-space: nowrap; font-size: 0.75rem; }
 .inspector-keyframe-row .inspector-field__input { width: auto; min-width: 40px; }
 .inspector-keyframe-row .inspector-field__select { width: auto; min-width: 60px; }
-
-.dashboard-layer-label { cursor: pointer; }
 
 /* Scenes / Looks editor */
 .scenes-main {
@@ -128,12 +126,6 @@
 	background: #2ea043;
 	border-color: #2ea043;
 	color: #fff;
-}
-
-.scenes-edit-bar__hint {
-	font-size: 0.8rem;
-	color: var(--text-muted);
-	margin-left: auto;
 }
 
 .scenes-btn--danger {

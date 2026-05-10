@@ -21,17 +21,6 @@
       "externalRef": "led1"
     },
     {
-      "id": "gpu_p0",
-      "deviceId": "caspar_host",
-      "kind": "gpu_out",
-      "label": "P0",
-      "caspar": {
-        "bus": "pgm",
-        "mainIndex": 0
-      },
-      "externalRef": "DP-6/DP-7"
-    },
-    {
       "id": "dst_in_dst_moyi2ux5_1",
       "deviceId": "destinations",
       "kind": "destination_in",
@@ -51,6 +40,7 @@
         "rtmpServerUrl": "",
         "streamKey": "",
         "srtUrl": "",
+        "udpUrl": "",
         "videoCodec": "h264",
         "videoBitrateKbps": 4500,
         "encoderPreset": "veryfast",
@@ -76,6 +66,155 @@
         "audioBitrateKbps": 128
       },
       "externalRef": "record_1"
+    },
+    {
+      "id": "dlsdi_1",
+      "deviceId": "caspar_host",
+      "kind": "decklink_io",
+      "index": 0,
+      "label": "DeckLink 1",
+      "caspar": {
+        "ioDirection": "in"
+      },
+      "externalRef": "1"
+    },
+    {
+      "id": "dlsdi_2",
+      "deviceId": "caspar_host",
+      "kind": "decklink_io",
+      "index": 1,
+      "label": "DeckLink 2",
+      "caspar": {
+        "ioDirection": "in"
+      },
+      "externalRef": "2"
+    },
+    {
+      "id": "dlsdi_3",
+      "deviceId": "caspar_host",
+      "kind": "decklink_io",
+      "index": 2,
+      "label": "DeckLink 3",
+      "caspar": {
+        "ioDirection": "in"
+      },
+      "externalRef": "3"
+    },
+    {
+      "id": "dlsdi_4",
+      "deviceId": "caspar_host",
+      "kind": "decklink_io",
+      "index": 3,
+      "label": "DeckLink 4",
+      "caspar": {
+        "ioDirection": "in"
+      },
+      "externalRef": "4"
+    },
+    {
+      "id": "caspar_mv_out",
+      "deviceId": "caspar_host",
+      "kind": "caspar_mv_out",
+      "label": "Multiview channel (virtual)",
+      "externalRef": "4"
+    },
+    {
+      "id": "str_2",
+      "deviceId": "caspar_host",
+      "kind": "stream_out",
+      "index": 1,
+      "label": "Str2",
+      "caspar": {
+        "type": "rtmp",
+        "name": "Str2",
+        "quality": "medium",
+        "rtmpServerUrl": "",
+        "streamKey": "",
+        "srtUrl": "",
+        "udpUrl": "",
+        "videoCodec": "h264",
+        "videoBitrateKbps": 4500,
+        "encoderPreset": "veryfast",
+        "audioCodec": "aac",
+        "audioBitrateKbps": 128
+      },
+      "externalRef": "stream_2"
+    },
+    {
+      "id": "gpu_p0",
+      "deviceId": "caspar_host",
+      "kind": "gpu_out",
+      "label": "P0",
+      "caspar": {
+        "bus": "pgm",
+        "mainIndex": 0
+      },
+      "externalRef": "DP-7"
+    },
+    {
+      "id": "gpu_p1",
+      "deviceId": "caspar_host",
+      "kind": "gpu_out",
+      "label": "P1",
+      "caspar": {
+        "bus": "pgm",
+        "mainIndex": 0
+      },
+      "externalRef": "DP-4/DP-5"
+    },
+    {
+      "id": "gpu_p2",
+      "deviceId": "caspar_host",
+      "kind": "gpu_out",
+      "label": "P2",
+      "caspar": {
+        "bus": "pgm",
+        "mainIndex": 0
+      },
+      "externalRef": "DP-0/DP-1"
+    },
+    {
+      "id": "gpu_p3",
+      "deviceId": "caspar_host",
+      "kind": "gpu_out",
+      "label": "P3",
+      "caspar": {
+        "bus": "pgm",
+        "mainIndex": 0
+      },
+      "externalRef": "DP-2/DP-3"
+    },
+    {
+      "id": "dli_1",
+      "deviceId": "caspar_host",
+      "kind": "decklink_in",
+      "index": 0,
+      "label": "Mixer In 1",
+      "externalRef": "0"
+    },
+    {
+      "id": "dli_2",
+      "deviceId": "caspar_host",
+      "kind": "decklink_in",
+      "index": 1,
+      "label": "Mixer In 2",
+      "externalRef": "0"
+    },
+    {
+      "id": "dli_3",
+      "deviceId": "caspar_host",
+      "kind": "decklink_in",
+      "index": 2,
+      "label": "Mixer In 3",
+      "externalRef": "0"
+    },
+    {
+      "id": "dli_4",
+      "deviceId": "caspar_host",
+      "kind": "decklink_in",
+      "index": 3,
+      "label": "Mixer In 4",
+      "externalRef": "0"
     }
   ],
   "edges": [
@@ -93,12 +232,17 @@
       "id": "e_dst_in_dst_moyi2ux5_1_rec_1",
       "sourceId": "dst_in_dst_moyi2ux5_1",
       "sinkId": "rec_1"
+    },
+    {
+      "id": "e_dst_in_dst_moyi2ux5_1_dlsdi_4",
+      "sourceId": "dst_in_dst_moyi2ux5_1",
+      "sinkId": "dlsdi_4"
     }
   ],
   "layout": {
-    "led1": {
-      "x": 0,
-      "y": 0,
+    "dst_moyi2ux5_1": {
+      "x": 42,
+      "y": 17,
       "w": 170,
       "h": 120
     }

@@ -1,6 +1,6 @@
 /**
  * Program master faders (MIXER MASTERVOLUME) — collapsible section at the bottom of the Inspector.
- * Per-layer output pairs (ch 1+2, 3+4, …) are set in the layer inspector (dashboard / scenes).
+ * Per-layer output pairs (ch 1+2, 3+4, …) are set in the layer inspector (looks / scenes).
  */
 
 import { api } from '../lib/api-client.js'

@@ -1,6 +1,5 @@
 /** Inspector panel — selected item properties. @see main_plan.md Prompt 14 */
 
-import { dashboardState, dashboardCasparLayer } from '../lib/dashboard-state.js'
 import { sceneState } from '../lib/scene-state.js'
 import { api } from '../lib/api-client.js'
 import { multiviewState } from '../lib/multiview-state.js'
@@ -16,13 +15,7 @@ import {
 	renderTimelineFlagInspector,
 	renderTimelineClipInspector,
 } from './inspector-panel-timeline.js'
-import {
-	renderClipInspector,
-	renderSceneLayerInspector,
-	applyLayerSettings,
-	renderLayerSettingsInspector,
-	renderMultiviewInspector,
-} from './inspector-panel-views.js'
+import { renderSceneLayerInspector, renderMultiviewInspector } from './inspector-panel-views.js'
 import { renderLayerPresetsMode, renderLookPresetsMode } from './inspector-panel-presets-modes.js'
 
 /** @deprecated import from ../lib/mixer-fill.js */
@@ -75,38 +68,6 @@ export function initInspectorPanel(root, stateStore) {
 		if (selection?.type === 'timelineClip') scheduleSelectionSync(stateStore, selection)
 	})
 
-	function getProgramChannel() {
-		const s = dashboardState.activeScreenIndex
-		return getProgramChannelForColumn(s)
-	}
-
-	function getProgramChannelForColumn(colIdx) {
-		const state = stateStore.getState()
-		const ch = state?.channelMap?.programChannels?.[colIdx]
-		return ch != null ? ch : 1
-	}
-
-	function getResolution() {
-		const s = dashboardState.activeScreenIndex
-		return getResolutionForColumn(s)
-	}
-
-	function getResolutionForColumn(colIdx) {
-		const state = stateStore.getState()
-		return state?.channelMap?.programResolutions?.[colIdx] || { w: 1920, h: 1080 }
-	}
-
-	function isSelectedColumnActive() {
-		if (!selection || selection.type !== 'dashboard') return false
-		return dashboardState.getActiveColumnIndex() === selection.colIdx
-	}
-
-	async function sendAmcpIfActive(cb) {
-		if (!selection || selection.type !== 'dashboard') return
-		if (!isSelectedColumnActive()) return
-		await cb(getProgramChannel(), dashboardCasparLayer(selection.layerIdx))
-	}
-
 	function renderEmpty() {
 		if (isPixelMapTabActive()) {
 			renderFixtureInspector(root, redrawDmxCanvas)
@@ -115,8 +76,6 @@ export function initInspectorPanel(root, stateStore) {
 		root.innerHTML = '<p class="inspector-empty">Select an item</p>'
 	}
 
-	const clipInspectorDeps = { root, sendAmcpIfActive }
-
 	const sceneLayerDeps = {
 		root,
 		stateStore,
@@ -124,22 +83,6 @@ export function initInspectorPanel(root, stateStore) {
 		rerenderSceneLayer(sel) {
 			renderSceneLayerInspector(sceneLayerDeps, sel)
 		},
-	}
-
-	const layerApplyDeps = { stateStore, getResolutionForColumn }
-
-	async function applyLayerSettingsBound(layerIdx, ls) {
-		return applyLayerSettings(layerApplyDeps, layerIdx, ls)
-	}
-
-	function renderLayerSettingsInspectorBound(layerIdx) {
-		renderLayerSettingsInspector({
-			root,
-			getResolution,
-			applyLayerSettings: applyLayerSettingsBound,
-			stateStore,
-			getSelection: () => selection,
-		}, layerIdx)
 	}
 
 	const multiviewDeps = { root, renderEmpty }
@@ -168,19 +111,6 @@ export function initInspectorPanel(root, stateStore) {
 		}
 		if (data.type === 'sceneLayer' && data.sceneId && data.layerIndex != null) {
 			renderSceneLayerInspector(sceneLayerDeps, data)
-			scheduleSelectionSync(stateStore, selection)
-			return
-		}
-		if (data.type === 'dashboard' && data.colIdx != null && data.layerIdx != null) {
-			const cell = dashboardState.getCell(data.colIdx, data.layerIdx)
-			if (cell?.source?.value) {
-				renderClipInspector(clipInspectorDeps, data.colIdx, data.layerIdx, cell)
-				scheduleSelectionSync(stateStore, selection)
-				return
-			}
-		}
-		if (data.type === 'dashboardLayer' && data.layerIdx != null) {
-			renderLayerSettingsInspectorBound(data.layerIdx)
 			scheduleSelectionSync(stateStore, selection)
 			return
 		}
@@ -271,15 +201,6 @@ export function initInspectorPanel(root, stateStore) {
 		})
 	})
 
-	window.addEventListener('dashboard-select', (e) => {
-		const d = e.detail
-		if (d && typeof d.colIdx === 'number' && typeof d.layerIdx === 'number') {
-			update({ type: 'dashboard', colIdx: d.colIdx, layerIdx: d.layerIdx })
-		} else if (!d) {
-			if (selection?.type === 'dashboard') update(null)
-		}
-	})
-
 	window.addEventListener('timeline-flag-select', (e) => {
 		const d = e.detail
 		if (d?.timelineId && d?.flagId) {
@@ -295,13 +216,6 @@ export function initInspectorPanel(root, stateStore) {
 			update({ type: 'timelineClip', timelineId: d.timelineId, layerIdx: d.layerIdx, clipId: d.clipId, clip: d.clip })
 		} else if (!d) {
 			if (selection?.type === 'timelineClip') update(null)
-		}
-	})
-
-	window.addEventListener('dashboard-layer-select', (e) => {
-		const d = e.detail
-		if (d && typeof d.layerIdx === 'number') {
-			update({ type: 'dashboardLayer', layerIdx: d.layerIdx })
 		}
 	})
 
@@ -381,32 +295,6 @@ export function initInspectorPanel(root, stateStore) {
 		}
 	})
 
-	dashboardState.on('change', () => {
-		if (panelMode !== 'inspector') return
-		if (selection?.type === 'dashboard') {
-			const cell = dashboardState.getCell(selection.colIdx, selection.layerIdx)
-			if (cell?.source?.value) renderClipInspector(clipInspectorDeps, selection.colIdx, selection.layerIdx, cell)
-		} else if (selection?.type === 'dashboardLayer') {
-			renderLayerSettingsInspectorBound(selection.layerIdx)
-		}
-	})
-
-	dashboardState.on('activeColumn', () => {
-		if (panelMode !== 'inspector') return
-		if (selection?.type === 'dashboard') {
-			const cell = dashboardState.getCell(selection.colIdx, selection.layerIdx)
-			if (cell?.source?.value) renderClipInspector(clipInspectorDeps, selection.colIdx, selection.layerIdx, cell)
-		}
-	})
-
-	dashboardState.on('layerSettingChange', (idx) => {
-		if (panelMode !== 'inspector') return
-		if (selection?.type === 'dashboardLayer' && selection.layerIdx === idx) {
-			renderLayerSettingsInspectorBound(idx)
-			scheduleSelectionSync(stateStore, selection)
-		}
-	})
-
 	let sceneInspectorRefreshTimer = null
 	function scheduleSceneLayerInspectorRefresh() {
 		clearTimeout(sceneInspectorRefreshTimer)
@@ -438,8 +326,6 @@ export function initInspectorPanel(root, stateStore) {
 		if (selection.type === 'sceneLayer') {
 			const L = sceneState.getScene(selection.sceneId)?.layers?.[selection.layerIndex]
 			if (L) renderSceneLayerInspector(sceneLayerDeps, selection)
-		} else if (selection.type === 'dashboardLayer') {
-			renderLayerSettingsInspectorBound(selection.layerIdx)
 		} else if (selection.type === 'timelineClip' && selection.timelineId && selection.clipId) {
 			const tl = timelineState.getTimeline(selection.timelineId)
 			const layer = tl?.layers?.[selection.layerIdx]

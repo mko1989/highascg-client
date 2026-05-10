@@ -1,11 +1,11 @@
 /**
- * Project state — aggregate export/import for dashboard, timelines, multiview.
+ * Project state — aggregate export/import for scenes, timelines, multiview, program output strip.
  * Save/load via DATA STORE (server) or file download/upload.
  * @see main_plan.md Prompt 20
  */
 
 const STORAGE_KEY = 'casparcg_project_name'
-const PROJECT_VERSION = 1
+const PROJECT_VERSION = 2
 const SERVER_STORE_NAME = 'casparcg_web_project'
 
 export class ProjectState {
@@ -56,15 +56,15 @@ export class ProjectState {
 	}
 
 	/**
-	 * Build project JSON from scenes/looks, timelines, multiview (and legacy dashboard if present).
+	 * Build project JSON from scenes/looks, timelines, multiview, program-output mixer strip.
 	 * @param {object} sceneState
 	 * @param {object} timelineState
 	 * @param {object} multiviewState
-	 * @param {object} [dashboardState] - optional legacy Millumin-style dashboard
+	 * @param {object} [programOutputState]
 	 */
-	exportProject(sceneState, timelineState, multiviewState, dashboardState) {
+	exportProject(sceneState, timelineState, multiviewState, programOutputState) {
 		const scenes = sceneState?.getExportData?.() ?? null
-		const dashboard = dashboardState?.getExportData?.() ?? null
+		const programOutput = programOutputState?.getExportData?.() ?? null
 		const timelines = timelineState?.getExportData?.() ?? null
 		const multiview = multiviewState?.getExportData?.() ?? null
 		const placeholders = window.placeholderState?.getExportData?.() ?? null
@@ -73,7 +73,7 @@ export class ProjectState {
 			name: this.projectName || 'Untitled',
 			savedAt: new Date().toISOString(),
 			scenes,
-			dashboard,
+			programOutput,
 			timelines,
 			multiview,
 			placeholders,
@@ -81,19 +81,20 @@ export class ProjectState {
 	}
 
 	/**
-	 * Apply project data to scene state, timelines, multiview, optional legacy dashboard.
+	 * Apply project data to scene state, timelines, multiview, program output strip.
 	 * @param {object} data - Project JSON
 	 * @param {object} sceneState
 	 * @param {object} timelineState
 	 * @param {object} multiviewState
-	 * @param {object} [dashboardState]
+	 * @param {object} [programOutputState]
 	 */
-	importProject(data, sceneState, timelineState, multiviewState, dashboardState) {
+	importProject(data, sceneState, timelineState, multiviewState, programOutputState) {
 		if (!data || typeof data !== 'object') return false
 		const name = data.name
 		if (name) this.setProjectName(name)
 		if (data.scenes && sceneState?.loadFromData) sceneState.loadFromData(data.scenes)
-		if (data.dashboard && dashboardState?.loadFromData) dashboardState.loadFromData(data.dashboard)
+		const po = data.programOutput || data.dashboard
+		if (po && programOutputState?.loadFromData) programOutputState.loadFromData(po)
 		if (data.timelines && timelineState?.loadFromData) timelineState.loadFromData(data.timelines)
 		if (data.multiview && multiviewState?.loadFromData) multiviewState.loadFromData(data.multiview)
 		if (data.placeholders && window.placeholderState?.loadFromData) window.placeholderState.loadFromData(data.placeholders)

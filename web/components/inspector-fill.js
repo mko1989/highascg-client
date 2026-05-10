@@ -1,5 +1,5 @@
 /**
- * Inspector — fill / geometry: scene layer rect, dashboard position/size, multiview cells, timeline clip keyframes.
+ * Inspector — fill / geometry: scene layer rect, multiview cells, timeline clip keyframes.
  */
 
 import { fillToPixelRect, pixelRectToFill, fullFill, sceneLayerPixelRectForContentFit } from '../lib/fill-math.js'
@@ -7,7 +7,6 @@ import { fetchMediaContentResolution } from '../lib/mixer-fill.js'
 import { api } from '../lib/api-client.js'
 import { multiviewState } from '../lib/multiview-state.js'
 import { createMathInput } from '../lib/math-input.js'
-import { dashboardState } from '../lib/dashboard-state.js'
 import { createDragInput } from './inspector-common.js'
 
 /** @typedef {'native' | 'fill-canvas' | 'horizontal' | 'vertical' | 'stretch'} SceneContentFit */
@@ -162,59 +161,6 @@ export function appendSceneLayerFillGroup(root, opts) {
 	fitWrap.appendChild(fitLab)
 	fillGrp.appendChild(fitWrap)
 
-	root.appendChild(fillGrp)
-}
-
-/**
- * @param {HTMLElement} root
- * @param {object} opts
- */
-export function appendDashboardLayerFillGroup(root, { layerIdx, ls, res, applyLayerSettings }) {
-	const fillGrp = document.createElement('div')
-	fillGrp.className = 'inspector-group'
-	fillGrp.innerHTML = '<div class="inspector-group__title">Position / Size (px)</div>'
-
-	const fillFields = document.createElement('div')
-	fillFields.className = 'inspector-fill-fields'
-
-	const xInp = createMathInput({
-		label: 'X', value: Math.round(ls.x ?? 0), min: -res.w * 2, max: res.w * 2, step: 1, decimals: 0,
-		placeholder: '0',
-		onChange: (v) => {
-			const patch = { ...ls, x: v }
-			dashboardState.setLayerSetting(layerIdx, { x: v })
-			applyLayerSettings(layerIdx, patch)
-		},
-	})
-	const yInp = createMathInput({
-		label: 'Y', value: Math.round(ls.y ?? 0), min: -res.h * 2, max: res.h * 2, step: 1, decimals: 0,
-		placeholder: '0',
-		onChange: (v) => {
-			dashboardState.setLayerSetting(layerIdx, { y: v })
-			applyLayerSettings(layerIdx, { ...ls, y: v })
-		},
-	})
-	const wInp = createMathInput({
-		label: 'W', value: Math.round(ls.w ?? res.w), min: 1, max: res.w * 4, step: 1, decimals: 0,
-		placeholder: String(res.w),
-		onChange: (v) => {
-			dashboardState.setLayerSetting(layerIdx, { w: v })
-			applyLayerSettings(layerIdx, { ...ls, w: v })
-		},
-	})
-	const hInp = createMathInput({
-		label: 'H', value: Math.round(ls.h ?? res.h), min: 1, max: res.h * 4, step: 1, decimals: 0,
-		placeholder: String(res.h),
-		onChange: (v) => {
-			dashboardState.setLayerSetting(layerIdx, { h: v })
-			applyLayerSettings(layerIdx, { ...ls, h: v })
-		},
-	})
-	fillFields.appendChild(xInp.wrap)
-	fillFields.appendChild(yInp.wrap)
-	fillFields.appendChild(wInp.wrap)
-	fillFields.appendChild(hInp.wrap)
-	fillGrp.appendChild(fillFields)
 	root.appendChild(fillGrp)
 }
 

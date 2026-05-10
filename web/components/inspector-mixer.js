@@ -1,13 +1,9 @@
 /**
- * Inspector — mixer sections (scene look, dashboard layer settings).
+ * Inspector — mixer sections for scene look layers.
  */
 
-import { api } from '../lib/api-client.js'
-import { ws } from '../app.js'
-import { getVariableStore } from '../lib/variable-state.js'
 import { sceneState } from '../lib/scene-state.js'
 import { sourceSupportsLoopPlayback } from '../lib/media-ext.js'
-import { dashboardState, dashboardCasparLayer, STRETCH_MODES } from '../lib/dashboard-state.js'
 import { audioOutputRoutesForLayout, normalizeAudioRouteForLayout } from '../lib/audio-routes.js'
 
 /**
@@ -78,11 +74,7 @@ export function appendAudioInspectorGroup(root, { getAudio, onPatch }) {
 }
 import { settingsState } from '../lib/settings-state.js'
 import { timelineState } from '../lib/timeline-state.js'
-import { scheduleSelectionSync } from '../lib/selection-sync.js'
 import { createDragInput } from './inspector-common.js'
-import { createVuMeter } from './vu-meter.js'
-
-const BLEND_MODES = ['normal', 'add', 'alpha', 'multiply', 'overlay', 'screen', 'hardlight', 'softlight', 'difference']
 
 /**
  * @param {HTMLElement} root
@@ -212,183 +204,6 @@ export function appendSceneLayerMixerGroup(root, { sceneId, layerIndex, layer })
 			document.dispatchEvent(new CustomEvent('scenes-refresh-preview'))
 		},
 	})
-}
-
-/**
- * @param {HTMLElement} root
- * @param {object} opts
- * @param {number} opts.layerIdx
- * @param {object} opts.ls
- * @param {(layerIdx: number, ls: object) => Promise<void>} opts.applyLayerSettings
- * @param {import('../lib/state-store.js').StateStore} opts.stateStore
- * @param {object | null} opts.selection
- */
-export function appendDashboardLayerMixerAndStretch(root, { layerIdx, ls, applyLayerSettings, stateStore, selection }) {
-	const mixerGrp = document.createElement('div')
-	mixerGrp.className = 'inspector-group'
-	mixerGrp.innerHTML = '<div class="inspector-group__title">Mixer</div>'
-
-	const opInp = createDragInput({
-		label: 'Opacity', value: ls.opacity ?? 1, min: 0, max: 1, step: 0.01, decimals: 2,
-		onChange: (v) => {
-			dashboardState.setLayerSetting(layerIdx, { opacity: v })
-			applyLayerSettings(layerIdx, { ...ls, opacity: v })
-		},
-	})
-	mixerGrp.appendChild(opInp.wrap)
-
-	const volInp = createDragInput({
-		label: 'Volume', value: ls.volume ?? 1, min: 0, max: 2, step: 0.01, decimals: 2,
-		onChange: (v) => {
-			dashboardState.setLayerSetting(layerIdx, { volume: v })
-			applyLayerSettings(layerIdx, { ...ls, volume: v })
-		},
-	})
-	mixerGrp.appendChild(volInp.wrap)
-
-	const routeWrap = document.createElement('div')
-	routeWrap.className = 'inspector-field'
-	const routeLab = document.createElement('label')
-	routeLab.className = 'inspector-field__label'
-	routeLab.textContent = 'Audio output (pair)'
-	const routeSel = document.createElement('select')
-	routeSel.className = 'inspector-field__select'
-	const masterLayoutDash = settingsState.getSettings()?.audioRouting?.programLayout || 'stereo'
-	const routesDash = audioOutputRoutesForLayout(masterLayoutDash)
-	const canonicalDash = normalizeAudioRouteForLayout(ls.audioRoute || '1+2', masterLayoutDash)
-	if (canonicalDash !== (ls.audioRoute || '1+2')) {
-		dashboardState.setLayerSetting(layerIdx, { audioRoute: canonicalDash })
-	}
-	routesDash.forEach((r) => {
-		const opt = document.createElement('option')
-		opt.value = r.value
-		opt.textContent = r.label
-		if (r.value === canonicalDash) opt.selected = true
-		routeSel.appendChild(opt)
-	})
-	routeSel.addEventListener('change', async () => {
-		const v = routeSel.value
-		dashboardState.setLayerSetting(layerIdx, { audioRoute: v })
-		const colIdx =
-			selection?.type === 'dashboard' && selection.colIdx >= 0
-				? selection.colIdx
-				: Math.max(0, dashboardState.getActiveColumnIndex())
-		const cell = dashboardState.getCell(colIdx, layerIdx)
-		const clip = cell?.source?.value
-		if (typeof clip !== 'string' || !clip || cell?.source?.type === 'timeline') return
-		try {
-			const state = stateStore.getState()
-			const programChannels = state?.channelMap?.programChannels || [1]
-			const screenIdx = dashboardState.activeScreenIndex ?? 0
-			const programCh = programChannels[Math.min(screenIdx, programChannels.length - 1)] ?? 1
-			await api.post('/api/play', {
-				channel: programCh,
-				layer: dashboardCasparLayer(layerIdx),
-				clip,
-				loop: !!cell.overrides?.loop,
-				audioRoute: v,
-			})
-		} catch (e) {
-			console.warn('Audio route replay:', e?.message || e)
-		}
-	})
-	routeLab.appendChild(routeSel)
-	routeWrap.appendChild(routeLab)
-	mixerGrp.appendChild(routeWrap)
-
-	const vuWrap = document.createElement('div')
-	vuWrap.className = 'inspector-field inspector-row'
-	vuWrap.style.marginTop = '4px'
-	mixerGrp.appendChild(vuWrap)
-	
-	createVuMeter(vuWrap, {
-		channels: 2,
-		orientation: 'horizontal',
-		label: 'Live Lvl',
-		getLevels: () => {
-			const vars = getVariableStore(ws)
-			const channelMap = stateStore.getState()?.channelMap || {}
-			const programChannels = channelMap.programChannels || [1]
-			const screenIdx = dashboardState.activeScreenIndex ?? 0
-			const ch =
-				programChannels[Math.min(screenIdx, Math.max(0, programChannels.length - 1))] ?? 1
-			const vL = parseFloat(vars.get(`osc_ch${ch}_audio_L`))
-			const vR = parseFloat(vars.get(`osc_ch${ch}_audio_R`))
-			return {
-				l: Number.isFinite(vL) ? vL : -60,
-				r: Number.isFinite(vR) ? vR : Number.isFinite(vL) ? vL : -60,
-			}
-		},
-	})
-
-	const blendWrap = document.createElement('div')
-	blendWrap.className = 'inspector-field'
-	const blendLab = document.createElement('label')
-	blendLab.className = 'inspector-field__label'
-	blendLab.textContent = 'Blend'
-	const blendSel = document.createElement('select')
-	blendSel.className = 'inspector-field__select'
-	BLEND_MODES.forEach((m) => {
-		const opt = document.createElement('option')
-		opt.value = m
-		opt.textContent = m
-		if (m === (ls.blend || 'normal')) opt.selected = true
-		blendSel.appendChild(opt)
-	})
-	blendSel.addEventListener('change', () => {
-		const mode = blendSel.value
-		dashboardState.setLayerSetting(layerIdx, { blend: mode })
-		applyLayerSettings(layerIdx, { ...ls, blend: mode })
-	})
-	blendLab.appendChild(blendSel)
-	blendWrap.appendChild(blendLab)
-	mixerGrp.appendChild(blendWrap)
-	root.appendChild(mixerGrp)
-
-	const stretchGrp = document.createElement('div')
-	stretchGrp.className = 'inspector-group'
-	stretchGrp.innerHTML = '<div class="inspector-group__title">Content Scaling</div>'
-	const stretchWrap = document.createElement('div')
-	stretchWrap.className = 'inspector-field'
-	const stretchLab = document.createElement('label')
-	stretchLab.className = 'inspector-field__label'
-	stretchLab.textContent = 'Stretch'
-	const stretchSel = document.createElement('select')
-	stretchSel.className = 'inspector-field__select'
-	const stretchLabels = { 'none': 'None (1:1 pixel)', 'fit': 'Fit (uniform)', 'stretch': 'Stretch (fill area)', 'fill-h': 'Fill Horizontal', 'fill-v': 'Fill Vertical' }
-	STRETCH_MODES.forEach((m) => {
-		const opt = document.createElement('option')
-		opt.value = m
-		opt.textContent = stretchLabels[m] || m
-		if (m === (ls.stretch || 'none')) opt.selected = true
-		stretchSel.appendChild(opt)
-	})
-	stretchSel.addEventListener('change', () => {
-		dashboardState.setLayerSetting(layerIdx, { stretch: stretchSel.value })
-		applyLayerSettings(layerIdx, { ...dashboardState.getLayerSetting(layerIdx) })
-	})
-	stretchLab.appendChild(stretchSel)
-	stretchWrap.appendChild(stretchLab)
-	stretchGrp.appendChild(stretchWrap)
-
-	const aspectLockWrap = document.createElement('div')
-	aspectLockWrap.className = 'inspector-field inspector-row'
-	const aspectLock = document.createElement('input')
-	aspectLock.type = 'checkbox'
-	aspectLock.id = 'inspector-layer-aspect-lock'
-	aspectLock.checked = !!ls.aspectLocked
-	aspectLock.title = 'When adjusting W/H via Companion encoders, keep aspect ratio'
-	const aspectLockLab = document.createElement('label')
-	aspectLockLab.htmlFor = 'inspector-layer-aspect-lock'
-	aspectLockLab.textContent = 'Lock W/H aspect (Companion encoders)'
-	aspectLock.addEventListener('change', () => {
-		dashboardState.setLayerSetting(layerIdx, { aspectLocked: aspectLock.checked })
-		scheduleSelectionSync(stateStore, selection)
-	})
-	aspectLockWrap.appendChild(aspectLock)
-	aspectLockWrap.appendChild(aspectLockLab)
-	stretchGrp.appendChild(aspectLockWrap)
-	root.appendChild(stretchGrp)
 }
 
 /**

@@ -1,5 +1,6 @@
 'use strict'
 
+const { channelXmlComment } = require('./config-generator-xml-comments')
 const { layoutChannelCount } = require('./config-modes')
 const { buildFfmpegArgs, casparUdpStreamUri } = require('../streaming/caspar-ffmpeg-setup')
 const { escapeXml, isCustomLiveProfile } = require('./config-generator-utils')
@@ -353,9 +354,10 @@ function buildPortAudioConsumerXml(config, screenIdx1) {
 
 /**
  * @param {Record<string, unknown>} config
+ * @param {number|null|undefined} casparChannelNum - Caspar channel index for XML comment
  * @returns {string}
  */
-function buildMonitorChannelXml(config) {
+function buildMonitorChannelXml(config, casparChannelNum) {
 	if (!isCustomLiveProfile(config)) return ''
 	const enabled = config.monitor_channel_enabled === true || config.monitor_channel_enabled === 'true'
 	if (!enabled) return ''
@@ -376,7 +378,9 @@ function buildMonitorChannelXml(config) {
 	inner += `\n                    <fifo-ms>${fifo}</fifo-ms>`
 	inner += `\n                    <auto-tune-latency>${autoTune ? 'true' : 'false'}</auto-tune-latency>`
 
-	return `        <channel>
+	const ch = casparChannelNum != null && Number.isFinite(Number(casparChannelNum)) ? Number(casparChannelNum) : '?'
+	const head = channelXmlComment(`Caspar channel ${ch}: Monitor / headphone mix (PortAudio consumer)`)
+	return `${head}        <channel>
             <video-mode>1080p5000</video-mode>
             <consumers>
                 <portaudio>${inner}

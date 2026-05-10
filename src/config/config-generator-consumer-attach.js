@@ -1,5 +1,6 @@
 'use strict'
 
+const { channelXmlComment } = require('./config-generator-xml-comments')
 const { STANDARD_VIDEO_MODES } = require('./config-modes')
 const { effectiveStandardVideoModeId } = require('./config-generator-mode-helpers')
 const {
@@ -129,7 +130,7 @@ function buildScreenPairChannels(config, routeMap, ctx) {
                     ${screenInner}
                 </screen>`
 
-	const pgmXml = `        <channel>
+	const pgmXml = `${channelXmlComment(`Caspar channel ${pgmChNum}: Screen ${n} program output (PGM)`)}        <channel>
             <video-mode>${dims.modeId}</video-mode>${layoutXml}
             <consumers>${screenConsumerXml}${screenSystemAudioXml}${portAudioXml}${ffmpegXml}${pgmStreamingXml}${profConsumersXml}${rtmpPgmXml}
             </consumers>
@@ -142,20 +143,24 @@ function buildScreenPairChannels(config, routeMap, ctx) {
 	const prvSystemAudioXml = buildPreviewSystemAudioXml(config, n)
 	const prvChNum = routeMap.previewCh(n)
 	const rtmpPrvXml = buildRtmpFfmpegConsumersForChannel(config, prvChNum)
-	const prvXml = `        <channel>
+	const prvXml = `${channelXmlComment(`Caspar channel ${prvChNum}: Screen ${n} preview output (PRV)`)}        <channel>
             <video-mode>${dims.modeId}</video-mode>
             <consumers>${prvStreamingXml}${prvSystemAudioXml}${rtmpPrvXml}</consumers>
             <mixer>
                 <audio-osc>true</audio-osc>
             </mixer>
         </channel>`
-	const bus2Xml = `        <channel>
+	const bus2Num = routeMap.switcherBusChannels?.[n - 1]
+	const bus2Xml =
+		bus2Num != null && Number.isFinite(Number(bus2Num))
+			? `${channelXmlComment(`Caspar channel ${bus2Num}: Screen ${n} switcher bus 2 (legacy)`)}        <channel>
             <video-mode>${dims.modeId}</video-mode>
             <consumers/>
             <mixer>
                 <audio-osc>true</audio-osc>
             </mixer>
         </channel>`
+			: ''
 
 	return {
 		pgmXml,
@@ -248,7 +253,8 @@ function buildMultiviewChannel(config, routeMap, ctx) {
 	const mvChNum = mvChs[n - 1] || null
 	const rtmpMvXml = mvChNum != null ? buildRtmpFfmpegConsumersForChannel(config, mvChNum) : ''
 
-	const xml = `        <channel>
+	const mvChLabel = mvChNum != null && Number.isFinite(Number(mvChNum)) ? mvChNum : '?'
+	const xml = `${channelXmlComment(`Caspar channel ${mvChLabel}: Multiview output #${n}`)}        <channel>
             <video-mode>${modeId}</video-mode>
             <consumers>${screenBlock}${systemAudioXml}${portAudioXml}${streamBlock}${deckBlock}${rtmpMvXml}
             </consumers>
@@ -268,13 +274,15 @@ function buildMultiviewChannel(config, routeMap, ctx) {
  * @param {number} decklinkCount
  * @param {boolean} inputsHostChannelEnabled
  * @param {boolean} inputsOnMvr
+ * @param {number|null|undefined} casparChannelNum - channel index for comment
  */
-function buildInputsHostChannel(config, decklinkCount, inputsHostChannelEnabled, inputsOnMvr) {
+function buildInputsHostChannel(config, decklinkCount, inputsHostChannelEnabled, inputsOnMvr, casparChannelNum) {
 	if (inputsOnMvr) return ''
 	const hostCh = decklinkCount > 0 || inputsHostChannelEnabled === true
 	if (!hostCh) return ''
 	const modeId = effectiveStandardVideoModeId(config.inputs_channel_mode)
-	return `        <channel>
+	const ch = casparChannelNum != null && Number.isFinite(Number(casparChannelNum)) ? Number(casparChannelNum) : '?'
+	return `${channelXmlComment(`Caspar channel ${ch}: DeckLink INPUT host (PLAY … DECKLINK capture). Empty consumers is normal; not a PGM DeckLink output.`)}        <channel>
             <video-mode>${modeId}</video-mode>
             <consumers/>
             <mixer>
@@ -287,15 +295,17 @@ function buildInputsHostChannel(config, decklinkCount, inputsHostChannelEnabled,
  * @param {Record<string, unknown>} config
  * @param {number} i
  * @param {any} dims
+ * @param {number|null|undefined} casparChannelNum
  */
-function buildExtraAudioChannel(config, i, dims) {
+function buildExtraAudioChannel(config, i, dims, casparChannelNum) {
 	const layoutXml = channelLayoutElementXml(String(config[`extra_audio_${i}_audio_layout`] || 'default'))
 	const ffmpegXml = buildExtraAudioFfmpegConsumersXml(config, i)
 	const consumersBlock = ffmpegXml
 		? `<consumers>${ffmpegXml}
             </consumers>`
 		: `<consumers/>`
-	return `        <channel>
+	const ch = casparChannelNum != null && Number.isFinite(Number(casparChannelNum)) ? Number(casparChannelNum) : '?'
+	return `${channelXmlComment(`Caspar channel ${ch}: Extra audio-only output ${i}`)}        <channel>
             <video-mode>${dims.modeId}</video-mode>${layoutXml}
             ${consumersBlock}
             <mixer>
@@ -306,8 +316,9 @@ function buildExtraAudioChannel(config, i, dims) {
 
 /**
  * @param {Record<string, unknown>} config
+ * @param {number|null|undefined} casparChannelNum
  */
-function buildStreamingChannel(config) {
+function buildStreamingChannel(config, casparChannelNum) {
 	const sc = config.streamingChannel && typeof config.streamingChannel === 'object' ? config.streamingChannel : {}
 	const rawMode = String(sc.videoMode || config.screen_1_mode || '1080p5000').trim() || '1080p5000'
 	const modeId = effectiveStandardVideoModeId(rawMode)
@@ -320,7 +331,8 @@ function buildStreamingChannel(config) {
                     <device>${deckN}</device>
                 </decklink>`
 	}
-	return `        <channel>
+	const ch = casparChannelNum != null && Number.isFinite(Number(casparChannelNum)) ? Number(casparChannelNum) : '?'
+	return `${channelXmlComment(`Caspar channel ${ch}: Dedicated streaming / encode bus (HighAsCG attaches FFmpeg/SRT here)`)}        <channel>
             <video-mode>${modeId}</video-mode>
             <consumers>${profXml}
             </consumers>

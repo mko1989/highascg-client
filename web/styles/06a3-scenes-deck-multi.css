@@ -126,20 +126,3 @@
 	padding: 1rem 0.5rem;
 }
 
-.scenes-card__badge--global {
-	background: rgba(99, 102, 241, 0.25);
-	color: #a5b4fc;
-}
-
-.scenes-card__scope-line {
-	display: block;
-	font-size: 0.7rem;
-	color: var(--text-muted);
-	padding: 0 8px 6px 8px;
-}
-
-.scenes-card__scope {
-	margin-left: 6px;
-	font-size: 0.75rem;
-	max-width: 100%;
-}

@@ -73,6 +73,23 @@
 		0 0 0 4px rgba(63, 185, 80, 0.45);
 }
 
+/* Global look (all mains) — indigo accent stripe; no text badge */
+.scenes-card--global {
+	position: relative;
+}
+.scenes-card--global::before {
+	content: '';
+	position: absolute;
+	left: 0;
+	right: 0;
+	top: 0;
+	height: 3px;
+	background: rgba(99, 102, 241, 0.85);
+	z-index: 2;
+	pointer-events: none;
+	border-radius: var(--radius) var(--radius) 0 0;
+}
+
 .scenes-card__header {
 	display: flex;
 	align-items: center;
@@ -82,35 +99,6 @@
 	border-bottom: 1px solid var(--border);
 	min-height: 2.25rem;
 	flex-wrap: wrap;
-}
-
-.scenes-card__badges {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 4px;
-	align-items: center;
-	flex-shrink: 0;
-}
-
-.scenes-card__badge {
-	font-size: 0.62rem;
-	font-weight: 700;
-	letter-spacing: 0.04em;
-	padding: 2px 5px;
-	border-radius: 3px;
-	line-height: 1.2;
-}
-
-.scenes-card__badge--pgm {
-	background: rgba(229, 83, 75, 0.22);
-	color: #f0a8a4;
-	border: 1px solid rgba(229, 83, 75, 0.45);
-}
-
-.scenes-card__badge--prv {
-	background: rgba(63, 185, 80, 0.2);
-	color: #7ddb8a;
-	border: 1px solid rgba(63, 185, 80, 0.45);
 }
 
 .scenes-card__name-input {

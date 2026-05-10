@@ -1,0 +1,9 @@
+# CEF archives
+scp serwer@192.168.0.2:~/cef_distrib2/cef_binary_142.0.17+g60aac24+chromium-142.0.7444.176_linux64_minimal.tar.bz2 ~/Downloads/
+scp serwer@192.168.0.2:~/cef_distrib2/cef_binary_142.0.17+g60aac24+chromium-142.0.7444.176_linux64_minimal.zip ~/Downloads/
+
+# CasparCG - tar it up first on the server
+ssh serwer@192.168.0.2 "cd ~/CasparCG_Enhanced && tar -czf ~/casparcg-enhanced-2.6.0-ubuntu24-linux64.tar.gz staging/"
+
+# Then pull it
+scp serwer@192.168.0.2:~/casparcg-enhanced-2.6.0-ubuntu24-linux64.tar.gz ~/Downloads/

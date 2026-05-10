@@ -17,7 +17,7 @@ import { escapeHtml } from './scenes-editor-support.js'
  * @param {(msg: string, type?: string) => void} ctx.showToast
  * @param {(detail: object | null) => void} ctx.dispatchLayerSelect
  * @param {{ scheduleDraw: () => void }} ctx.previewPanel
- * @param {(sceneId: string) => void} ctx.sendSceneToPreviewCard
+ * @param {(sceneId: string, opts?: { targetMains?: number[] }) => void} ctx.sendSceneToPreviewCard
  * @param {{ current: number | null }} ctx.selectedLayerIndexRef
  * @param {() => void} ctx.globalTakeFromPreview
  * @param {() => void} ctx.globalCutFromPreview
@@ -79,7 +79,7 @@ export function renderSceneDeck(ctx) {
 	pillsParts.push(
 		'<div class="scenes-toolbar__global-take scenes-toolbar__global-take--right">' +
 			'<button type="button" class="scenes-btn scenes-btn--take scenes-btn--icon" id="scenes-global-take" title="Take preview to program (LOADBG + transition + PLAY)" aria-label="Take preview to program">▶</button>' +
-			'<button type="button" class="scenes-btn scenes-btn--icon" id="scenes-global-cut" title="Hard cut preview to program" aria-label="Hard cut preview to program">✂</button>' +
+			'<button type="button" class="scenes-btn scenes-btn--sm" id="scenes-global-cut" title="Hard cut preview to program" aria-label="Hard cut preview to program">CUT</button>' +
 			'</div>' +
 			'<div class="scenes-toolbar__transition-group" id="scenes-deck-transition-mount"></div>',
 	)
@@ -175,40 +175,24 @@ export function renderSceneDeck(ctx) {
 			const isGlobal = sc.mainScope === 'all'
 			const card = document.createElement('div')
 			card.className =
-				'scenes-card' + (onPgm ? ' scenes-card--live' : '') + (onPreview ? ' scenes-card--preview' : '')
+				'scenes-card' +
+				(onPgm ? ' scenes-card--live' : '') +
+				(onPreview ? ' scenes-card--preview' : '') +
+				(isGlobal ? ' scenes-card--global' : '')
 			card.innerHTML = `
 			<div class="scenes-card__header">
-				<div class="scenes-card__badges" aria-hidden="true">
-					${isGlobal ? '<span class="scenes-card__badge scenes-card__badge--global">All</span>' : ''}
-					${onPgm ? '<span class="scenes-card__badge scenes-card__badge--pgm">PGM</span>' : ''}
-					${onPreview ? '<span class="scenes-card__badge scenes-card__badge--prv">PRV</span>' : ''}
-				</div>
 				<input type="text" class="scenes-card__name-input" maxlength="120" spellcheck="false" aria-label="Look name" />
 				<div class="scenes-card__header-actions">
 					<button type="button" class="scenes-card__icon-btn" data-action="duplicate" title="Duplicate look" aria-label="Duplicate look">⧉</button>
 					<button type="button" class="scenes-card__icon-btn scenes-card__icon-btn--danger" data-action="delete" title="Delete look" aria-label="Delete look">🗑</button>
 				</div>
 			</div>
-			${
-				screenCount > 1
-					? `<label class="scenes-card__scope-line">Scope
-					<select class="scenes-card__scope" data-scene-id="${escapeHtml(String(sc.id))}" aria-label="Look scope for mains">
-						${[...Array(screenCount).keys()]
-							.map(
-								(mi) =>
-									`<option value="${mi}" ${String(sc.mainScope) === String(mi) && !isGlobal ? 'selected' : ''}>${escapeHtml(mainLabel(mi))} only</option>`,
-							)
-							.join('')}
-						<option value="all" ${isGlobal ? 'selected' : ''}>All mains</option>
-					</select></label>`
-					: ''
-			}
 			<button type="button" class="scenes-card__thumb" data-action="prv" aria-label="Send to preview">
 				<canvas class="scenes-card__thumb-canvas"></canvas>
 			</button>
 			<div class="scenes-card__footer">
 				<button type="button" class="scenes-btn scenes-btn--take scenes-btn--sm scenes-btn--icon" data-action="take" title="Take live (LOADBG + transition + PLAY)" aria-label="Take live">▶</button>
-				<button type="button" class="scenes-btn scenes-btn--sm scenes-btn--icon" data-action="cut" title="Hard cut" aria-label="Hard cut">✂</button>
+				<button type="button" class="scenes-btn scenes-btn--sm" data-action="cut" title="Hard cut" aria-label="Hard cut">CUT</button>
 				<button type="button" class="scenes-btn scenes-btn--sm scenes-btn--icon" data-action="edit" title="Edit look" aria-label="Edit look">⚙</button>
 			</div>`
 
@@ -237,7 +221,7 @@ export function renderSceneDeck(ctx) {
 				e.stopPropagation()
 				ensureMainForColumn(col)
 				if (sceneState.getPreviewSceneIdForMain(col) === sc.id) return
-				sendSceneToPreviewCard(sc.id)
+				sendSceneToPreviewCard(sc.id, { targetMains: [col] })
 			}
 			card.querySelectorAll('[data-action="prv"]').forEach((el) => el.addEventListener('click', sendPrv))
 
@@ -246,17 +230,17 @@ export function renderSceneDeck(ctx) {
 			card.querySelector('[data-action="take"]')?.addEventListener('click', (e) => {
 				e.stopPropagation()
 				ensureMainForColumn(col)
-				takeSceneToProgram(sc.id, false)
+				void takeSceneToProgram(sc.id, false, { targetMains: [col] })
 			})
 			card.querySelector('[data-action="cut"]')?.addEventListener('click', (e) => {
 				e.stopPropagation()
 				ensureMainForColumn(col)
-				takeSceneToProgram(sc.id, true)
+				void takeSceneToProgram(sc.id, true, { targetMains: [col] })
 			})
 			card.querySelector('[data-action="edit"]')?.addEventListener('click', (e) => {
 				e.stopPropagation()
 				ensureMainForColumn(col)
-				if (sceneState.getPreviewSceneIdForMain(col) !== sc.id) sendSceneToPreviewCard(sc.id)
+				if (sceneState.getPreviewSceneIdForMain(col) !== sc.id) sendSceneToPreviewCard(sc.id, { targetMains: [col] })
 				sceneState.setEditingScene(sc.id)
 				selectedLayerIndexRef.current = null
 				dispatchLayerSelect(null)
@@ -282,19 +266,6 @@ export function renderSceneDeck(ctx) {
 			if (footer) {
 				footer.addEventListener('click', (e) => e.stopPropagation())
 				footer.addEventListener('pointerdown', (e) => e.stopPropagation())
-			}
-			const scopeLine = card.querySelector('.scenes-card__scope-line')
-			if (scopeLine) {
-				scopeLine.addEventListener('click', (e) => e.stopPropagation())
-				scopeLine.addEventListener('pointerdown', (e) => e.stopPropagation())
-			}
-			const scopeSel = card.querySelector('.scenes-card__scope')
-			if (scopeSel) {
-				scopeSel.addEventListener('pointerdown', (e) => e.stopPropagation())
-				scopeSel.addEventListener('change', () => {
-					const v = /** @type {HTMLSelectElement} */ (scopeSel).value
-					sceneState.setSceneMainScope(sc.id, v === 'all' ? 'all' : v)
-				})
 			}
 			const thumbCanvas = card.querySelector('.scenes-card__thumb-canvas')
 			if (thumbCanvas) {

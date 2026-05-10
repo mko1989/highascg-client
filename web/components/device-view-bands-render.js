@@ -309,12 +309,17 @@ export function renderRecordingBand(ctx) {
 export function appendSegment(parent, title) {
 	const sec = document.createElement('section')
 	sec.className = 'device-view__segment'
-	const h = document.createElement('h2')
-	h.className = 'device-view__segment-title'
-	h.textContent = title
 	const body = document.createElement('div')
 	body.className = 'device-view__segment-body'
-	sec.append(h, body)
+	const t = String(title || '').trim()
+	if (t) {
+		const h = document.createElement('h2')
+		h.className = 'device-view__segment-title'
+		h.textContent = t
+		sec.append(h, body)
+	} else {
+		sec.append(body)
+	}
 	parent.append(sec)
 	return body
 }
@@ -416,10 +421,10 @@ export function renderBands(bands, ctx, { currentSettings, statusEl, load, setCa
 			} catch (e) { setStatus(statusEl, e.message, false) }
 		}
 	}
-	const proc = appendSegment(bands, 'Processing & Mappings')
+	const proc = appendSegment(bands, '')
 	proc.append(renderMappingsBand(internalCtx))
 
-	const eq = appendSegment(bands, 'Rear panel connectors')
+	const eq = appendSegment(bands, '')
 	eq.parentElement?.classList.add('device-view__segment--rear-only')
 	eq.append(renderCasparBand(internalCtx))
 	// We only need the graphical rear panel, not the additional list views.

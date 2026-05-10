@@ -1,5 +1,5 @@
 /**
- * Canvas drawing helpers for dashboard / scenes / timeline preview stacks.
+ * Canvas drawing helpers for scenes / timeline preview stacks.
  */
 
 import { UI_FONT_FAMILY } from '../lib/ui-font.js'

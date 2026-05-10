@@ -60,6 +60,13 @@ export class SceneState {
 		const next = resolutions.map((r) => r?.w > 0 && r?.h > 0 ? { w: r.w, h: r.h, fps: r.fps ?? 50 } : { ...Persistence.FALLBACK_RESOLUTION })
 		if (Persistence.getCanvasResolutionsEqual(this._canvasResolutions, next)) return
 		this._canvasResolutions = next
+		
+		// Make the default transition half the fps of the first main screen
+		if (this.globalDefaultTransition && this.globalDefaultTransition.duration === 12) {
+			const fps = next[0]?.fps ?? 50
+			this.globalDefaultTransition.duration = Math.round(fps / 2)
+		}
+		
 		this._save()
 	}
 
@@ -251,6 +258,33 @@ export class SceneState {
 			targetMain: legacyFallback.mainIdx 
 		})
 		this._save(); return id
+	}
+
+	overwriteLookPreset(presetId) {
+		const p = this.lookPresets.find((x) => x.id === presetId)
+		if (!p) return false
+		const sourceKind = p.sourceKind || 'prv'
+		
+		const items = []
+		const targets = this.armedScreenIndices?.length ? this.armedScreenIndices : [this.activeScreenIndex]
+		targets.forEach(idx => {
+			const sceneId = sourceKind === 'prv' ? this.previewSceneIdByMain[idx] : (sourceKind === 'pgm' ? this.liveSceneIdByMain[idx] : (sourceKind === 'editing' ? this.editingSceneId : null))
+			if (sceneId && this.getScene(sceneId)) {
+				items.push({ mainIdx: idx, sceneId, sourceKind })
+			}
+		})
+		
+		if (items.length === 0) return false
+		
+		const legacyFallback = items[0]
+		p.items = items
+		p.sceneId = legacyFallback.sceneId
+		p.sourceKind = legacyFallback.sourceKind
+		p.targetMain = legacyFallback.mainIdx
+		p.createdAt = Date.now()
+		
+		this._save()
+		return true
 	}
 
 	removeLookPreset(presetId) {

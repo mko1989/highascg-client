@@ -5,7 +5,7 @@
 
 import { projectState } from '../lib/project-state.js'
 import { sceneState, defaultTransition } from '../lib/scene-state.js'
-import { dashboardState } from '../lib/dashboard-state.js'
+import { programOutputState } from '../lib/program-output-state.js'
 import { timelineState } from '../lib/timeline-state.js'
 import { multiviewState } from '../lib/multiview-state.js'
 import { api } from '../lib/api-client.js'
@@ -90,7 +90,7 @@ export function initHeaderBar(headerEl, statusEl, stateStore) {
 	}
 
 	async function saveToServer() {
-		const project = projectState.exportProject(sceneState, timelineState, multiviewState, dashboardState)
+		const project = projectState.exportProject(sceneState, timelineState, multiviewState, programOutputState)
 		try {
 			await api.post('/api/project/save', { project })
 			markLocalProjectSaved()
@@ -101,7 +101,7 @@ export function initHeaderBar(headerEl, statusEl, stateStore) {
 	}
 
 	function saveToFile() {
-		const project = projectState.exportProject(sceneState, timelineState, multiviewState, dashboardState)
+		const project = projectState.exportProject(sceneState, timelineState, multiviewState, programOutputState)
 		const blob = new Blob([JSON.stringify(project, null, 2)], { type: 'application/json' })
 		const url = URL.createObjectURL(blob)
 		const a = document.createElement('a')
@@ -117,7 +117,7 @@ export function initHeaderBar(headerEl, statusEl, stateStore) {
 			// API returns project directly on 200, or { error } on 4xx
 			const project = res && typeof res === 'object' && res.version && !res.error ? res : null
 			if (!project) throw new Error(res?.error || 'No project stored')
-			projectState.importProject(project, sceneState, timelineState, multiviewState, dashboardState)
+			projectState.importProject(project, sceneState, timelineState, multiviewState, programOutputState)
 			nameInp.value = projectState.getProjectName()
 			window.dispatchEvent(new Event('project-loaded'))
 			showHeaderToast('Loaded', 'success')
@@ -131,7 +131,7 @@ export function initHeaderBar(headerEl, statusEl, stateStore) {
 		r.onload = () => {
 			try {
 				const project = JSON.parse(r.result)
-				projectState.importProject(project, sceneState, timelineState, multiviewState, dashboardState)
+				projectState.importProject(project, sceneState, timelineState, multiviewState, programOutputState)
 				nameInp.value = projectState.getProjectName()
 				window.dispatchEvent(new Event('project-loaded'))
 			} catch (e) {
@@ -172,7 +172,7 @@ export function initHeaderBar(headerEl, statusEl, stateStore) {
 		sceneState.setEditingScene(null)
 		timelineState.loadFromData({ timelines: [], activeId: null })
 		multiviewState.clearLayout()
-		dashboardState.resetForNewProject()
+		programOutputState.resetForNewProject()
 		nameInp.value = projectState.getProjectName()
 		window.dispatchEvent(new Event('project-loaded'))
 	}

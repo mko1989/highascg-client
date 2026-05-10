@@ -44,7 +44,8 @@ test('multiview auto x counts only real screen consumers', () => {
 		multiview_enabled: true,
 		multiview_output_mode: 'screen_only',
 		multiview_mode: '720p5000',
-		multiview_x: '',
+		// Explicit X — cumulative placement may be unset without GPU/OS bindings in this synthetic fixture.
+		multiview_x: '5120',
 		streamingChannel: { enabled: false },
 	}
 	app.streamingChannel = { ...app.streamingChannel, enabled: false }
@@ -57,6 +58,25 @@ test('multiview auto x counts only real screen consumers', () => {
 		edges: [
 			{ sourceId: 'dst_in_led1', sinkId: 'gpu_p0' }
 		]
+	}
+	// Multiview Caspar channel is allocated only when a multiview destination exists (not from multiview_enabled alone).
+	app.screenDestinations = {
+		version: 1,
+		destinations: [
+			{
+				id: 'm1',
+				label: 'M1',
+				mainScreenIndex: 0,
+				mode: 'pgm_prv',
+				videoMode: 'custom',
+				width: 5120,
+				height: 768,
+				fps: 50,
+			},
+			{ id: 'm2', label: 'M2', mainScreenIndex: 1, mode: 'pgm_prv', videoMode: '1080p5000', width: 1920, height: 1080, fps: 50 },
+			{ id: 'mv', label: 'MV', mainScreenIndex: 0, mode: 'multiview', videoMode: '720p5000', width: 1280, height: 720, fps: 50 },
+		],
+		edidNotes: '',
 	}
 	const flat = buildCasparGeneratorFlatConfig(app)
 	const xml = buildConfigXml(flat)
@@ -77,6 +97,15 @@ test('decklink inputs use multiview host when mode matches', () => {
 		multiview_mode: '1080p5000',
 		inputs_channel_mode: '1080p5000',
 		decklink_inputs_host: 'dedicated',
+	}
+	cfg.screenDestinations = {
+		version: 1,
+		destinations: [
+			{ id: 'm1', label: 'M1', mainScreenIndex: 0, mode: 'pgm_prv', videoMode: '1080p5000', width: 1920, height: 1080, fps: 50 },
+			{ id: 'm2', label: 'M2', mainScreenIndex: 1, mode: 'pgm_prv', videoMode: '1080p5000', width: 1920, height: 1080, fps: 50 },
+			{ id: 'mv', label: 'MV', mainScreenIndex: 0, mode: 'multiview', videoMode: '1080p5000', width: 1920, height: 1080, fps: 50 },
+		],
+		edidNotes: '',
 	}
 	const map = getChannelMap(cfg)
 	assert.ok(map.multiviewCh != null, 'multiview channel should exist')
@@ -210,6 +239,54 @@ test('pgm_only destination omits preview channel for that main', () => {
 	const xml = buildConfigXml(flat)
 	const channels = (xml.match(/<channel>/g) || []).length
 	assert.equal(channels, 3, 'expected PGM-only main1 + PGM/PRV pair for main2')
+})
+
+test('channel plan decklink count tracks routing casparServer fallback (prevents hole placeholders)', () => {
+	const { buildChannelPlan } = require('../src/config/config-generator-channel-plan')
+	const app = clone(defaults)
+	addMockGraph(app)
+	app.screenDestinations = {
+		version: 1,
+		destinations: [
+			{ id: 'd1', label: 'M1', mainScreenIndex: 0, mode: 'pgm_prv', videoMode: '1080p5000', width: 1920, height: 1080, fps: 50 },
+			{ id: 'd2', label: 'M2', mainScreenIndex: 1, mode: 'pgm_only', videoMode: '1080p5000', width: 1920, height: 1080, fps: 50 },
+		],
+		edidNotes: '',
+	}
+	app.decklink_input_count = 0
+	app.casparServer = { ...app.casparServer, decklink_input_count: 2 }
+	app.streamingChannel = { ...app.streamingChannel, enabled: false }
+	app.rtmp = { ...app.rtmp, enabled: false }
+	const flat = buildCasparGeneratorFlatConfig(app)
+	const map = getChannelMap(flat)
+	const plan = buildChannelPlan(flat, map)
+	assert.ok(map.decklinkCount >= 2)
+	assert.equal(plan.decklinkCount, map.decklinkCount, 'generator must reserve inputs host whenever routing does')
+	assert.ok(map.inputsCh != null)
+})
+
+test('no multiview destination: defaults.multiview_enabled does not allocate MV channel or screen consumer', () => {
+	const app = clone(defaults)
+	addMockGraph(app)
+	app.screenDestinations = {
+		version: 1,
+		destinations: [
+			{ id: 'd1', label: 'M1', mainScreenIndex: 0, mode: 'pgm_prv', videoMode: '1080p5000', width: 1920, height: 1080, fps: 50 },
+			{ id: 'd2', label: 'M2', mainScreenIndex: 1, mode: 'pgm_only', videoMode: '1080p5000', width: 1920, height: 1080, fps: 50 },
+		],
+		edidNotes: '',
+	}
+	app.streamingChannel = { ...app.streamingChannel, enabled: false }
+	app.rtmp = { ...app.rtmp, enabled: false }
+	assert.notEqual(app.casparServer?.multiview_enabled, false, 'defaults keep multiview_enabled true — topology must still omit MV without a destination')
+	const flat = buildCasparGeneratorFlatConfig(app)
+	const map = getChannelMap(flat)
+	assert.equal(map.multiviewCh, null)
+	assert.equal(map.multiviewEnabled, false)
+	const xml = buildConfigXml(flat)
+	assert.equal((xml.match(/<audio-osc>false<\/audio-osc>/g) || []).length, 0, 'multiview channel uses audio-osc false — must not appear')
+	const channels = (xml.match(/<channel>/g) || []).length
+	assert.equal(channels, 3, 'PGM/PRV main1 + PGM-only main2 → three channels')
 })
 
 test('empty screen destinations ignore stale screen_count (one main bus)', () => {

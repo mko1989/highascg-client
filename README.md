@@ -1,6 +1,6 @@
 # HighAsCG
 
-Standalone CasparCG control server and web UI, migrated from the `companion-module-casparcg-server` Companion module. It runs its own HTTP + WebSocket server, connects to CasparCG over AMCP, and serves the dashboard / scenes / timeline / multiview tools in a browser.
+Standalone CasparCG control server and web UI, migrated from the `companion-module-casparcg-server` Companion module. It runs its own HTTP + WebSocket server, connects to CasparCG over AMCP, and serves looks / scenes / timeline / multiview tools in a browser.
 
 ## Requirements
 
@@ -75,7 +75,7 @@ Open the printed URL (e.g. `http://127.0.0.1:8080/`). WebSocket clients use the 
 - `src/caspar/` — TCP, AMCP protocol, `AmcpClient`
 - `src/api/` — REST routers
 - `src/engine/` — scenes, timelines
-- `web/` — static SPA (dashboard, editors)
+- `web/` — static SPA (workspace UI, editors)
 - `scripts/` — production installer (`install.sh` + phases), dev deploy, smoke tests, staged Caspar helpers — see **`scripts/README.md`**
 
 Migration notes and file mapping: `work/01_WO_ANALYZE_MODULE.md`, `work/02_WO_MIGRATE_TO_HIGHASCG.md` (local `work/` tree). Architecture catalog: **`work/PROJECT_BREAKDOWN.md`**. Work-order status snapshot: **`work/project_status.md`**.

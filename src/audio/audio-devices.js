@@ -17,6 +17,83 @@ const PA_CACHE_TTL_MS = 15000
 /** @type {{ at: number, payload: object } | null} */
 let paCache = null
 
+const APLAY_BINS = ['aplay', '/usr/bin/aplay', '/usr/local/bin/aplay']
+const PW_CLI_BINS = ['pw-cli', '/usr/bin/pw-cli']
+
+/**
+ * Resolve `aplay` when the Node process has a minimal PATH (e.g. systemd).
+ * @param {string} args e.g. `-l` or `-L`
+ * @returns {string|null}
+ */
+function execAplay(args) {
+	const opts = {
+		encoding: 'utf8',
+		timeout: 8000,
+		stdio: ['ignore', 'pipe', 'pipe'],
+		maxBuffer: 512 * 1024,
+	}
+	for (const bin of APLAY_BINS) {
+		try {
+			return execSync(`${bin} ${args}`, opts)
+		} catch {
+			/* try next */
+		}
+	}
+	return null
+}
+
+/**
+ * @returns {string|null}
+ */
+function execPwCliListNodes() {
+	const opts = {
+		encoding: 'utf8',
+		timeout: 5000,
+		stdio: ['ignore', 'pipe', 'pipe'],
+		maxBuffer: 1024 * 1024,
+	}
+	for (const bin of PW_CLI_BINS) {
+		try {
+			return execSync(`${bin} list-objects Node`, opts)
+		} catch {
+			/* try next */
+		}
+	}
+	return null
+}
+
+/**
+ * Parse `aplay -L`: non-indented lines are PCM ids; following indented line is description.
+ * Skips the dummy `null` entry.
+ * @param {string} text
+ * @returns {Array<{ id: string, name: string, type: string, channels: null, sampleRates: null }>}
+ */
+function parseAplayLongList(text) {
+	const out = []
+	const lines = String(text || '').split('\n')
+	for (let i = 0; i < lines.length; i++) {
+		const line = lines[i]
+		const trimmed = line.trim()
+		if (!trimmed) continue
+		if (/^\s/.test(line)) continue
+		const id = trimmed
+		let desc = ''
+		if (i + 1 < lines.length && /^\s/.test(lines[i + 1])) {
+			desc = lines[i + 1].trim()
+			i++
+		}
+		if (id === 'null') continue
+		out.push({
+			id,
+			name: desc ? `${desc} (${id})` : id,
+			type: 'alsa_pcm',
+			channels: null,
+			sampleRates: null,
+		})
+	}
+	return out
+}
+
 /**
  * @param {string} text
  * @returns {Array<{ id: string, name: string, type: string, card: number, device: number, channels: null, sampleRates: null }>}
@@ -80,26 +157,16 @@ function listAudioDevices(opts = {}) {
 
 	let alsa = []
 	try {
-		const text = execSync('aplay -l', {
-			encoding: 'utf8',
-			timeout: 8000,
-			stdio: ['ignore', 'pipe', 'pipe'],
-			maxBuffer: 512 * 1024,
-		})
-		alsa = parseAplayList(text)
+		const text = execAplay('-l')
+		alsa = parseAplayList(text || '')
 	} catch {
 		alsa = []
 	}
 
 	let pipewire = []
 	try {
-		const text = execSync('pw-cli list-objects Node', {
-			encoding: 'utf8',
-			timeout: 5000,
-			stdio: ['ignore', 'pipe', 'pipe'],
-			maxBuffer: 1024 * 1024,
-		})
-		pipewire = parsePwCliNodes(text)
+		const text = execPwCliListNodes()
+		pipewire = parsePwCliNodes(text || '')
 	} catch {
 		pipewire = []
 	}
@@ -229,18 +296,42 @@ function listPortAudioDevices(opts = {}) {
 	}
 
 	if (mapped.length === 0) {
-		const alsa = listAudioDevices({ refresh: true }).devices || []
-		for (const d of alsa) {
-			if (d.type !== 'alsa') continue
+		const mixed = listAudioDevices({ refresh: true }).devices || []
+		for (const d of mixed) {
+			if (d.type === 'alsa') {
+				mapped.push({
+					id: d.id,
+					name: d.name,
+					hostAPIName: 'ALSA (physical)',
+					maxOutputChannels: 8,
+					defaultSampleRate: 48000,
+				})
+			} else if (d.type === 'pipewire') {
+				mapped.push({
+					id: d.id,
+					name: d.name,
+					hostAPIName: 'PipeWire',
+					maxOutputChannels: 8,
+					defaultSampleRate: 48000,
+				})
+			}
+		}
+		source = mixed.some((x) => x.type === 'pipewire') ? 'alsa-utils+pipewire' : 'alsa-utils'
+	}
+
+	if (mapped.length === 0) {
+		const longText = execAplay('-L')
+		const pcm = parseAplayLongList(longText || '')
+		for (const d of pcm) {
 			mapped.push({
-				id: d.id, // hw:X,Y
+				id: d.id,
 				name: d.name,
-				hostAPIName: 'ALSA (physical)',
+				hostAPIName: 'ALSA (PCM list)',
 				maxOutputChannels: 8,
 				defaultSampleRate: 48000,
 			})
 		}
-		source = 'aplay-l'
+		if (mapped.length) source = 'aplay-L'
 	}
 
 	if (mapped.length > 0) {
@@ -258,11 +349,9 @@ function listPortAudioDevices(opts = {}) {
 			refreshedAt: new Date().toISOString(),
 			cached: false,
 			source,
-			...(source === 'aplay-l' && naudiodonErr
+			...(source !== 'naudiodon' && naudiodonErr
 				? {
-						warning:
-							'Using ALSA device names from `aplay -L` (naudiodon not built). Names usually match PortAudio on Linux; if not, type the device string manually.',
-						detail: naudiodonErr,
+						warning: 'Using ALSA / PipeWire list (optional naudiodon not installed).',
 					}
 				: {}),
 		}
@@ -275,9 +364,7 @@ function listPortAudioDevices(opts = {}) {
 		refreshedAt: new Date().toISOString(),
 		source: 'none',
 		error: naudiodonErr ? 'naudiodon_unavailable' : 'no_devices',
-		hint:
-			'On Linux, install `alsa-utils` so `aplay -L` can list devices, or type the PortAudio device name manually. Optional: fix naudiodon build (C++ toolchain) for exact PortAudio enumeration.',
-		...(naudiodonErr ? { detail: naudiodonErr } : {}),
+		hint: 'No devices listed. Install alsa-utils or type the device name manually.',
 	}
 	paCache = { at: now, payload }
 	return payload
@@ -287,5 +374,6 @@ module.exports = {
 	listAudioDevices,
 	listPortAudioDevices,
 	parseAplayList,
+	parseAplayLongList,
 	setDefaultAlsaDevice,
 }

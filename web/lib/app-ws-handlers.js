@@ -3,7 +3,7 @@
  */
 import { consumeSkipRemoteProjectSync } from './project-remote-sync.js'
 
-export function attachWsHandlers(ws, { stateStore, sceneState, timelineState, multiviewState, dashboardState, projectState, dmxState, variableStore, appLogic }) {
+export function attachWsHandlers(ws, { stateStore, sceneState, timelineState, multiviewState, programOutputState, projectState, dmxState, variableStore, appLogic }) {
 	ws.on('variable_update', (changed) => {
 		if (!changed || typeof changed !== 'object') return
 		const cur = stateStore.getState()?.variables
@@ -12,7 +12,10 @@ export function attachWsHandlers(ws, { stateStore, sceneState, timelineState, mu
 
 	ws.on('state', (data) => {
 		stateStore.setState(data)
-		if (data?.channelMap?.programResolutions) sceneState.setCanvasResolutions(data.channelMap.programResolutions)
+		if (data?.channelMap?.programResolutions) {
+			sceneState.setCanvasResolutions(data.channelMap.programResolutions)
+			programOutputState?.setCanvasResolutions?.(data.channelMap.programResolutions)
+		}
 		appLogic.syncMultiviewCanvas(data?.channelMap)
 		appLogic.scheduleMultiviewRefresh()
 		appLogic.emitCasparConnectedIfNeeded(data)
@@ -29,7 +32,10 @@ export function attachWsHandlers(ws, { stateStore, sceneState, timelineState, mu
 		stateStore.applyChange(data.path, data.value)
 		if (data.path === 'scene.live' && data.value) sceneState.applyServerLiveChannels(data.value, stateStore.getState()?.channelMap)
 		if (data.path === 'channelMap') {
-			if (data.value?.programResolutions) sceneState.setCanvasResolutions(data.value.programResolutions)
+			if (data.value?.programResolutions) {
+				sceneState.setCanvasResolutions(data.value.programResolutions)
+				programOutputState?.setCanvasResolutions?.(data.value.programResolutions)
+			}
 			appLogic.scheduleMultiviewRefresh()
 		}
 		if (data.path === 'caspar.connection') {
@@ -47,7 +53,7 @@ export function attachWsHandlers(ws, { stateStore, sceneState, timelineState, mu
 	ws.on('project_sync', (project) => {
 		if (!project || project.error || !project.version || consumeSkipRemoteProjectSync()) return
 		try {
-			projectState.importProject(project, sceneState, timelineState, multiviewState, dashboardState)
+			projectState.importProject(project, sceneState, timelineState, multiviewState, programOutputState)
 			window.dispatchEvent(new Event('project-loaded'))
 		} catch (e) { console.warn('[HighAsCG] project_sync failed:', e.message) }
 	})

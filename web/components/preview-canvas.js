@@ -1,6 +1,6 @@
 /**
  * Collapsible output preview panel — program aspect ratio, layer rectangles, optional thumbnails.
- * Used by Dashboard (active column stack) and Timeline (clips at playhead).
+ * Used by Timeline (clips at playhead) and scene editors via exported draw helpers.
  * @see working.md FEAT-4
  */
 
@@ -9,7 +9,6 @@ export {
 	findClipAtTime,
 	lerpKeyframeProperty,
 	getThumbnailEntry,
-	drawDashboardProgramStack,
 	drawSceneComposeStack,
 	drawTimelineStack,
 } from './preview-canvas-draw.js'

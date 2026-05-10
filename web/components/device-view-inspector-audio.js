@@ -2,6 +2,7 @@
  * Audio Output controls for Device View inspector.
  */
 import * as Actions from './device-view-actions.js'
+import { api } from '../lib/api-client.js'
 import { setStatus } from './device-view-ui-utils.js'
 
 export function renderAudioOutControls(h, conn, { currentSettings, lastPayload, statusEl, load, setCasparRestartDirty, onRemoveAudioOutput }) {
@@ -15,14 +16,36 @@ export function renderAudioOutControls(h, conn, { currentSettings, lastPayload, 
 	const deviceSel = Object.assign(document.createElement('select'), { className: 'device-view__destinations-type' })
 	deviceSel.innerHTML = '<option value="">(select audio device)</option>'
 	const paDevices = Array.isArray(lastPayload?.live?.audio?.portaudio) ? lastPayload.live.audio.portaudio : []
-	for (const d of paDevices) {
-		const opt = document.createElement('option')
-		opt.value = String(d?.id || d?.name || '')
-		const desc = d?.description ? ` — ${d.description}` : ''
-		opt.textContent = `${d?.name || '?'}${desc}`
-		const currentVal = String(existing?.deviceName || '')
-		if (currentVal === String(d?.id || '') || currentVal === String(d?.name || '')) opt.selected = true
-		deviceSel.appendChild(opt)
+	const appendPortaudioOptions = (list) => {
+		for (const d of list) {
+			const opt = document.createElement('option')
+			opt.value = String(d?.id ?? d?.name ?? '')
+			const desc = d?.description ? ` — ${d.description}` : ''
+			opt.textContent = `${d?.name || '?'}${desc}`
+			const currentVal = String(existing?.deviceName || '')
+			const idStr = d?.id !== undefined && d?.id !== null ? String(d.id) : ''
+			if (currentVal === idStr || currentVal === String(d?.name || '')) opt.selected = true
+			deviceSel.appendChild(opt)
+		}
+	}
+	appendPortaudioOptions(paDevices)
+
+	// If the snapshot had no devices, retry enumeration (fresh cache / fixes PATH on server).
+	if (!paDevices.length) {
+		void (async () => {
+			try {
+				const path = `${api.getApiBase()}/api/audio/portaudio-devices?refresh=1&outputsOnly=false`
+				const res = await api.get(path)
+				const list = Array.isArray(res?.devices) ? res.devices : []
+				if (!list.length) return
+				deviceSel.innerHTML = '<option value="">(select audio device)</option>'
+				appendPortaudioOptions(list)
+				deviceSel.dispatchEvent(new Event('change', { bubbles: true }))
+				setStatus(statusEl, 'Audio device list loaded', true)
+			} catch {
+				/* ignore */
+			}
+		})()
 	}
 	// Allow manual entry too
 	const manualDevIn = Object.assign(document.createElement('input'), { className: 'device-view__destinations-type', type: 'text', placeholder: 'or type device name manually', value: deviceSel.value ? '' : String(existing?.deviceName || '') })
@@ -91,7 +114,18 @@ export function renderAudioOutControls(h, conn, { currentSettings, lastPayload, 
 		wrapCtl.appendChild(warn)
 	}
 
-	wrapCtl.append(nameIn, deviceSel, manualDevIn, layoutSel, hostApiSel, bufferIn, latencyIn, fifoIn, saveBtn, removeBtn)
+	wrapCtl.append(
+		nameIn,
+		deviceSel,
+		manualDevIn,
+		layoutSel,
+		hostApiSel,
+		bufferIn,
+		latencyIn,
+		fifoIn,
+		saveBtn,
+		removeBtn
+	)
 	h.append(wrapCtl)
 	h.append(Object.assign(document.createElement('p'), { className: 'device-view__note', textContent: 'Select an ALSA/PortAudio device. The device name is used in the CasparCG config to route audio.' }))
 }

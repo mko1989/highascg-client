@@ -1,18 +1,9 @@
-import { dashboardState, dashboardCasparLayer } from '../lib/dashboard-state.js'
 import { sceneState } from '../lib/scene-state.js'
 import { fillToPixelRect, pixelRectToFill, fullFill } from '../lib/fill-math.js'
-import { api } from '../lib/api-client.js'
 import { multiviewState } from '../lib/multiview-state.js'
-import { calcMixerFill, getContentResolution } from '../lib/mixer-fill.js'
-import { createDragInput } from './inspector-common.js'
-import {
-	appendSceneLayerFillGroup, appendDashboardLayerFillGroup, appendMultiviewPositionSize,
-} from './inspector-fill.js'
-import {
-	appendSceneLayerMixerGroup,
-	appendDashboardLayerMixerAndStretch,
-} from './inspector-mixer.js'
-import { appendDashboardClipTransitionOverride } from './inspector-transition.js'
+import { getContentResolution } from '../lib/mixer-fill.js'
+import { appendSceneLayerFillGroup, appendMultiviewPositionSize } from './inspector-fill.js'
+import { appendSceneLayerMixerGroup } from './inspector-mixer.js'
 import { renderEffectsGroup } from './inspector-effects.js'
 import { renderPipOverlayGroup } from './inspector-pip-overlay.js'
 import { appendSceneLayerHtmlTemplateGroup } from './inspector-html-template.js'
@@ -27,72 +18,6 @@ export function getResolutionForScreen(stateStore) {
 	const idx = sceneState.activeScreenIndex ?? 0
 	const pr = state?.channelMap?.programResolutions?.[idx]
 	return pr && pr.w > 0 && pr.h > 0 ? pr : { w: 1920, h: 1080 }
-}
-
-/**
- * @param {{
- *   root: HTMLElement,
- *   sendAmcpIfActive: (cb: (ch: number, layer: number) => Promise<void>) => Promise<void>,
- * }} deps
- */
-export function renderClipInspector(deps, colIdx, layerIdx, cell) {
-	const { root, sendAmcpIfActive } = deps
-	root.innerHTML = ''
-	const title = document.createElement('div')
-	title.className = 'inspector-title'
-	title.textContent = cell.source?.label || cell.source?.value || `Layer ${layerIdx + 1}`
-	root.appendChild(title)
-
-	const grp = document.createElement('div')
-	grp.className = 'inspector-group'
-	grp.innerHTML = '<div class="inspector-group__title">Clip</div>'
-
-	const loopWrap = document.createElement('div')
-	loopWrap.className = 'inspector-field'
-	const loopLab = document.createElement('label')
-	loopLab.className = 'inspector-field__label'
-	loopLab.textContent = 'Loop'
-	const loopCheck = document.createElement('input')
-	loopCheck.type = 'checkbox'
-	loopCheck.checked = !!cell.overrides?.loop
-	loopCheck.addEventListener('change', () => {
-		const v = loopCheck.checked ? 1 : 0
-		dashboardState.setCellOverrides(colIdx, layerIdx, { loop: v })
-		if (cell.source?.type === 'timeline') {
-			api.post(`/api/timelines/${cell.source.value}/loop`, { loop: !!v }).catch(() => {})
-		} else {
-			sendAmcpIfActive(async (ch, layer) => {
-				await api.post('/api/call', { channel: ch, layer, fn: 'LOOP', params: String(v) })
-			})
-		}
-	})
-	loopLab.appendChild(loopCheck)
-	loopWrap.appendChild(loopLab)
-	grp.appendChild(loopWrap)
-
-	const volInp = createDragInput({
-		label: 'Volume',
-		value: cell.overrides?.volume ?? 1,
-		min: 0, max: 2, step: 0.01, decimals: 2,
-		onChange: (v) => {
-			dashboardState.setCellOverrides(colIdx, layerIdx, { volume: v })
-			sendAmcpIfActive(async (ch, layer) => {
-				await api.post('/api/audio/volume', { channel: ch, layer, volume: v })
-			})
-		},
-	})
-	grp.appendChild(volInp.wrap)
-	root.appendChild(grp)
-
-	appendDashboardClipTransitionOverride(root, { colIdx, layerIdx, cell })
-
-	renderEffectsGroup(root, {
-		effects: cell.overrides?.effects || [],
-		onUpdate: (newEffects) => {
-			dashboardState.setCellOverrides(colIdx, layerIdx, { effects: newEffects })
-			renderClipInspector(deps, colIdx, layerIdx, dashboardState.getCell(colIdx, layerIdx))
-		},
-	})
 }
 
 /**
@@ -289,83 +214,6 @@ export function renderSceneLayerInspector(deps, sel) {
 	startWrap.appendChild(startHint)
 	takeGrp.appendChild(startWrap)
 	root.appendChild(takeGrp)
-}
-
-/**
- * @param {{
- *   stateStore: object,
- *   getResolutionForColumn: (colIdx: number) => { w: number, h: number },
- * }} deps
- */
-export async function applyLayerSettings(deps, layerIdx, ls) {
-	const { stateStore, getResolutionForColumn } = deps
-	const state = stateStore.getState()
-	const programChannels = state?.channelMap?.programChannels || [1]
-	const casparLayer = dashboardCasparLayer(layerIdx)
-	try {
-		for (let i = 0; i < programChannels.length; i++) {
-			const ch = programChannels[i] ?? 1
-			const res = getResolutionForColumn(i)
-			const fill = calcMixerFill(ls, res, null)
-			await api.post('/api/mixer/fill', {
-				channel: ch, layer: casparLayer, ...fill,
-				stretch: ls.stretch || 'none',
-				layerX: ls.x ?? 0, layerY: ls.y ?? 0,
-				layerW: ls.w ?? res.w, layerH: ls.h ?? res.h,
-				channelW: res.w, channelH: res.h,
-			})
-			await api.post('/api/mixer/opacity', { channel: ch, layer: casparLayer, opacity: ls.opacity ?? 1 })
-			await api.post('/api/audio/volume', { channel: ch, layer: casparLayer, volume: ls.volume ?? 1 })
-			await api.post('/api/mixer/blend', { channel: ch, layer: casparLayer, mode: ls.blend ?? 'normal' })
-			await api.post('/api/mixer/commit', { channel: ch })
-		}
-	} catch (e) {
-		console.warn('Layer settings apply failed:', e?.message || e)
-	}
-}
-
-/**
- * @param {{
- *   root: HTMLElement,
- *   getResolution: () => { w: number, h: number },
- *   applyLayerSettings: (layerIdx: number, ls: object) => Promise<void>,
- *   stateStore: object,
- *   getSelection: () => object | null,
- * }} deps
- */
-export function renderLayerSettingsInspector(deps, layerIdx) {
-	const { root, getResolution, applyLayerSettings, stateStore, getSelection } = deps
-	const ls = dashboardState.getLayerSetting(layerIdx)
-	const layerName = dashboardState.getLayerName(layerIdx)
-	const res = getResolution()
-
-	root.innerHTML = ''
-	const title = document.createElement('div')
-	title.className = 'inspector-title'
-	title.textContent = `Layer ${layerIdx + 1} Settings`
-	root.appendChild(title)
-
-	const nameGrp = document.createElement('div')
-	nameGrp.className = 'inspector-group'
-	nameGrp.innerHTML = '<div class="inspector-group__title">Label</div>'
-	const nameWrap = document.createElement('div')
-	nameWrap.className = 'inspector-field'
-	const nameInp = document.createElement('input')
-	nameInp.type = 'text'
-	nameInp.className = 'inspector-field__input'
-	nameInp.value = layerName
-	nameInp.placeholder = `Layer ${layerIdx + 1}`
-	nameInp.addEventListener('change', () => {
-		dashboardState.setLayerName(layerIdx, nameInp.value.trim())
-	})
-	nameWrap.appendChild(nameInp)
-	nameGrp.appendChild(nameWrap)
-	root.appendChild(nameGrp)
-
-	appendDashboardLayerFillGroup(root, { layerIdx, ls, res, applyLayerSettings })
-	appendDashboardLayerMixerAndStretch(root, {
-		layerIdx, ls, applyLayerSettings, stateStore, selection: getSelection(),
-	})
 }
 
 /**
