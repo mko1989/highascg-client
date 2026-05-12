@@ -98,9 +98,12 @@ export function initPreviewPanel(host, options) {
 			}
 			cPairEl.appendChild(cell)
 			const badge = document.createElement('div')
-			badge.textContent = d.label
 			badge.style.position = 'absolute'
-			badge.style.left = '4px'
+			if (d.role === 'pgm') {
+				badge.style.right = '4px'
+			} else {
+				badge.style.left = '4px'
+			}
 			badge.style.top = '4px'
 			badge.style.padding = '1px 5px'
 			badge.style.borderRadius = '999px'
@@ -109,7 +112,30 @@ export function initPreviewPanel(host, options) {
 			badge.style.color = 'rgba(230,237,243,0.95)'
 			badge.style.background = 'rgba(0,0,0,0.55)'
 			badge.style.border = '1px solid rgba(255,255,255,0.22)'
-			badge.style.pointerEvents = 'none'
+			badge.style.pointerEvents = 'auto'
+			badge.style.zIndex = '10'
+			
+			if (d.role === 'pgm') {
+				badge.style.cursor = 'pointer'
+				badge.title = 'Edit live on PGM'
+				badge.onclick = (e) => {
+					console.log('PGM badge clicked, mainIndex:', d.mainIndex)
+					e.stopPropagation()
+					document.dispatchEvent(new CustomEvent('scenes-edit-live-on-pgm', { detail: { mainIndex: d.mainIndex } }))
+				}
+				const lockSpan = document.createElement('span')
+				lockSpan.textContent = '🔓 '
+				badge.appendChild(lockSpan)
+				
+				const textSpan = document.createElement('span')
+				textSpan.textContent = 'PGM'
+				badge.appendChild(textSpan)
+			} else {
+				const textSpan = document.createElement('span')
+				textSpan.textContent = d.label
+				badge.appendChild(textSpan)
+			}
+			
 			cell.style.position = 'relative'
 			cell.appendChild(badge)
 			composeCells.push({

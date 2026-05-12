@@ -51,6 +51,7 @@ function diffCasparLayerPlan(prev, next, opts = {}) {
 				length: nextNext.length,
 				filter: nextNext.filter,
 				audioFilter: nextNext.audioFilter,
+				auto: !!nextNext.auto,
 				...(t || {}),
 			})
 		)

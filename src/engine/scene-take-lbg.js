@@ -30,91 +30,15 @@ const {
 	nextPipContentLayerInTake,
 	pipOverlaysFromLayer,
 	sendPipOverlayLinesSerial,
+	buildGlobalBorderAmcpLines,
+	buildGlobalBorderUpdateLines,
+	buildGlobalBorderOpacityFadeLine,
+	buildGlobalBorderClearLines,
 } = require('./pip-overlay')
 
-/**
- * Build raw AMCP mixer command lines for a single effect (WO-22).
- * Server-side version — mirrors web/lib/effect-registry.js effectToAmcpLines().
- * @param {string} type - Effect type key
- * @param {object} params - Effect params
- * @param {string} cl - "channel-layer" string (e.g. "1-10")
- * @returns {string[]|null}
- */
-function buildEffectAmcpLines(type, params, cl) {
-	const p = params || {}
-	switch (type) {
-		case 'blend_mode':
-			return [`MIXER ${cl} BLEND ${String(p.mode || 'Normal').toUpperCase()}`]
-		case 'brightness':
-			return [`MIXER ${cl} BRIGHTNESS ${p.value ?? 1} 0`]
-		case 'contrast':
-			return [`MIXER ${cl} CONTRAST ${p.value ?? 1} 0`]
-		case 'saturation':
-			return [`MIXER ${cl} SATURATION ${p.value ?? 1} 0`]
-		case 'levels':
-			return [`MIXER ${cl} LEVELS ${p.minIn ?? 0} ${p.maxIn ?? 1} ${p.gamma ?? 1} ${p.minOut ?? 0} ${p.maxOut ?? 1} 0`]
-		case 'chroma_key':
-			return [`MIXER ${cl} CHROMA ${p.key || 'None'} ${p.threshold ?? 0.34} ${p.softness ?? 0.44} ${p.spill ?? 1} ${p.blur ?? 0}`]
-		case 'crop':
-			return [`MIXER ${cl} CROP ${p.left ?? 0} ${p.top ?? 0} ${p.right ?? 1} ${p.bottom ?? 1} 0`]
-		case 'clip_mask':
-			return [`MIXER ${cl} CLIP ${p.left ?? 0} ${p.top ?? 0} ${p.width ?? 1} ${p.height ?? 1} 0`]
-		case 'perspective':
-			return [`MIXER ${cl} PERSPECTIVE ${p.ulX ?? 0} ${p.ulY ?? 0} ${p.urX ?? 1} ${p.urY ?? 0} ${p.lrX ?? 1} ${p.lrY ?? 1} ${p.llX ?? 0} ${p.llY ?? 1} 0`]
-		case 'grid':
-			return [`MIXER ${cl} GRID ${p.resolution ?? 2} 0`]
-		case 'keyer':
-			return [`MIXER ${cl} KEYER ${p.enabled ? 1 : 0}`]
-		case 'rotation':
-			// Rotation is already handled by the base mixerLines (layer.rotation).
-			// Only apply if this effect's degrees differs from 0 (i.e. used as an additive effect).
-			return [`MIXER ${cl} ROTATION ${p.degrees ?? 0} 0`]
-		case 'anchor':
-			// Anchor is already handled by base mixerLines as ANCHOR 0 0; effect overrides it.
-			return [`MIXER ${cl} ANCHOR ${p.x ?? 0} ${p.y ?? 0} 0`]
-		default:
-			return null
-	}
-}
+const GLOBAL_BORDER_LAYER = 998
 
-function clipPath(layer) {
-	const v = layer.source && layer.source.value
-	return v != null ? String(v) : ''
-}
-
-function chLayerAmcp(channel, layer) {
-	const c = parseInt(channel, 10)
-	return `${c}-${parseInt(layer, 10)}`
-}
-
-function extFromPath(filename) {
-	if (!filename || typeof filename !== 'string') return ''
-	const base = filename.split(/[/\\]/).pop() || ''
-	const i = base.lastIndexOf('.')
-	return i < 0 ? '' : base.slice(i + 1).toLowerCase()
-}
-
-const STRAIGHT_ALPHA_STILL_EXT = new Set(['png', 'webp', 'tiff', 'tif', 'tga'])
-
-/** Caspar often rejects `LOADBG … MIX …` on still/image producers (COMMAND_UNKNOWN_DATA). Use plain LOADBG + PLAY; motion crossfade still uses bank stacks / mixer. */
-const STILL_IMAGE_LOADBG_NO_TRANSITION_EXT = new Set([
-	'png',
-	'jpg',
-	'jpeg',
-	'gif',
-	'bmp',
-	'webp',
-	'tiff',
-	'tif',
-	'tga',
-	'dpx',
-])
-
-function shouldApplyStraightAlphaKeyer(clip, straightAlpha) {
-	if (!straightAlpha) return false
-	const ext = extFromPath(clip)
-	return STRAIGHT_ALPHA_STILL_EXT.has(ext)
-}
+const { buildTakeJobs } = require('./scene-take-lbg-jobs')
 
 function logPlannedCommand(self, phase, sceneLayer, plan) {
 	if (!amcpVerboseTrace() || typeof self?.log !== 'function' || !plan) return
@@ -131,7 +55,7 @@ function logPlannedCommand(self, phase, sceneLayer, plan) {
 
 /**
  * @param {object} amcp
- * @param {{ self: object, channel: number, currentScene: object|null, incomingScene: object, framerate?: number, forceCut?: boolean }} opts
+ * @param {{ self: object, channel: number, currentScene: object|null, incomingScene: object, framerate?: number, forceCut?: boolean, onProgramTransitionStarted?: Function }} opts
  */
 async function runSceneTakeLbg(amcp, opts) {
 	const {
@@ -176,17 +100,12 @@ async function runSceneTakeLbg(amcp, opts) {
 	const framerate = resolveChannelFramerateForMixerTween(self, channel, opts.framerate)
 	const incomingSorted = [...layersWithContent].sort((a, b) => (a.layerNumber || 0) - (b.layerNumber || 0))
 
-	// Outgoing media must include both:
-	// - layers removed from incoming look (diff.exit)
-	// - layers whose source changed (diff.update -> previous/current layer on active bank)
-	// Otherwise old clips on the active bank survive and stack with the new look.
 	const exitCandidates = [...(diff.exit || [])]
 	for (const updatedIncoming of diff.update || []) {
 		const prev = currentMap.get(updatedIncoming.layerNumber)
 		if (layerHasContent(prev)) exitCandidates.push(prev)
 	}
 
-	// Stop timelines that are exiting (present in current look but not in incoming)
 	if (self.timelineEngine) {
 		const pbNow = self.timelineEngine.getPlayback()
 		if (pbNow?.timelineId) {
@@ -200,141 +119,41 @@ async function runSceneTakeLbg(amcp, opts) {
 	const fadeDur = forceCut || globalT.duration <= 0 ? 0 : globalT.duration
 	const fadeTw = globalT.tween
 	const fadeMs = fadeDur > 0 ? (fadeDur / framerate) * 1000 : 0
-	// Consistent look-to-look behavior: if there is an existing look on this channel and transition duration > 0,
-	// use bank crossfade path regardless of whether diff classified a source as "update".
 	const shouldRunBankCrossfade = fadeDur > 0 && currentMap.size > 0
-	/** When exit opacity fade starts (for teardown timing vs incoming load). */
-	let fadeClockStart = /** @type {number | null} */ (null)
-
-	/** @type {Array<{ layer: object, pLayer: number, clip: string, f: object, mixerLines: string[], targetOpacity: number, loadOpts: object, loadPlan: object|null, playPlan: object|null, pipOverlays: object[] }>} */
-	const takeJobs = []
-
-	for (const layer of incomingSorted) {
-		if (layer.source && layer.source.type === 'timeline') {
-			const tlId = layer.source.value
-			if (tlId && self.timelineEngine) {
-				const screenIdx = require('./scene-transition').programChannelToScreenIdx(self.config, channel)
-				self.timelineEngine.setSendTo({ preview: true, program: true, screenIdx })
-				self.timelineEngine.setLoop(tlId, !!layer.loop)
-				self.timelineEngine.play(tlId, 0)
+	let fadeClockStart = null
+	let transitionStartedNotified = false
+	function notifyProgramTransitionStarted() {
+		if (transitionStartedNotified) return
+		transitionStartedNotified = true
+		if (typeof opts.onProgramTransitionStarted !== 'function') return
+		try {
+			const r = opts.onProgramTransitionStarted()
+			if (r && typeof r.catch === 'function') {
+				r.catch((e) => self.log?.('warn', `[scene-take-lbg] transition-start callback failed: ${e?.message || e}`))
 			}
-			continue
+		} catch (e) {
+			self.log?.('warn', `[scene-take-lbg] transition-start callback failed: ${e?.message || e}`)
 		}
-		const clip = clipPath(layer)
-		if (!clip) continue
+	}
 
-		const cur = currentMap.get(layer.layerNumber)
-		if (layerVisuallyEqual(cur, layer)) continue
-		if (layerHasContent(cur) && String(cur?.source?.type || '') !== 'timeline') {
-			exitCandidates.push(cur)
-		}
+	self.log?.('info', `[scene-take-lbg] shouldRunBankCrossfade=${shouldRunBankCrossfade} fadeDur=${fadeDur} currentMapSize=${currentMap.size}`)
 
-		const pLayer = phys(Number(layer.layerNumber), inactiveBank)
-		const f = await getResolvedFillForSceneLayer(self, layer, channel, incoming)
-		const cl = chLayerAmcp(channel, pLayer)
-		const af = audioRouteToAudioFilter(layer.audioRoute || '1+2')
+	const { takeJobs, extraExitCandidates } = await buildTakeJobs({
+		incomingSorted,
+		currentMap,
+		channel,
+		incoming,
+		self,
+		phys,
+		inactiveBank,
+		shouldRunBankCrossfade,
+		forceCut,
+		globalT,
+		framerate,
+	})
 
-		const loadOpts = { loop: !!layer.loop }
-		if (af) loadOpts.audioFilter = af
-		if (layer.playSeekFrames != null && Number.isFinite(Number(layer.playSeekFrames))) {
-			loadOpts.seek = Math.max(0, Math.floor(Number(layer.playSeekFrames)))
-		}
-		if (!shouldRunBankCrossfade && !forceCut && globalT.duration > 0 && globalT.type && String(globalT.type).toUpperCase() !== 'CUT') {
-			loadOpts.transition = globalT.type
-			loadOpts.duration = globalT.duration
-			loadOpts.tween = globalT.tween
-		}
-		const clipExt = extFromPath(clip)
-		if (loadOpts.transition && STILL_IMAGE_LOADBG_NO_TRANSITION_EXT.has(clipExt)) {
-			delete loadOpts.transition
-			delete loadOpts.duration
-			delete loadOpts.tween
-		}
-
-		const keyer = shouldApplyStraightAlphaKeyer(clip, !!layer.straightAlpha) ? 1 : 0
-		const vol = layer.muted ? 0 : layer.volume != null ? layer.volume : 1
-		const mixerLines = []
-
-		if (f.x !== 0 || f.y !== 0 || f.scaleX !== 1 || f.scaleY !== 1) {
-			mixerLines.push(`MIXER ${cl} FILL ${f.x} ${f.y} ${f.scaleX} ${f.scaleY} 0`)
-		}
-		if (layer.rotation) {
-			mixerLines.push(`MIXER ${cl} ROTATION ${layer.rotation} 0`)
-		}
-		if (layer.opacity != null && layer.opacity !== 1) {
-			mixerLines.push(`MIXER ${cl} OPACITY ${layer.opacity} 0`)
-		}
-		const targetOpacity = layer.opacity != null ? Number(layer.opacity) : 1
-		const pOutSame = phys(Number(layer.layerNumber), activeBank)
-		// Caspar layer z-order: higher layer number is on top.
-		// If incoming is below outgoing, incoming opacity tween is invisible; we must tween outgoing instead.
-		const incomingStartsHidden = shouldRunBankCrossfade && !(pOutSame > pLayer)
-		if (incomingStartsHidden) {
-			mixerLines.push(`MIXER ${cl} OPACITY 0 0`)
-		}
-		if (keyer === 1) {
-			mixerLines.push(`MIXER ${cl} KEYER 1`)
-		}
-		if (vol !== 1) {
-			mixerLines.push(`MIXER ${cl} VOLUME ${vol}`)
-		}
-
-		if (Array.isArray(layer.effects)) {
-			for (const fx of layer.effects) {
-				const lines = buildEffectAmcpLines(fx.type, fx.params || {}, cl)
-				if (lines) mixerLines.push(...lines)
-			}
-		}
-
-		for (let i = 0; i < mixerLines.length; i++) {
-			mixerLines[i] = deferMixerAmcpLine(mixerLines[i])
-		}
-
-		// Seek belongs on LOADBG only. PLAY without a clip only swaps FG/BG — Caspar 2.6 rejects PLAY … SEEK 0 in that form with “File not found” / 404 PLAY FAILED.
-		const loadPlans = diffCasparLayerPlan(
-			{ channel, layer: pLayer, nextUp: null, playing: false },
-			{
-				channel,
-				layer: pLayer,
-				nextUp: {
-					clip,
-					loop: !!loadOpts.loop,
-					seek: loadOpts.seek,
-					length: loadOpts.length,
-					filter: loadOpts.filter,
-					audioFilter: loadOpts.audioFilter,
-					transition: loadOpts.transition
-						? {
-							type: loadOpts.transition,
-							durationFrames: loadOpts.duration,
-							tween: loadOpts.tween,
-							direction: loadOpts.direction,
-						}
-						: null,
-				},
-				playing: false,
-			},
-			{ fps: framerate }
-		)
-		const playPlans = diffCasparLayerPlan(
-			{ channel, layer: pLayer, nextUp: { clip }, playing: false },
-			{ channel, layer: pLayer, nextUp: { clip }, playing: true },
-			{ fps: framerate }
-		)
-
-		takeJobs.push({
-			layer,
-			pLayer,
-			clip,
-			f,
-			mixerLines,
-			targetOpacity,
-			incomingStartsHidden,
-			loadOpts,
-			loadPlan: (layer.source && layer.source.type === 'template') ? null : (loadPlans.find((p) => p.commandName === 'LOADBG') || null),
-			playPlan: playPlans.find((p) => p.commandName === 'PLAY') || null,
-			pipOverlays: pipOverlaysFromLayer(layer),
-		})
+	if (extraExitCandidates && extraExitCandidates.length > 0) {
+		exitCandidates.push(...extraExitCandidates)
 	}
 
 	const seenExitLayerNums = new Set()
@@ -349,7 +168,6 @@ async function runSceneTakeLbg(amcp, opts) {
 
 	const currentSceneLayers = opts.currentScene?.layers
 
-	// --- Exit fade first so outgoing layers start dimming while incoming LOADBG/PLAY runs (smooth crossfade). ---
 	if (exitMedia.length > 0 && fadeDur > 0 && !shouldRunBankCrossfade) {
 		const fadeLines = []
 		for (const layer of exitMedia) {
@@ -358,7 +176,7 @@ async function runSceneTakeLbg(amcp, opts) {
 			const cl = `${channel}-${pOut}`
 			let p = `0 ${fadeDur}`
 			if (fadeTw) p += ` ${param(fadeTw)}`
-			fadeLines.push(`MIXER ${cl} OPACITY ${p} DEFER`)
+				fadeLines.push(`MIXER ${cl} OPACITY ${p}`)
 			try {
 				const nextL = nextPipContentLayerInScene(currentSceneLayers, layer.layerNumber)
 				const pipN = pipOverlaysFromLayer(layer).length
@@ -372,6 +190,7 @@ async function runSceneTakeLbg(amcp, opts) {
 			await amcp.mixerCommit(channel)
 		} catch (_) {}
 		fadeClockStart = Date.now()
+		notifyProgramTransitionStarted()
 	} else if (exitMedia.length > 0) {
 		for (const layer of exitMedia) {
 			const pOut = phys(Number(layer.layerNumber), activeBank)
@@ -379,7 +198,20 @@ async function runSceneTakeLbg(amcp, opts) {
 		}
 	}
 
-	// --- Incoming look: LOADBG → mixer → strip old PIP → new PIP (MIXER DEFER) → PLAY → commit (atomic). ---
+	// Global border (layer 998) lifecycle is computed before takeJobs so the teardown
+	// block can also act when only the border changes (no media swap). See WO-09.
+	const currentGb = opts.currentScene?.globalBorder
+	const incomingGb = incoming.globalBorder
+	const currentGbEnabled = !!(currentGb && currentGb.enabled)
+	const incomingGbEnabled = !!(incomingGb && incomingGb.enabled)
+	const sameGbTemplateType =
+		currentGbEnabled &&
+		incomingGbEnabled &&
+		String(currentGb.type || '').toLowerCase() === String(incomingGb.type || '').toLowerCase()
+	const gbCanFadeWithCrossfade = shouldRunBankCrossfade && fadeDur > 0 && !forceCut
+	const gbWillFadeIn = incomingGbEnabled && !sameGbTemplateType && gbCanFadeWithCrossfade
+	const gbWillFadeOut = currentGbEnabled && !incomingGbEnabled && gbCanFadeWithCrossfade
+
 	if (takeJobs.length > 0) {
 		for (const job of takeJobs) {
 			await amcp.mixerClear(channel, job.pLayer).catch(() => {})
@@ -392,6 +224,10 @@ async function runSceneTakeLbg(amcp, opts) {
 		const flatMixer = takeJobs.flatMap((j) => j.mixerLines)
 		if (flatMixer.length > 0) {
 			await amcp.batchSendChunked(flatMixer, { skipMixerPreCommit: true })
+		}
+		const prePlayOpacityLines = takeJobs.map((j) => j.prePlayOpacityZeroLine).filter(Boolean)
+		if (prePlayOpacityLines.length > 0) {
+			await amcp.batchSendChunked(prePlayOpacityLines, { skipMixerPreCommit: true })
 		}
 
 		let pipRemoveLines = []
@@ -429,44 +265,51 @@ async function runSceneTakeLbg(amcp, opts) {
 			} catch (_) {}
 		}
 
-		// Pre-buffer delay: when crossfade path animates incoming opacity from 0->1,
-		// give decoder a bit more headroom to avoid mid-ramp "pop in" on some stills.
-		const needsIncomingFadePreroll = shouldRunBankCrossfade && takeJobs.some((j) => j.incomingStartsHidden)
-		const prebufferMs = needsIncomingFadePreroll ? 180 : 80
-		await new Promise((r) => setTimeout(r, prebufferMs))
-
-		for (const job of takeJobs) {
-			if (job.playPlan) {
-				logPlannedCommand(self, 'play', job.layer.layerNumber, job.playPlan)
-				await amcp.play(job.playPlan.channel, job.playPlan.layer, job.playPlan.clip, job.playPlan.opts)
+		// Global border (layer 998) lifecycle — must ride the same channel COMMIT/crossfade
+		// as the bank swap so it doesn't pop on/off when looks transition. See WO-09.
+		if (incomingGbEnabled) {
+			try {
+				let borderLines = []
+				if (sameGbTemplateType) {
+					// Same template → CG UPDATE so params (color/width/etc.) change without re-adding the CG instance.
+					borderLines = buildGlobalBorderUpdateLines(channel, GLOBAL_BORDER_LAYER, incomingGb)
+				} else {
+					// Fresh add (or template type changed): load hidden when crossfading, full-opacity when cutting.
+					borderLines = buildGlobalBorderAmcpLines(channel, GLOBAL_BORDER_LAYER, incomingGb, self, {
+						initialOpacity: gbWillFadeIn ? 0 : 1,
+					})
+				}
+				if (borderLines.length > 0) {
+					await sendPipOverlayLinesSerial(amcp, borderLines)
+				}
+			} catch (e) {
+				self.log?.('warn', `Global border failed: ${e?.message || e}`)
 			}
 		}
-
-		// One channel commit — deferred video + PIP mixers apply with the PLAY swap (no early PIP geometry pop).
-		try {
-			await amcp.mixerCommit(channel)
-		} catch (_) {}
+		let crossfadeLines = []
 		if (shouldRunBankCrossfade) {
-			const crossfadeLines = []
 			const handledOut = new Set()
 			for (const job of takeJobs) {
 				const pOut = phys(Number(job.layer.layerNumber), activeBank)
 				const pIn = job.pLayer
-				// Paired outgoing layer is handled by the in/out decision for this logical layer.
 				handledOut.add(pOut)
-				if (job.incomingStartsHidden) {
-					// Incoming is on top: tween incoming up.
-					const clIn = `${channel}-${pIn}`
-					let p = `${job.targetOpacity} ${fadeDur}`
-					if (fadeTw) p += ` ${param(fadeTw)}`
-					crossfadeLines.push(`MIXER ${clIn} OPACITY ${p} DEFER`)
-				} else if (pOut > pIn) {
-					// Outgoing is on top: tween outgoing down to reveal incoming below.
-					const clOut = `${channel}-${pOut}`
-					let p = `0 ${fadeDur}`
-					if (fadeTw) p += ` ${param(fadeTw)}`
-					crossfadeLines.push(`MIXER ${clOut} OPACITY ${p} DEFER`)
+				if (pIn === pOut) {
+					// Defensive: incoming should be prepared on the inactive bank, but
+					// never fade a layer against itself if state is corrupt.
+					continue
 				}
+				// Deterministic dissolve: always ramp incoming up and paired outgoing down.
+				if (!job.useLoadAuto) {
+					const clIn = `${channel}-${pIn}`
+					let pInTail = `${job.targetOpacity} ${fadeDur}`
+					if (fadeTw) pInTail += ` ${param(fadeTw)}`
+					crossfadeLines.push(`MIXER ${clIn} OPACITY ${pInTail}`)
+				}
+
+				const clOut = `${channel}-${pOut}`
+				let pOutTail = `0 ${fadeDur}`
+				if (fadeTw) pOutTail += ` ${param(fadeTw)}`
+				crossfadeLines.push(`MIXER ${clOut} OPACITY ${pOutTail}`)
 			}
 			for (const layer of exitMedia) {
 				const pOut = phys(Number(layer.layerNumber), activeBank)
@@ -474,15 +317,55 @@ async function runSceneTakeLbg(amcp, opts) {
 				const clOut = `${channel}-${pOut}`
 				let p = `0 ${fadeDur}`
 				if (fadeTw) p += ` ${param(fadeTw)}`
-				crossfadeLines.push(`MIXER ${clOut} OPACITY ${p} DEFER`)
+				crossfadeLines.push(`MIXER ${clOut} OPACITY ${p}`)
 			}
-			if (crossfadeLines.length > 0) {
-				try {
-					await amcp.batchSendChunked(crossfadeLines, { skipMixerPreCommit: true })
-					await amcp.mixerCommit(channel)
-					fadeClockStart = Date.now()
-				} catch (_) {}
+			// Tween the global border in sync with the bank crossfade so it never cuts in/out.
+			if (gbWillFadeIn) {
+				crossfadeLines.push(
+					buildGlobalBorderOpacityFadeLine(channel, GLOBAL_BORDER_LAYER, 1, fadeDur, fadeTw ? param(fadeTw) : undefined)
+				)
+			} else if (gbWillFadeOut) {
+				crossfadeLines.push(
+					buildGlobalBorderOpacityFadeLine(channel, GLOBAL_BORDER_LAYER, 0, fadeDur, fadeTw ? param(fadeTw) : undefined)
+				)
 			}
+		}
+		try {
+			await amcp.mixerCommit(channel)
+		} catch (_) {}
+
+		const needsIncomingFadePreroll = shouldRunBankCrossfade && takeJobs.some((j) => j.incomingStartsHidden)
+		const prebufferMs = needsIncomingFadePreroll ? 180 : 80
+		await new Promise((r) => setTimeout(r, prebufferMs))
+
+		const playLinesForCrossfade = []
+		if (crossfadeLines.length > 0) {
+			for (const job of takeJobs) {
+				if (!job.playPlan) continue
+				logPlannedCommand(self, 'play', job.layer.layerNumber, job.playPlan)
+				playLinesForCrossfade.push(`PLAY ${job.playPlan.channel}-${job.playPlan.layer}`)
+				if (job.incomingStartsHidden) {
+					playLinesForCrossfade.push(`MIXER ${job.playPlan.channel}-${job.playPlan.layer} OPACITY 0 0`)
+				}
+			}
+		} else {
+			for (const job of takeJobs) {
+				if (job.playPlan) {
+					logPlannedCommand(self, 'play', job.layer.layerNumber, job.playPlan)
+					await amcp.play(job.playPlan.channel, job.playPlan.layer, job.playPlan.clip, job.playPlan.opts)
+				}
+			}
+		}
+		if (crossfadeLines.length > 0) {
+			try {
+				await amcp.batchSendChunked([...playLinesForCrossfade, ...crossfadeLines], { skipMixerPreCommit: true })
+				await amcp.mixerCommit(channel)
+				fadeClockStart = Date.now()
+				notifyProgramTransitionStarted()
+			} catch (_) {}
+		} else if (shouldRunBankCrossfade) {
+			fadeClockStart = Date.now()
+			notifyProgramTransitionStarted()
 		}
 
 		for (const job of takeJobs) {
@@ -534,8 +417,10 @@ async function runSceneTakeLbg(amcp, opts) {
 		}
 	}
 
-	// --- Teardown exiting layers after overlap: wait only remaining time from exit-fade start, then STOP/CLEAR/PIP. ---
-	if (exitMedia.length > 0) {
+	// Border-only teardown path: when the new look removes the border and there's no exit
+	// media to anchor the wait, still respect the crossfade clock before clearing the CG.
+	const needsBorderOnlyTeardown = currentGbEnabled && !incomingGbEnabled && exitMedia.length === 0
+	if (exitMedia.length > 0 || needsBorderOnlyTeardown) {
 		let teardownWait = 0
 		if (fadeClockStart != null && fadeDur > 0) {
 			teardownWait = Math.max(0, fadeMs - (Date.now() - fadeClockStart))
@@ -560,6 +445,13 @@ async function runSceneTakeLbg(amcp, opts) {
 				playbackTracker.recordStop(self, channel, pOut)
 			} catch (_) {}
 		}
+
+		// Border was on the previous look but not the new one — opacity tween (if any) is done,
+		// so the CG and mixer slot are safe to free now.
+		if (currentGbEnabled && !incomingGbEnabled) {
+			teardownLines.push(...buildGlobalBorderClearLines(channel, GLOBAL_BORDER_LAYER))
+		}
+
 		if (teardownLines.length > 0) {
 			try {
 				await sendPipOverlayLinesSerial(amcp, teardownLines)
@@ -570,7 +462,9 @@ async function runSceneTakeLbg(amcp, opts) {
 		} catch (_) {}
 	}
 
-	self.programLayerBankByChannel[chKey] = inactiveBank
+	if (takeJobs.length > 0) {
+		self.programLayerBankByChannel[chKey] = inactiveBank
+	}
 	persistProgramLayerBanks(self)
 
 	return {

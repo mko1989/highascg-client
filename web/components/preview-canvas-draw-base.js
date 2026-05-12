@@ -198,7 +198,7 @@ export function drawComposePrvPgmCellEdgeBar(ctx, W, H, opts = {}) {
 			ctx.textBaseline = 'middle'
 			ctx.textAlign = 'center'
 			ctx.fillStyle = 'rgba(255, 255, 255, 0.96)'
-			ctx.fillText('PGM', W / 2, edge / 2)
+			// ctx.fillText('PGM', W / 2, edge / 2)
 		} else {
 			const gBot = ctx.createLinearGradient(0, H - edge, 0, H)
 			gBot.addColorStop(0, 'rgba(39, 174, 96, 0)')
@@ -216,7 +216,7 @@ export function drawComposePrvPgmCellEdgeBar(ctx, W, H, opts = {}) {
 			ctx.textBaseline = 'middle'
 			ctx.textAlign = 'center'
 			ctx.fillStyle = 'rgba(255, 255, 255, 0.96)'
-			ctx.fillText('PRV', W / 2, H - edge / 2)
+			// ctx.fillText('PRV', W / 2, H - edge / 2)
 		}
 		ctx.restore()
 		return
@@ -243,7 +243,7 @@ export function drawComposePrvPgmCellEdgeBar(ctx, W, H, opts = {}) {
 		ctx.textAlign = 'left'
 		ctx.fillStyle = 'rgba(255, 255, 255, 0.96)'
 		const labelY = Math.min(16, Math.max(9, edge))
-		ctx.fillText('PRV', 3, labelY)
+		// ctx.fillText('PRV', 3, labelY)
 	} else {
 		const gR = ctx.createLinearGradient(W - edge, 0, W, 0)
 		gR.addColorStop(0, 'rgba(192, 57, 43, 0)')
@@ -262,7 +262,7 @@ export function drawComposePrvPgmCellEdgeBar(ctx, W, H, opts = {}) {
 		ctx.textAlign = 'right'
 		ctx.fillStyle = 'rgba(255, 255, 255, 0.96)'
 		const labelY = Math.min(16, Math.max(9, edge))
-		ctx.fillText('PGM', W - 3, labelY)
+		// ctx.fillText('PGM', W - 3, labelY)
 	}
 	ctx.restore()
 }

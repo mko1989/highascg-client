@@ -184,7 +184,7 @@ export function createTakeSceneToProgram(deps) {
 					useServerLive: true,
 				}
 				const takeRes = await deps.api.post('/api/scene/take', body)
-				sceneState.setLiveSceneId(sceneId, mainIdx)
+				sceneState.setLiveSceneId(sceneId, mainIdx, { silent: true })
 				if (takeRes?.sceneLive && typeof takeRes.sceneLive === 'object') {
 					for (const [k, v] of Object.entries(takeRes.sceneLive)) {
 						if (v && typeof v === 'object' && v.sceneId != null && v.scene) {
@@ -196,9 +196,9 @@ export function createTakeSceneToProgram(deps) {
 				}
 				const liveSnap = takeRes?.sceneLive?.[String(programCh)]
 				if (liveSnap?.scene && liveSnap.sceneId === scene.id) {
-					sceneState.applySceneFromTakePayload(sceneId, liveSnap.scene)
+					sceneState.applySceneFromTakePayload(sceneId, liveSnap.scene, { silent: true })
 				} else {
-					sceneState.applySceneFromTakePayload(sceneId, scenePayloadForState)
+					sceneState.applySceneFromTakePayload(sceneId, scenePayloadForState, { silent: true })
 				}
 			}
 			deps.stateStore.applyChange('scene.live', mergedLive)

@@ -215,14 +215,16 @@
       "index": 3,
       "label": "Mixer In 4",
       "externalRef": "0"
+    },
+    {
+      "id": "dst_in_dst_mp16dbd7_1",
+      "deviceId": "destinations",
+      "kind": "destination_in",
+      "label": "Multiview 1",
+      "externalRef": "dst_mp16dbd7_1"
     }
   ],
   "edges": [
-    {
-      "id": "e_dst_in_led1_gpu_p0",
-      "sourceId": "dst_in_led1",
-      "sinkId": "gpu_p0"
-    },
     {
       "id": "e_dst_in_dst_moyi2ux5_1_str_1",
       "sourceId": "dst_in_dst_moyi2ux5_1",
@@ -237,6 +239,11 @@
       "id": "e_dst_in_dst_moyi2ux5_1_dlsdi_4",
       "sourceId": "dst_in_dst_moyi2ux5_1",
       "sinkId": "dlsdi_4"
+    },
+    {
+      "id": "e_dst_in_dst_mp16dbd7_1_gpu_p0",
+      "sourceId": "dst_in_dst_mp16dbd7_1",
+      "sinkId": "gpu_p0"
     }
   ],
   "layout": {
@@ -259,6 +266,14 @@
     {
       "id": "dst_in_dst_moyi2ux5_1",
       "label": "PGM 2",
+      "videoMode": "1080p5000",
+      "width": 1920,
+      "height": 1080,
+      "fps": 50
+    },
+    {
+      "id": "dst_in_dst_mp16dbd7_1",
+      "label": "Multiview 1",
       "videoMode": "1080p5000",
       "width": 1920,
       "height": 1080,

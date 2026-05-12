@@ -10,7 +10,7 @@ import { buildPipOverlayAmcpLinesAll, buildPipOverlayRemoveLines } from '../lib/
 import { getPipOverlaysFromLayer, resolvePipOverlayCasparLayer } from '../lib/pip-overlay-registry.js'
 import { amcpParam, chLayerAmcp } from './scenes-shared.js'
 
-const PREVIEW_PUSH_DEBOUNCE_MS = 30
+const PREVIEW_PUSH_DEBOUNCE_MS = 16
 
 /** Scene content on PRV uses the same layer numbers as PGM (L9 = black CG; main clips on 10, 20, 30…; PIP/CG in the band above each). */
 const PREVIEW_SCENE_LAYER_MIN = 10
@@ -169,12 +169,13 @@ export function createScenesPreviewRuntime(opts) {
 	}
 
 	/** @param {string} sceneId @param {object} scene */
-	function buildPreviewContentSnapshot(sceneId, scene) {
-		/** @type {Map<number, { value: string, loop: boolean, straightAlpha: boolean, contentFit: string, audioRoute: string, volume: number, muted: boolean, pipOverlays: any[] }>} */
+	function buildPreviewContentSnapshot(sceneId, scene, computedFills = new Map()) {
 		const contentByLayer = new Map()
 		for (const l of scene.layers || []) {
 			if (!l?.source?.value) continue
-			contentByLayer.set(Number(l.layerNumber), {
+			const ln = Number(l.layerNumber)
+			const f = computedFills.get(ln)
+			contentByLayer.set(ln, {
 				value: String(l.source.value),
 				loop: !!l.loop,
 				straightAlpha: !!l.straightAlpha,
@@ -182,7 +183,11 @@ export function createScenesPreviewRuntime(opts) {
 				audioRoute: l.audioRoute || '1+2',
 				volume: l.volume != null ? l.volume : 1,
 				muted: !!l.muted,
-				pipOverlays: getPipOverlaysFromLayer(l)
+				pipOverlays: getPipOverlaysFromLayer(l),
+				fill: f ? { x: f.x, y: f.y, scaleX: f.scaleX, scaleY: f.scaleY } : null,
+				rotation: l.rotation ?? 0,
+				opacity: l.opacity ?? 1,
+				keyer: shouldApplyStraightAlphaKeyer(!!l.straightAlpha, l.source?.value) ? 1 : 0,
 			})
 		}
 		return { sceneId, contentByLayer }
@@ -192,11 +197,26 @@ export function createScenesPreviewRuntime(opts) {
 	function isGeometryOnlyPreview(sceneId, scene) {
 		if (!lastPreviewContentSnapshot) return false
 		const prev = lastPreviewContentSnapshot.contentByLayer
-		const cur = buildPreviewContentSnapshot(sceneId, scene).contentByLayer
+		const cur = new Map()
+		for (const l of scene.layers || []) {
+			if (!l?.source?.value) continue
+			cur.set(Number(l.layerNumber), layerContentMetaForSnapshot(l))
+		}
 		if (prev.size !== cur.size) return false
 		for (const [num, meta] of cur) {
 			const p = prev.get(num)
-			if (!p || JSON.stringify(p) !== JSON.stringify(meta)) {
+			if (!p) return false
+			const pContent = {
+				value: p.value,
+				loop: p.loop,
+				straightAlpha: p.straightAlpha,
+				contentFit: p.contentFit,
+				audioRoute: p.audioRoute,
+				volume: p.volume,
+				muted: p.muted,
+				pipOverlays: p.pipOverlays,
+			}
+			if (JSON.stringify(pContent) !== JSON.stringify(meta)) {
 				return false
 			}
 		}
@@ -244,6 +264,9 @@ export function createScenesPreviewRuntime(opts) {
 			const commandsByChannel = new Map()
 			const mediaListPromise = api.get('/api/media').catch(() => [])
 			async function getMediaListOnce() { return mediaListPromise }
+			
+			let lastComputedFills = new Map()
+			let lastPreviewCh = null
 
 			for (const mIdx of targetIdxs) {
 				const prvRes =
@@ -252,7 +275,8 @@ export function createScenesPreviewRuntime(opts) {
 					getPreviewOutputResolution()
 				const previewCanvas = { width: prvRes.w, height: prvRes.h, framerate: prvRes.fps ?? 50 }
 				const authoringCanvas = sceneState.getCanvasForScreen(mIdx)
-				const previewCh = cm.previewChannels?.[mIdx] ?? null
+				const previewCh = sceneState.editOnPgm ? (cm.programChannels?.[mIdx] ?? cm.playbackChannels?.[mIdx]) : (cm.previewChannels?.[mIdx] ?? null)
+				lastPreviewCh = previewCh
 				if (!previewCh || previewCh <= 0) {
 					sceneState.setPreviewSceneId(sceneId, mIdx)
 					continue
@@ -308,6 +332,7 @@ export function createScenesPreviewRuntime(opts) {
 					}
 				}
 
+				const computedFills = new Map()
 				const sortedLayers = [...(scene.layers || [])].sort((a, b) => (a.layerNumber || 0) - (b.layerNumber || 0))
 
 				for (const layer of sortedLayers) {
@@ -316,6 +341,8 @@ export function createScenesPreviewRuntime(opts) {
 					if (!layer.source?.value) continue
 
 					const f = await resolveLayerFillForAmcp(layer, stateStore, mIdx, previewCanvas, getMediaListOnce, authoringCanvas)
+					computedFills.set(Number(ln), f)
+					
 					const clip = layer.source.value
 					const wantLoop = !!layer.loop
 					let playCmd = `PLAY ${cl}`
@@ -323,27 +350,64 @@ export function createScenesPreviewRuntime(opts) {
 					if (!String(clip || '').startsWith('route://') && wantLoop) playCmd += ' LOOP'
 					const af = audioRouteToAudioFilter(layer.audioRoute || '1+2')
 					if (af) playCmd += ` AF ${amcpParam(af)}`
+					
 					const vol = layer.muted ? 0 : layer.volume != null ? layer.volume : 1
-					const mixerPart = [
-						`MIXER ${cl} ANCHOR 0 0`,
-						`MIXER ${cl} FILL ${f.x} ${f.y} ${f.scaleX} ${f.scaleY} 0`,
-						`MIXER ${cl} ROTATION ${layer.rotation ?? 0} 0`,
-						`MIXER ${cl} OPACITY ${layer.opacity ?? 1} 0`,
-						`MIXER ${cl} KEYER ${shouldApplyStraightAlphaKeyer(!!layer.straightAlpha, layer.source?.value) ? 1 : 0}`,
-						`MIXER ${cl} VOLUME ${vol}`,
-					]
+					const curKeyer = shouldApplyStraightAlphaKeyer(!!layer.straightAlpha, layer.source?.value) ? 1 : 0
+					
 					const prevMeta = lastPreviewContentSnapshot?.contentByLayer?.get(Number(ln))
+					
+					const mixerPart = []
+					const prevFill = prevMeta?.fill
+					const prevRot = prevMeta?.rotation
+					const prevOp = prevMeta?.opacity
+					const prevKeyer = prevMeta?.keyer
+					const prevVol = prevMeta?.volume
+
+					if (!prevFill || prevFill.x !== f.x || prevFill.y !== f.y || prevFill.scaleX !== f.scaleX || prevFill.scaleY !== f.scaleY) {
+						mixerPart.push(`MIXER ${cl} FILL ${f.x} ${f.y} ${f.scaleX} ${f.scaleY} 1 DEFER`)
+					}
+					if (prevRot === undefined || prevRot !== (layer.rotation ?? 0)) {
+						mixerPart.push(`MIXER ${cl} ROTATION ${layer.rotation ?? 0} 0 DEFER`)
+					}
+					if (prevOp === undefined || prevOp !== (layer.opacity ?? 1)) {
+						mixerPart.push(`MIXER ${cl} OPACITY ${layer.opacity ?? 1} 0 DEFER`)
+					}
+					if (prevKeyer === undefined || prevKeyer !== curKeyer) {
+						mixerPart.push(`MIXER ${cl} KEYER ${curKeyer}`)
+					}
+					if (prevVol === undefined || prevVol !== vol) {
+						mixerPart.push(`MIXER ${cl} VOLUME ${vol} DEFER`)
+					}
+
 					const curMeta = layerContentMetaForSnapshot(layer)
-					const contentUnchanged = prevMeta && curMeta && JSON.stringify(prevMeta) === JSON.stringify(curMeta)
+					const prevContent = prevMeta ? {
+						value: prevMeta.value,
+						loop: prevMeta.loop,
+						straightAlpha: prevMeta.straightAlpha,
+						contentFit: prevMeta.contentFit,
+						audioRoute: prevMeta.audioRoute,
+						volume: prevMeta.volume,
+						muted: prevMeta.muted,
+						pipOverlays: prevMeta.pipOverlays,
+					} : null
+					const contentUnchanged = prevContent && curMeta && JSON.stringify(prevContent) === JSON.stringify(curMeta)
 					
 					if (geometryOnly || contentUnchanged) {
 						queue.push(...mixerPart)
 					} else {
-						queue.push(playCmd, ...mixerPart)
+						queue.push(playCmd, 
+							`MIXER ${cl} ANCHOR 0 0 DEFER`,
+							`MIXER ${cl} FILL ${f.x} ${f.y} ${f.scaleX} ${f.scaleY} 1 DEFER`,
+							`MIXER ${cl} ROTATION ${layer.rotation ?? 0} 0 DEFER`,
+							`MIXER ${cl} OPACITY ${layer.opacity ?? 1} 0 DEFER`,
+							`MIXER ${cl} KEYER ${curKeyer}`,
+							`MIXER ${cl} VOLUME ${vol} DEFER`
+						)
 					}
+					lastComputedFills = computedFills
 
 					const nextP = nextPipLayerInPreview(ln)
-					if (geometryOnly) queue.push(...buildPipOverlayRemoveLines(previewCh, ln, nextP))
+					if (!geometryOnly) queue.push(...buildPipOverlayRemoveLines(previewCh, ln, nextP))
 					const pipOverlays = getPipOverlaysFromLayer(layer)
 					if (pipOverlays.length > 0) {
 						queue.push(...buildPipOverlayAmcpLinesAll(pipOverlays, previewCh, ln, f, { w: prvRes.w, h: prvRes.h }, nextP, prevMeta?.pipOverlays))
@@ -361,8 +425,8 @@ export function createScenesPreviewRuntime(opts) {
 			}
 
 			lastPreviewLayers = new Set((scene.layers || []).filter(l => l.source?.value).map(l => Number(l.layerNumber)))
-			lastPreviewContentSnapshot = buildPreviewContentSnapshot(sceneId, scene)
-			lastPreviewChannel = Number(getPreviewChannel())
+			lastPreviewContentSnapshot = buildPreviewContentSnapshot(sceneId, scene, lastComputedFills)
+			lastPreviewChannel = Number(lastPreviewCh)
 		} catch (e) {
 			console.warn('Scene preview push failed:', e?.message || e)
 		}

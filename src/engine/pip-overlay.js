@@ -611,6 +611,96 @@ async function sendPipOverlayLinesSerial(amcp, lines) {
 	await sendAmcpLinesSequential(clean, amcp)
 }
 
+/**
+ * Build AMCP lines for a global border on a high CG layer (default 998).
+ * - Escape uses the same `\"` form as pip overlay templates; the previous `\\"` form
+ *   was double-escaped and produced "Uncaught SyntaxError" inside the HTML template.
+ * - `initialOpacity` lets the caller load the CG hidden so it can fade in during the
+ *   scene crossfade (otherwise it pops on at full opacity at the next channel COMMIT).
+ *   When the caller asks for `initialOpacity: 0`, an **immediate** opacity-zero is sent
+ *   **before** the CG ADD so the slot is already invisible by the time the new template
+ *   replaces the previous CG (no one-frame flash of the new border at the old opacity).
+ *
+ * @param {number} channel
+ * @param {number} layer
+ * @param {{ type?: string, params?: object } | null | undefined} overlay
+ * @param {object} [appCtx]
+ * @param {{ initialOpacity?: number }} [opts]
+ * @returns {string[]}
+ */
+function buildGlobalBorderAmcpLines(channel, layer, overlay, appCtx, opts) {
+	if (!overlay?.type) return []
+	const template = TEMPLATE_MAP[overlay.type] || 'pip_border'
+	const cl = `${channel}-${layer}`
+	const inner = { l: 0, t: 0, w: 1, h: 1 }
+	const data = buildPipOverlayCgPayload(overlay, inner)
+	const initialOpacity =
+		opts && Number.isFinite(Number(opts.initialOpacity)) ? Math.max(0, Math.min(1, Number(opts.initialOpacity))) : 1
+
+	const lines = []
+	// Pre-zero the slot so a previous border (if any) doesn't show through at OPACITY 1
+	// in the brief window between CG ADD and the next channel COMMIT.
+	if (initialOpacity === 0) {
+		lines.push(`MIXER ${cl} OPACITY 0 0`)
+	}
+	lines.push(
+		`CG ${cl} ADD 0 "${template}" 1 "${data.replace(/"/g, '\\"')}"`,
+		deferMixerAmcpLine(`MIXER ${cl} FILL 0 0 1 1 0`),
+		deferMixerAmcpLine(`MIXER ${cl} KEYER 0`),
+		deferMixerAmcpLine(`MIXER ${cl} OPACITY ${initialOpacity} 0`),
+	)
+	return lines
+}
+
+/**
+ * CG UPDATE for an existing global border (no flicker — same template type, only params change).
+ * Use this when the new look's `globalBorder.type` matches the current look's type.
+ *
+ * @param {number} channel
+ * @param {number} layer
+ * @param {{ type?: string, params?: object } | null | undefined} overlay
+ * @returns {string[]}
+ */
+function buildGlobalBorderUpdateLines(channel, layer, overlay) {
+	if (!overlay?.type) return []
+	const cl = `${channel}-${layer}`
+	const inner = { l: 0, t: 0, w: 1, h: 1 }
+	const data = buildPipOverlayCgPayload(overlay, inner)
+	return [`CG ${cl} UPDATE 0 "${data.replace(/"/g, '\\"')}"`]
+}
+
+/**
+ * Opacity tween line for the global border layer.
+ *
+ * @param {number} channel
+ * @param {number} layer
+ * @param {number} targetOpacity
+ * @param {number} durationFrames
+ * @param {string} [tween]
+ * @returns {string}
+ */
+function buildGlobalBorderOpacityFadeLine(channel, layer, targetOpacity, durationFrames, tween) {
+	const cl = `${channel}-${layer}`
+	const target = Math.max(0, Math.min(1, Number(targetOpacity) || 0))
+	const dur = Math.max(0, Math.floor(Number(durationFrames) || 0))
+	let tail = `${target} ${dur}`
+	if (tween) tail += ` ${tween}`
+	return `MIXER ${cl} OPACITY ${tail}`
+}
+
+/**
+ * Teardown lines for a removed global border. Send after the fade completes so the
+ * CG CLEAR doesn't appear mid-tween.
+ *
+ * @param {number} channel
+ * @param {number} layer
+ * @returns {string[]}
+ */
+function buildGlobalBorderClearLines(channel, layer) {
+	const cl = `${channel}-${layer}`
+	return [`CG ${cl} CLEAR`, `MIXER ${cl} CLEAR`]
+}
+
 module.exports = {
 	PIP_OVERLAY_LAYER_OFFSET,
 	PIP_OVERLAY_MAX_STACK,
@@ -634,6 +724,10 @@ module.exports = {
 	nextPipContentLayerInScene,
 	nextPipContentLayerInTake,
 	sendPipOverlayLinesSerial,
+	buildGlobalBorderAmcpLines,
+	buildGlobalBorderUpdateLines,
+	buildGlobalBorderOpacityFadeLine,
+	buildGlobalBorderClearLines,
 	PIP_OVERLAY_TEMPLATE_FILES,
 	TEMPLATE_MAP,
 }

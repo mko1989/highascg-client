@@ -31,6 +31,7 @@ import { timelineState } from './lib/timeline-state.js'
 import { initOptionalModules } from './lib/optional-modules.js'
 import { initDeviceView } from './components/device-view.js'
 import { placeholderState } from './lib/placeholder-state.js'
+import { markLocalProjectSaved } from './lib/project-remote-sync.js'
 
 import * as Status from './lib/app-status.js'
 import * as Handlers from './lib/app-ws-handlers.js'
@@ -128,6 +129,14 @@ async function init() {
 	sceneState.on('change', () => appLogic.scheduleSceneDeckSync())
 	sceneState.on('imported', () => appLogic.scheduleSceneDeckSync())
 	sceneState.on('previewScene', () => appLogic.scheduleSceneDeckSync())
+	sceneState.on('softChange', () => appLogic.scheduleSceneDeckSync())
+	sceneState.on('persisted', () => {
+		appLogic.scheduleSceneDeckSync()
+		const project = projectState.exportProject(sceneState, timelineState, multiviewState, programOutputState)
+		markLocalProjectSaved()
+		api.post('/api/project/save', { project })
+			.catch(e => console.warn('[HighAsCG] Auto-save failed:', e.message))
+	})
 
 	const header = document.querySelector('.header'); const statusEl = document.querySelector('.header__status')
 	if (header && statusEl) initHeaderBar(header, statusEl, stateStore)

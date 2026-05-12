@@ -129,6 +129,16 @@ export function migrateScene(s) {
 		layers,
 		mainScope: normalizeMainScopeFromImport(s),
 		defaultTransition: { ...defaultTransition(), ...(s.defaultTransition || {}) },
+		globalBorder: s.globalBorder ? {
+			...s.globalBorder,
+			params: { ...(s.globalBorder.params || {}), side: 'inside' }, // enforce inside
+			artnetPatch: { startChannel: 1, universe: 0, ...(s.globalBorder.artnetPatch || {}) }
+		} : {
+			enabled: false,
+			type: 'border',
+			params: { side: 'inside' },
+			artnetPatch: { startChannel: 1, universe: 0 }
+		}
 	}
 }
 

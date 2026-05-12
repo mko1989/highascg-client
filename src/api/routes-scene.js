@@ -135,6 +135,37 @@ async function handleSceneTake(body, ctx) {
 			const previousPgmScene = currentScene
 			const prvStored = liveSceneState.getChannel(bus1)
 			const prvCurrentScene = prvStored?.scene || null
+			let previewExchangePromise = null
+			let previewExchangeStarted = false
+			const startPreviewExchange = () => {
+				if (previewExchangeStarted) return previewExchangePromise
+				if (
+					!previousPgmScene ||
+					typeof previousPgmScene !== 'object' ||
+					!Array.isArray(previousPgmScene.layers) ||
+					!previousPgmScene.layers.some(layerHasContent)
+				) {
+					return null
+				}
+				previewExchangeStarted = true
+				previewExchangePromise = (async () => {
+					try {
+						await runSceneTakeLbg(ctx.amcp, {
+							...takeOpts,
+							channel: bus1,
+							currentScene: prvCurrentScene,
+							incomingScene: previousPgmScene,
+							forceCut: true,
+							self: ctx,
+						})
+						const prevId = String(previousPgmScene.id || `preview_${Date.now()}`)
+						liveSceneState.setChannel(bus1, { sceneId: prevId, scene: stripEphemeralTakeFields(previousPgmScene) })
+					} catch (e) {
+						if (typeof ctx.log === 'function') ctx.log('warn', `[scene-take] pgm->prv exchange failed: ${e?.message || e}`)
+					}
+				})()
+				return previewExchangePromise
+			}
 
 			await runSceneTakeLbg(ctx.amcp, {
 				...takeOpts,
@@ -143,33 +174,15 @@ async function handleSceneTake(body, ctx) {
 				incomingScene: inc,
 				forceCut: !!b.forceCut,
 				self: ctx,
+				onProgramTransitionStarted: startPreviewExchange,
 			})
 			if (inc && typeof inc === 'object' && inc.id) {
 				liveSceneState.setChannel(channel, { sceneId: String(inc.id), scene: stripEphemeralTakeFields(inc) })
 			}
 			
 			// Bus exchange behavior: previous PGM look becomes PRV look after take.
-			if (
-				previousPgmScene &&
-				typeof previousPgmScene === 'object' &&
-				Array.isArray(previousPgmScene.layers) &&
-				previousPgmScene.layers.some(layerHasContent)
-			) {
-				try {
-					await runSceneTakeLbg(ctx.amcp, {
-						...takeOpts,
-						channel: bus1,
-						currentScene: prvCurrentScene,
-						incomingScene: previousPgmScene,
-						forceCut: true,
-						self: ctx,
-					})
-					const prevId = String(previousPgmScene.id || `preview_${Date.now()}`)
-					liveSceneState.setChannel(bus1, { sceneId: prevId, scene: stripEphemeralTakeFields(previousPgmScene) })
-				} catch (e) {
-					if (typeof ctx.log === 'function') ctx.log('warn', `[scene-take] pgm->prv exchange failed: ${e?.message || e}`)
-				}
-			}
+			if (!previewExchangeStarted) startPreviewExchange()
+			if (previewExchangePromise) await previewExchangePromise
 			liveSceneState.broadcastSceneLive(ctx)
 			return
 		}

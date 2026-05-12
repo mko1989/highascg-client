@@ -45,12 +45,12 @@ export function createDragInput(opts) {
 	function formatVal(v) {
 		return decimals >= 0 ? Number(v).toFixed(decimals) : String(v)
 	}
-	function commitNumber(n) {
+	function commitNumber(n, triggerChange = true) {
 		const clamped = Math.max(min, Math.min(max, n))
 		inp.value = formatVal(clamped)
 		if (clamped !== lastCommitted) {
 			lastCommitted = clamped
-			onChange?.(clamped)
+			if (triggerChange) onChange?.(clamped)
 		}
 	}
 	function commitFromField() {
@@ -106,8 +106,8 @@ export function createDragInput(opts) {
 	return {
 		wrap,
 		input: inp,
-		setValue: (v) => {
-			commitNumber(v)
+		setValue: (v, triggerChange = true) => {
+			commitNumber(v, triggerChange)
 		},
 	}
 }

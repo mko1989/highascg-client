@@ -5,10 +5,13 @@ import { getContentResolution } from '../lib/mixer-fill.js'
 import { appendSceneLayerFillGroup, appendMultiviewPositionSize } from './inspector-fill.js'
 import { appendSceneLayerMixerGroup } from './inspector-mixer.js'
 import { renderEffectsGroup } from './inspector-effects.js'
-import { renderPipOverlayGroup } from './inspector-pip-overlay.js'
+import { renderPipOverlayGroup, renderParamEditor } from './inspector-pip-overlay.js'
 import { appendSceneLayerHtmlTemplateGroup } from './inspector-html-template.js'
-import { getPipOverlaysFromLayer } from '../lib/pip-overlay-registry.js'
+import { getPipOverlaysFromLayer, PIP_OVERLAY_MAP } from '../lib/pip-overlay-registry.js'
 import { showScenesToast } from './scenes-editor-support.js'
+
+let activeInteractionAr = null
+let activeInteractionTimer = null
 
 /**
  * @param {object} stateStore
@@ -102,8 +105,22 @@ export function renderSceneLayerInspector(deps, sel) {
 		let next = { x: r.x, y: r.y, w: r.w, h: r.h, ...partial }
 		if (L.aspectLocked !== false) {
 			const cr = L.source ? getContentResolution(L.source, stateStore, sceneState.activeScreenIndex) : null
-			const ar =
-				cr && cr.w > 0 && cr.h > 0 ? cr.w / cr.h : r.w > 0 && r.h > 0 ? r.w / r.h : 16 / 9
+			let ar = cr && cr.w > 0 && cr.h > 0 ? cr.w / cr.h : null
+			
+			if (!ar) {
+				if (activeInteractionAr) {
+					ar = activeInteractionAr
+				} else {
+					ar = r.w > 0 && r.h > 0 ? r.w / r.h : 16 / 9
+					activeInteractionAr = ar
+				}
+				if (activeInteractionTimer) clearTimeout(activeInteractionTimer)
+				activeInteractionTimer = setTimeout(() => {
+					activeInteractionAr = null
+					activeInteractionTimer = null
+				}, 500)
+			}
+			
 			if (partial.w != null && partial.h == null) {
 				next.h = Math.max(1, Math.round(next.w / ar))
 			} else if (partial.h != null && partial.w == null) {
@@ -232,4 +249,157 @@ export function renderMultiviewInspector(deps, cellId) {
 	title.textContent = cell.label || cell.id
 	root.appendChild(title)
 	appendMultiviewPositionSize(root, { cellId, cell })
+}
+
+export function renderSceneInspector(root, sceneId) {
+	const scene = sceneState.getScene(sceneId)
+	if (!scene) {
+		root.innerHTML = '<p class="inspector-empty">Select a scene</p>'
+		return
+	}
+	root.innerHTML = ''
+	const title = document.createElement('div')
+	title.className = 'inspector-title'
+	title.textContent = `Look: ${scene.name}`
+	root.appendChild(title)
+
+	const gb = scene.globalBorder || { enabled: false, type: 'border', params: {}, artnetPatch: {} }
+
+	// Global Border Settings Group
+	const borderGrp = document.createElement('div')
+	borderGrp.className = 'inspector-group'
+	borderGrp.innerHTML = '<div class="inspector-group__title">Global Border Effect</div>'
+	
+	const def = PIP_OVERLAY_MAP.get(gb.type)
+	if (def) {
+		const paramsBlock = document.createElement('div')
+		paramsBlock.className = 'inspector-effect-card__params'
+		for (const schema of def.schema) {
+			// Skip 'side' as it's hardcoded to inside
+			if (schema.key === 'side') continue
+			
+			const curVal = gb.params?.[schema.key] ?? schema.default
+			renderParamEditor(paramsBlock, schema, curVal, (newVal) => {
+				sceneState.setGlobalBorder(sceneId, {
+					...gb,
+					params: { ...gb.params, [schema.key]: newVal, side: 'inside' } // enforce inside
+				})
+			})
+		}
+		borderGrp.appendChild(paramsBlock)
+	}
+	root.appendChild(borderGrp)
+
+	// Art-Net Patch Group
+	const patchGrp = document.createElement('div')
+	patchGrp.className = 'inspector-group'
+	patchGrp.innerHTML = '<div class="inspector-group__title">Art-Net Patch</div>'
+	
+	const patchBlock = document.createElement('div')
+	patchBlock.className = 'inspector-effect-card__params'
+	
+	// Start Channel
+	const scWrap = document.createElement('div')
+	scWrap.className = 'inspector-field'
+	const scLab = document.createElement('label')
+	scLab.className = 'inspector-field__label'
+	scLab.textContent = 'Start Channel'
+	const scInp = document.createElement('input')
+	scInp.type = 'number'
+	scInp.className = 'inspector-field__input'
+	scInp.style.width = '60px'
+	scInp.min = 1
+	scInp.max = 512
+	scInp.value = gb.artnetPatch?.startChannel || 1
+	scInp.addEventListener('change', () => {
+		const val = parseInt(scInp.value, 10)
+		sceneState.setGlobalBorder(sceneId, {
+			...gb,
+			artnetPatch: { ...gb.artnetPatch, startChannel: isNaN(val) ? 1 : val }
+		})
+		renderSceneInspector(root, sceneId) // rerender to update table
+	})
+	scLab.appendChild(scInp)
+	scWrap.appendChild(scLab)
+	patchBlock.appendChild(scWrap)
+
+	// Universe
+	const uniWrap = document.createElement('div')
+	uniWrap.className = 'inspector-field'
+	const uniLab = document.createElement('label')
+	uniLab.className = 'inspector-field__label'
+	uniLab.textContent = 'Universe'
+	const uniInp = document.createElement('input')
+	uniInp.type = 'number'
+	uniInp.className = 'inspector-field__input'
+	uniInp.style.width = '60px'
+	uniInp.min = 0
+	uniInp.max = 16
+	uniInp.value = gb.artnetPatch?.universe || 0
+	uniInp.addEventListener('change', () => {
+		const val = parseInt(uniInp.value, 10)
+		sceneState.setGlobalBorder(sceneId, {
+			...gb,
+			artnetPatch: { ...gb.artnetPatch, universe: isNaN(val) ? 0 : val }
+		})
+	})
+	uniLab.appendChild(uniInp)
+	uniWrap.appendChild(uniLab)
+	patchBlock.appendChild(uniWrap)
+
+	// Read-only mapping table
+	const start = gb.artnetPatch?.startChannel || 1
+	const mapping = [
+		{ label: 'On/Off', ch: start },
+		{ label: 'Effect Type', ch: start + 1 },
+		{ label: 'Opacity', ch: start + 2 },
+		{ label: 'Color (RGB)', ch: `${start + 3} - ${start + 5}` },
+		{ label: 'Width / Thickness', ch: start + 6 },
+		{ label: 'Speed', ch: start + 7 },
+		{ label: 'Spread / Blur', ch: start + 8 },
+		{ label: 'Glow Color (RGB)', ch: `${start + 9} - ${start + 11}` },
+		{ label: 'Radius', ch: start + 12 },
+		{ label: 'Count', ch: start + 13 },
+		{ label: 'Length', ch: start + 14 }
+	]
+
+	const table = document.createElement('table')
+	table.className = 'inspector-mapping-table'
+	table.style.width = '100%'
+	table.style.marginTop = '10px'
+	table.style.fontSize = '0.8rem'
+	table.style.borderCollapse = 'collapse'
+	
+	table.innerHTML = `
+		<thead>
+			<tr style="text-align: left; border-bottom: 1px solid rgba(255,255,255,0.1);">
+				<th style="padding: 4px;">Parameter</th>
+				<th style="padding: 4px;">Channel</th>
+			</tr>
+		</thead>
+		<tbody>
+			${mapping.map(m => `
+				<tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+					<td style="padding: 4px;">${m.label}</td>
+					<td style="padding: 4px;">${m.ch}</td>
+				</tr>
+			`).join('')}
+		</tbody>
+	`
+	patchBlock.appendChild(table)
+	
+	const dlLink = document.createElement('a')
+	dlLink.href = '/fixtures/global-border.txt'
+	dlLink.download = 'global-border.txt'
+	dlLink.textContent = 'Download Fixture File'
+	dlLink.style.display = 'block'
+	dlLink.style.marginTop = '15px'
+	dlLink.style.color = '#38bdf8'
+	dlLink.style.textDecoration = 'none'
+	dlLink.style.fontSize = '0.85rem'
+	dlLink.style.fontWeight = 'bold'
+	patchBlock.appendChild(dlLink)
+	
+	patchGrp.appendChild(patchBlock)
+	root.appendChild(patchGrp)
 }

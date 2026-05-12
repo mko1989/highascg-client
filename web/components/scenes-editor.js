@@ -106,10 +106,19 @@ export function initScenesEditor(root, stateStore, opts = {}) {
 				const editingScene = sceneState.editingSceneId ? sceneState.getScene(sceneState.editingSceneId) : null
 				const canUseEditingForMain = !!(editingScene && sceneState.sceneMatchesMain(editingScene, mainIdx))
 				const fallbackEditingId = canUseEditingForMain ? sceneState.editingSceneId : null
-				const id = meta.composeCell === 'prv'
-					? (sceneState.getPreviewSceneIdForMain(mainIdx) || fallbackEditingId)
-					: (sceneState.getLiveSceneIdForMain(mainIdx) || sceneState.getPreviewSceneIdForMain(mainIdx) || fallbackEditingId)
-				const scene = meta.composeCell === 'pgm' ? (sceneState.getLiveSceneSnapshot(mainIdx) || (id ? sceneState.getScene(id) : null)) : (id ? sceneState.getScene(id) : null)
+				let id, scene
+				if (meta.composeCell === 'pgm') {
+					if (sceneState.editOnPgm && sceneState.editingSceneId) {
+						id = sceneState.editingSceneId
+						scene = sceneState.getScene(id)
+					} else {
+						id = sceneState.getLiveSceneIdForMain(mainIdx) || sceneState.getPreviewSceneIdForMain(mainIdx) || fallbackEditingId
+						scene = sceneState.getLiveSceneSnapshot(mainIdx) || (id ? sceneState.getScene(id) : null)
+					}
+				} else {
+					id = sceneState.getPreviewSceneIdForMain(mainIdx) || (sceneState.editOnPgm ? null : fallbackEditingId)
+					scene = id ? sceneState.getScene(id) : null
+				}
 				drawDualComposeCellPreview(ctx, W, H, cellW, cellH, c => {
 					const r = Logic.getResolutionForScreen(mainIdx, sceneState, stateStore)
 					const cm = getChannelMap()
@@ -254,6 +263,19 @@ export function initScenesEditor(root, stateStore, opts = {}) {
 	sceneState.on('editingChange', scheduleRender); sceneState.on('screenChange', () => { previewPanel.scheduleDraw(); scheduleRender() })
 	document.addEventListener('scenes-refresh-preview', () => { previewRuntime.scheduleFlushPreviewFromInspector(); previewPanel.scheduleDraw() })
 	document.addEventListener('scenes-tab-activated', () => { previewPanel.scheduleDraw(); if (sceneState.editingSceneId) previewRuntime.schedulePreviewPush() })
+	document.addEventListener('scenes-edit-live-on-pgm', (e) => {
+		console.log('Received scenes-edit-live-on-pgm event, detail:', e.detail)
+		const mainIdx = e.detail?.mainIndex
+		if (mainIdx == null) return
+		const sceneId = sceneState.getLiveSceneIdForMain(mainIdx)
+		console.log('Live scene ID for main', mainIdx, 'is', sceneId)
+		if (sceneId) {
+			sceneState.setEditOnPgm(true)
+			sceneState.setEditingScene(sceneId)
+		} else {
+			showScenesToast('No active look on this PGM channel to edit.', 'error')
+		}
+	})
 	document.addEventListener(LOOK_PRESET_RECALL_PRV, (e) => {
 		const d = e.detail || {}
 		if (!d.sceneId && !(d.lookPreset && Array.isArray(d.lookPreset.items) && d.lookPreset.items.length)) return

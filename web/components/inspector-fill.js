@@ -104,7 +104,14 @@ export function appendSceneLayerFillGroup(root, opts) {
 		max: 999999,
 		step: 1,
 		decimals: 0,
-		onChange: (v) => patchFillPx({ w: Math.max(1, v) }),
+		onChange: (v) => {
+			patchFillPx({ w: Math.max(1, v) })
+			if (layer.aspectLocked !== false) {
+				const ar = pxRect.w > 0 && pxRect.h > 0 ? pxRect.w / pxRect.h : 16 / 9
+				const nh = Math.max(1, Math.round(v / ar))
+				hInp.setValue(nh, false)
+			}
+		},
 	})
 	const hInp = createDragInput({
 		label: 'Height',
@@ -113,7 +120,14 @@ export function appendSceneLayerFillGroup(root, opts) {
 		max: 999999,
 		step: 1,
 		decimals: 0,
-		onChange: (v) => patchFillPx({ h: Math.max(1, v) }),
+		onChange: (v) => {
+			patchFillPx({ h: Math.max(1, v) })
+			if (layer.aspectLocked !== false) {
+				const ar = pxRect.w > 0 && pxRect.h > 0 ? pxRect.w / pxRect.h : 16 / 9
+				const nw = Math.max(1, Math.round(v * ar))
+				wInp.setValue(nw, false)
+			}
+		},
 	})
 	fillGrp.appendChild(xInp.wrap)
 	fillGrp.appendChild(yInp.wrap)

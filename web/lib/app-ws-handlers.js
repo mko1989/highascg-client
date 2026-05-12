@@ -58,6 +58,32 @@ export function attachWsHandlers(ws, { stateStore, sceneState, timelineState, mu
 		} catch (e) { console.warn('[HighAsCG] project_sync failed:', e.message) }
 	})
 
+	ws.on('mixer_update', (data) => {
+		const { lookId, layerIdx, updatedValues } = data
+		const sc = sceneState.getScene(lookId)
+		const L = sc?.layers?.[layerIdx]
+		if (L) {
+			const fillProps = ['x', 'y', 'scaleX', 'scaleY']
+			const hasFill = Object.keys(updatedValues).some(k => fillProps.includes(k))
+			
+			if (hasFill) {
+				if (!L.fill) L.fill = {}
+				for (const k of fillProps) {
+					if (updatedValues[k] !== undefined) L.fill[k] = updatedValues[k]
+				}
+			}
+			
+			for (const [k, v] of Object.entries(updatedValues)) {
+				if (!fillProps.includes(k)) {
+					L[k] = v
+				}
+			}
+			
+			sceneState._emit('softChange')
+			document.dispatchEvent(new CustomEvent('scenes-refresh-preview'))
+		}
+	})
+
 	ws.on('connect', () => {
 		appLogic.updateStatus(true, null); appLogic.refreshEye()
 		appLogic.scheduleMultiviewRefresh(); appLogic.scheduleSceneDeckSync()

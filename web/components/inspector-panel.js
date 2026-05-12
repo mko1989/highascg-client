@@ -15,7 +15,7 @@ import {
 	renderTimelineFlagInspector,
 	renderTimelineClipInspector,
 } from './inspector-panel-timeline.js'
-import { renderSceneLayerInspector, renderMultiviewInspector } from './inspector-panel-views.js'
+import { renderSceneLayerInspector, renderMultiviewInspector, renderSceneInspector } from './inspector-panel-views.js'
 import { renderLayerPresetsMode, renderLookPresetsMode } from './inspector-panel-presets-modes.js'
 
 /** @deprecated import from ../lib/mixer-fill.js */
@@ -107,6 +107,11 @@ export function initInspectorPanel(root, stateStore) {
 		if (!data) {
 			renderEmpty()
 			scheduleSelectionSync(stateStore, null)
+			return
+		}
+		if (data.type === 'scene' && data.sceneId) {
+			renderSceneInspector(root, data.sceneId)
+			scheduleSelectionSync(stateStore, selection)
 			return
 		}
 		if (data.type === 'sceneLayer' && data.sceneId && data.layerIndex != null) {
@@ -238,6 +243,13 @@ export function initInspectorPanel(root, stateStore) {
 		}
 		if (d == null) {
 			if (selection?.type === 'sceneLayer') update(null)
+		}
+	})
+	
+	window.addEventListener('scene-select', (e) => {
+		const d = e.detail
+		if (d && d.sceneId) {
+			update({ type: 'scene', sceneId: d.sceneId })
 		}
 	})
 

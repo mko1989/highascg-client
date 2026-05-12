@@ -6,6 +6,8 @@
 'use strict'
 
 const { JSON_HEADERS, jsonBody, parseBody } = require('./response')
+const persistence = require('../utils/persistence')
+const PROJECT_DISK_KEY = 'web_project'
 
 /**
  * @param {{ amcp: import('../caspar/amcp-client').AmcpClient }} ctx
@@ -152,6 +154,160 @@ async function applyInspectorEffect(amcp, channel, layer, body) {
 	}
 }
 
+const activeInteractionArCache = {}
+
+function getCachedAr(lookId, layerIdx, currentAr) {
+	const key = `${lookId}_${layerIdx}`
+	const cached = activeInteractionArCache[key]
+	if (cached) {
+		clearTimeout(cached.timer)
+		cached.timer = setTimeout(() => {
+			delete activeInteractionArCache[key]
+		}, 500)
+		return cached.ar
+	}
+	
+	const timer = setTimeout(() => {
+		delete activeInteractionArCache[key]
+	}, 500)
+	activeInteractionArCache[key] = { ar: currentAr, timer }
+	return currentAr
+}
+
+function updateProjectStateFromSelection(ctx, property, value) {
+	const vars = ctx.state ? ctx.state.variables : (ctx.variables || {})
+	const context = vars['ui_selection_context']
+	const lookId = vars['ui_selection_look_id']
+	const layerIdxStr = vars['ui_selection_look_layer_index']
+
+	if (context !== 'scene_layer' || !lookId || layerIdxStr === '') {
+		return null
+	}
+
+	const layerIdx = parseInt(layerIdxStr, 10)
+	const project = persistence.get(PROJECT_DISK_KEY)
+	if (!project || !project.scenes || !Array.isArray(project.scenes.scenes)) {
+		return null
+	}
+
+	const scene = project.scenes.scenes.find(s => s.id === lookId)
+	if (!scene || !Array.isArray(scene.layers) || layerIdx >= scene.layers.length) {
+		return null
+	}
+
+	const layer = scene.layers[layerIdx]
+	if (!layer) return null
+
+	// Find fresh state from UI if available to prevent jumps
+	const freshScene = ctx.sceneDeck?.sceneSnapshots?.find(s => s.id === lookId)
+	const freshLayer = freshScene?.layers?.[layerIdx]
+	const baseLayer = freshLayer || layer
+
+	const updatedValues = {}
+
+	if (typeof property === 'object') {
+		if (!layer.fill) layer.fill = {}
+		
+		let updatedScaleX = false
+		let updatedScaleY = false
+		
+		for (const [k, v] of Object.entries(property)) {
+			if (v === undefined) continue
+			
+			const baseVal = baseLayer.fill?.[k] != null ? parseFloat(baseLayer.fill[k]) : (k.startsWith('scale') ? 1 : 0)
+			
+			if (typeof v === 'string' && (v.startsWith('+') || v.startsWith('-'))) {
+				const diff = parseFloat(v)
+				if (!isNaN(diff) && !isNaN(baseVal)) {
+					layer.fill[k] = Math.round((baseVal + diff) * 1000000) / 1000000
+					if (freshLayer) {
+						if (!freshLayer.fill) freshLayer.fill = {}
+						freshLayer.fill[k] = layer.fill[k]
+					}
+					if (k === 'scaleX') updatedScaleX = true
+					if (k === 'scaleY') updatedScaleY = true
+				}
+			} else if (v != null) {
+				const val = parseFloat(v)
+				if (!isNaN(val)) {
+					layer.fill[k] = Math.round(val * 1000000) / 1000000
+					if (freshLayer) {
+						if (!freshLayer.fill) freshLayer.fill = {}
+						freshLayer.fill[k] = layer.fill[k]
+					}
+					if (k === 'scaleX') updatedScaleX = true
+					if (k === 'scaleY') updatedScaleY = true
+				}
+			}
+			updatedValues[k] = layer.fill[k]
+		}
+		
+		// Handle aspect lock for scale
+		if (baseLayer.aspectLocked !== false) {
+			const oldScaleX = baseLayer.fill?.scaleX != null ? parseFloat(baseLayer.fill.scaleX) : 1
+			const oldScaleY = baseLayer.fill?.scaleY != null ? parseFloat(baseLayer.fill.scaleY) : 1
+			
+			const currentAr = oldScaleX > 0 ? oldScaleY / oldScaleX : 1
+			const ar = getCachedAr(lookId, layerIdx, currentAr)
+			
+			if (updatedScaleX) {
+				const newScaleX = layer.fill.scaleX
+				layer.fill.scaleY = Math.round(newScaleX * ar * 1000000) / 1000000
+				updatedValues['scaleY'] = layer.fill.scaleY
+				if (freshLayer && freshLayer.fill) freshLayer.fill.scaleY = layer.fill.scaleY
+			} else if (updatedScaleY) {
+				const newScaleY = layer.fill.scaleY
+				layer.fill.scaleX = Math.round(newScaleY / ar * 1000000) / 1000000
+				updatedValues['scaleX'] = layer.fill.scaleX
+				if (freshLayer && freshLayer.fill) freshLayer.fill.scaleX = layer.fill.scaleX
+			}
+		}
+	} else {
+		const baseVal = baseLayer[property] != null ? parseFloat(baseLayer[property]) : 1
+		if (typeof value === 'string' && (value.startsWith('+') || value.startsWith('-'))) {
+			const diff = parseFloat(value)
+			if (!isNaN(diff) && !isNaN(baseVal)) {
+				layer[property] = Math.round((baseVal + diff) * 1000000) / 1000000
+				if (freshLayer) freshLayer[property] = layer[property]
+			}
+		} else if (value != null) {
+			const val = parseFloat(value)
+			if (!isNaN(val)) {
+				layer[property] = Math.round(val * 1000000) / 1000000
+				if (freshLayer) freshLayer[property] = layer[property]
+			}
+		}
+		updatedValues[property] = layer[property]
+	}
+
+	// Debounce disk write to prevent jerkiness during rapid movements
+	if (ctx._projectSaveTimer) clearTimeout(ctx._projectSaveTimer)
+	ctx._projectSaveTimer = setTimeout(() => {
+		ctx._projectSaveTimer = null
+		persistence.set(PROJECT_DISK_KEY, project)
+	}, 1000)
+
+	if (typeof ctx._wsBroadcast === 'function') {
+		ctx._wsBroadcast('mixer_update', { 
+			lookId, 
+			layerIdx, 
+			updatedValues 
+		})
+		
+		if (ctx._projectSyncTimer) clearTimeout(ctx._projectSyncTimer)
+		ctx._projectSyncTimer = setTimeout(() => {
+			ctx._projectSyncTimer = null
+			ctx._wsBroadcast('project_sync', project)
+		}, 500)
+	}
+
+	return {
+		channel: parseInt(vars['ui_selection_look_preview_channel'], 10) || 1,
+		layer: parseInt(vars['ui_selection_look_caspar_layer'], 10) || 10,
+		updatedValues
+	}
+}
+
 /**
  * @param {string} path
  * @param {string} body
@@ -161,10 +317,42 @@ async function handleMixer(path, body, ctx) {
 	const m = path.match(/^\/api\/mixer\/([^/]+)$/)
 	if (!m) return null
 	const b = parseBody(body)
-	const { channel = 1, layer } = b
+	
 	const amcp = ctx.amcp
-
 	const cmd = m[1].toLowerCase()
+
+	let channel = b.channel
+	let layer = b.layer
+
+	let propertyToUpdate = null
+	let valueToUpdate = null
+
+	if (cmd === 'opacity') {
+		propertyToUpdate = 'opacity'
+		valueToUpdate = b.opacity
+	} else if (cmd === 'fill') {
+		propertyToUpdate = { x: b.x, y: b.y, scaleX: b.xScale, scaleY: b.yScale }
+	}
+
+	if (propertyToUpdate !== null) {
+		const sel = updateProjectStateFromSelection(ctx, propertyToUpdate, valueToUpdate)
+		if (sel) {
+			if (channel == null) channel = sel.channel
+			if (layer == null) layer = sel.layer
+			
+			// Override body values with updated values from state
+			if (cmd === 'fill' && sel.updatedValues) {
+				if (sel.updatedValues.x !== undefined) b.x = sel.updatedValues.x
+				if (sel.updatedValues.y !== undefined) b.y = sel.updatedValues.y
+				if (sel.updatedValues.scaleX !== undefined) b.xScale = sel.updatedValues.scaleX
+				if (sel.updatedValues.scaleY !== undefined) b.yScale = sel.updatedValues.scaleY
+			} else if (cmd === 'opacity' && sel.updatedValues) {
+				if (sel.updatedValues.opacity !== undefined) b.opacity = sel.updatedValues.opacity
+			}
+		}
+	}
+
+	if (channel == null) channel = 1
 	let r
 	switch (cmd) {
 		case 'keyer':

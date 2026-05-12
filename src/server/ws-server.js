@@ -132,6 +132,11 @@ function attachWebSocketServer(httpServer, ctx, options = {}) {
 				if (!trimmed) return
 				if (trimmed[0] !== '{' && trimmed[0] !== '[') return
 				const msg = JSON.parse(trimmed)
+				
+				if (typeof ctx.log === 'function') {
+					ctx.log('info', `[WS] Incoming: ${trimmed.length > 300 ? trimmed.slice(0, 300) + '...' : trimmed}`)
+				}
+
 				if (msg.type === 'amcp' && msg.cmd) {
 					if (!ctx.amcp) {
 						ws.send(safeStringify({ type: 'error', data: 'AMCP not connected', id: msg.id }))

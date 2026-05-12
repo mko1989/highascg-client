@@ -39,6 +39,7 @@ export class SceneState {
 		this.lookPresets = []
 		this.mainEditorVisible = Persistence.defaultMainEditorVisible()
 		this.isInteracting = false
+		this.editOnPgm = false
 		this._listeners = new Map()
 		this._load()
 	}
@@ -97,6 +98,7 @@ export class SceneState {
 			this._persistTimer = null
 			try {
 				localStorage.setItem(Persistence.STORAGE_KEY, Persistence.getPersistPayload(this))
+				this._emit('persisted')
 			} catch {}
 		}, 1000)
 	}
@@ -337,7 +339,7 @@ export class SceneState {
 		this._save()
 	}
 
-	setLiveSceneId(id, mainIdx) {
+	setLiveSceneId(id, mainIdx, opts = {}) {
 		const m = mainIdx != null && mainIdx >= 0 && mainIdx < 4 ? Math.floor(mainIdx) : this.activeScreenIndex
 		this.liveSceneIdByMain[m] = id ? String(id) : null
 		if (id) {
@@ -347,10 +349,11 @@ export class SceneState {
 		} else {
 			this.liveSceneSnapshotsByMain[m] = null
 		}
-		this._softSave()
+		if (opts?.silent) this._persist()
+		else this._softSave()
 	}
 
-	applySceneFromTakePayload(sceneId, payload) {
+	applySceneFromTakePayload(sceneId, payload, opts = {}) {
 		const s = this.getScene(sceneId)
 		if (s && LookLogic.applySceneFromTakePayload(s, payload)) {
 			for (let m = 0; m < 4; m++) {
@@ -358,7 +361,8 @@ export class SceneState {
 					this.liveSceneSnapshotsByMain[m] = JSON.parse(JSON.stringify(s))
 				}
 			}
-			this._softSave()
+			if (opts?.silent) this._persist()
+			else this._softSave()
 		}
 	}
 
@@ -379,7 +383,16 @@ export class SceneState {
 
 	getScene(id) { return id ? this.scenes.find((s) => String(s.id) === String(id)) || null : null }
 
-	setEditingScene(id) { this.editingSceneId = id; this._emit('editingChange', id) }
+	setEditingScene(id) {
+		this.editingSceneId = id
+		if (!id) this.editOnPgm = false
+		this._emit('editingChange', id)
+	}
+
+	setEditOnPgm(val) {
+		this.editOnPgm = !!val
+		this._emit('change')
+	}
 
 	nextLayerNumber(scene) {
 		const used = new Set((scene.layers || []).map(l => Number(l.layerNumber)).filter(n => Number.isFinite(n) && n >= LOOK_LAYER_FIRST && n % LOOK_LAYER_STEP === 0))
@@ -422,6 +435,11 @@ export class SceneState {
 	setDefaultTransition(sceneId, t) {
 		const s = this.getScene(sceneId)
 		if (s) { s.defaultTransition = { ...defaultTransition(), ...s.defaultTransition, ...t }; this._softSave() }
+	}
+
+	setGlobalBorder(sceneId, border) {
+		const s = this.getScene(sceneId)
+		if (s) { s.globalBorder = { ...s.globalBorder, ...border }; this._softSave() }
 	}
 
 	setGlobalDefaultTransition(t) {

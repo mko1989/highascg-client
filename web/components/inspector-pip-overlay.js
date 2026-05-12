@@ -126,7 +126,7 @@ async function pushLivePipOverlaysToProgram(ctx, pipOverlays) {
 /**
  * Render a single parameter editor (mirrors inspector-effects.js renderParamEditor but adds color type).
  */
-function renderParamEditor(container, schema, currentValue, onChange) {
+export function renderParamEditor(container, schema, currentValue, onChange) {
 	if (schema.type === 'color') {
 		const wrap = document.createElement('div')
 		wrap.className = 'inspector-field inspector-row'

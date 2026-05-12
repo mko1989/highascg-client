@@ -26,6 +26,7 @@ const { parseInfoConfigForDecklinks } = require('./src/utils/decklink-enum')
 const { runConnectionQueryCycle } = require('./src/utils/query-cycle')
 const moduleRegistry = require('./src/module-registry')
 const { applyUiSelectionPayloadToVariables } = require('./src/api/apply-ui-selection-variables')
+const { ArtnetReceiver } = require('./src/artnet/artnet-receiver')
 
 const Args = require('./src/bootstrap/args'); const Config = require('./src/bootstrap/config'); const Modules = require('./src/bootstrap/modules'); const Shutdown = require('./src/bootstrap/shutdown')
 
@@ -84,6 +85,11 @@ function main() {
 		appCtx.getState = () => getState(appCtx); appCtx.startPeriodicSync = (self) => startPeriodicSync(self || appCtx)
 		appCtx.refreshConfigComparison = refreshConfigComparison; appCtx.samplingManager = new SamplingManager(appCtx)
 		appCtx.parseInfoConfigForDecklinks = parseInfoConfigForDecklinks
+		
+		appCtx.artnetReceiver = new ArtnetReceiver(appCtx)
+		if (config.dmx?.artnetInputEnabled !== false) {
+			appCtx.artnetReceiver.init({ universe: config.dmx?.artnetInputUniverse || 0 })
+		}
 		Modules.loadOptionalModules(config, appCtx.log)
 
 		const startTime = Date.now(); appCtx._systemVarsInterval = setInterval(() => {

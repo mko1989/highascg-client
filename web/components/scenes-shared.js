@@ -191,6 +191,7 @@ export function buildIncomingScenePayload(scene, timelineSeekOpts) {
 			: { type: 'CUT', duration: 0, tween: 'linear' },
 		/** Matches layer.fill normalization in the inspector (same as getCanvasForScreen). */
 		composeCanvas: { w: cv.width, h: cv.height },
+		globalBorder: scene.globalBorder ? JSON.parse(JSON.stringify(scene.globalBorder)) : undefined,
 		layers,
 	}
 }
