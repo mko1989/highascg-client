@@ -518,17 +518,29 @@ sudo eggs status
 
 Confirm everything looks correct — partition layout, user accounts, services.
 
-### 7.2 Produce the ISO
+### 7.2 Produce the ISO (use `--clone` — required for `casparcg`)
+
+HighAsCG and the surrounding install assume the **`casparcg`** system user: systemd units, file ownership under `/opt`, and the home tree under `/home/casparcg`. A plain `sudo eggs produce` (without `--clone`) **removes all host users from the live root** and replaces them with a generic **`live`** account. That is why the build log shows lines like `Removing user: casparcg` — it is normal for the default mode, but **wrong for this stack**.
+
+Always build with **`--clone`** so accounts and home directories from this machine are included in the squashfs. On a dedicated image-build host with generic passwords, the larger ISO and copied home trees are usually acceptable.
 
 ```bash
-sudo eggs produce --max --basename casparcg-live
+sudo eggs produce --clone --max --basename casparcg-live
+```
+
+Optional before the build: remove accounts you do not want in the image at all (for example an extra desktop user). **Do not** remove `casparcg` on the build host before `produce`, or the clone will not contain that user.
+
+```bash
+# Example only — removes user coolux from the SOURCE machine before imaging
+# sudo deluser coolux
 ```
 
 Flags explained:
+- **`--clone`** — include user accounts and user data in the live filesystem (keeps `casparcg` and `/home/casparcg`)
 - `--max` — maximum compression (slower build, smaller ISO)
 - `--basename` — sets the output filename
 
-The build will take 10–30 minutes depending on CPU speed. The ISO will be saved to:
+The build will take longer than a non-clone image and the ISO will be **larger** (rough guide: often **~8–25+ GB** depending on what is under `/home` and what your `exclude.list` still strips). The ISO will be saved to:
 ```
 /home/eggs/
 ```
@@ -539,7 +551,7 @@ The build will take 10–30 minutes depending on CPU speed. The ISO will be save
 ls -lh /home/eggs/*.iso
 ```
 
-For a lean CasparCG + Ubuntu Server setup you should see somewhere between **3GB and 6GB**.
+Without `--clone`, a lean Caspar-only root might land around **3–6 GB**. With **`--clone`**, expect a **much larger** file; that is expected.
 
 ---
 
@@ -633,7 +645,7 @@ Or if a desktop environment is available, it may appear as an "Install System" i
    - **Do not touch the caspar-data ext4 partition** (that's your media storage)
    - If you have a separate unallocated area for the OS, create a new ext4 partition there and set it as `/` (root)
 4. Set the bootloader to install to the **internal drive** (e.g. `/dev/sda`)
-5. Create the user account (keep `caspar` for consistency)
+5. At the user step, align with your cloned layout (**`casparcg`** if the installer asks you to reconcile users — many clone installs keep the cloned accounts)
 6. Complete the installation
 
 ### 10.3 After installation reboot
@@ -687,6 +699,9 @@ sudo dkms autoinstall
 sudo du -sh /* | sort -rh | head -20
 # Add any large unexpected directories to exclude.list
 ```
+
+**Build log says `Removing user: casparcg`**
+You ran `eggs produce` **without** `--clone`. Cancel if still safe, then rebuild with `sudo eggs produce --clone ...` (see §7.2). Default Eggs behaviour strips host users from the ISO workspace and creates only the `live` user; that breaks a `casparcg`-centric install.
 
 **DeckLink not detected**
 ```bash
