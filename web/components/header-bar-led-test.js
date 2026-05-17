@@ -35,6 +35,7 @@ export function initLedTestCard(container, stateStore) {
 			const st = stateStore?.getState?.() || {}
 			const programChannelsRaw = Array.isArray(st?.channelMap?.programChannels) ? st.channelMap.programChannels : [1]
 			const programChannels = [...new Set(programChannelsRaw.map((x) => parseInt(String(x), 10)).filter((n) => Number.isFinite(n) && n > 0))]
+			const mvCh = parseInt(String(st?.channelMap?.multiviewCh ?? ''), 10)
 			
 			const activeChs = Object.entries(s.channelsEnabled || {})
 				.filter(([, v]) => v === true)
@@ -49,7 +50,6 @@ export function initLedTestCard(container, stateStore) {
 			if (enabled) {
 				targets = uniqueChannels.length ? uniqueChannels : [1]
 			} else {
-				const mvCh = parseInt(String(st?.channelMap?.multiviewCh ?? ''), 10)
 				targets = [...new Set([...programChannels, ...(Number.isFinite(mvCh) && mvCh > 0 ? [mvCh] : []), ...uniqueChannels])].filter((n) => Number.isFinite(n) && n > 0)
 			}
 			const failures = []
