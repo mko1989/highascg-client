@@ -253,21 +253,48 @@ fi
 # Unified playout root: Caspar dirs + NDI copy (Phase 3 may run before deploy; fresh clone clears children)
 if [ -f /home/casparcg/highascg/package.json ]; then
     echo -e "${CYAN}→ Ensuring Caspar companion directories under playout root...${NC}"
-    mkdir -p /home/casparcg/highascg/{media,log,template,data,cef-cache,lib}
+    mkdir -p /home/casparcg/highascg/{media,media/drive,log,template,data,cef-cache,lib}
+    mkdir -p /home/casparcg/exfat
     cp /usr/lib/x86_64-linux-gnu/libndi.so.6* /home/casparcg/highascg/lib/ 2>/dev/null || true
     chown "$USER_CASPAR:$USER_CASPAR" /home/casparcg/highascg/lib/libndi.so.6* 2>/dev/null || true
+    chown "$USER_CASPAR:$USER_CASPAR" /home/casparcg/exfat 2>/dev/null || true
+    EXFAT_MAP_SRC="$SCRIPT_DIR/config/exfat-sync.json"
+    if [ -f "$EXFAT_MAP_SRC" ] && [ ! -f /etc/highascg/exfat-sync.json ]; then
+        install -d /etc/highascg
+        install -m 0644 -o root -g root "$EXFAT_MAP_SRC" /etc/highascg/exfat-sync.json
+        echo -e "  ${GREEN}✓${NC} installed /etc/highascg/exfat-sync.json (WO-47; systemd mounts LABEL=HIGHASCGEXF — see tools/live-usb/EXFAT_DATA_ZERO_TOUCH.md)"
+    fi
     chown -R "$USER_CASPAR:$USER_CASPAR" /home/casparcg/highascg/media /home/casparcg/highascg/log \
         /home/casparcg/highascg/template /home/casparcg/highascg/data /home/casparcg/highascg/cef-cache \
         /home/casparcg/highascg/lib 2>/dev/null || true
+    EXFAT_UNIT_SH="$SCRIPT_DIR/scripts/install-exfat-systemd-units.sh"
+    if [ -f "$EXFAT_UNIT_SH" ]; then
+        echo -e "${CYAN}→ WO-47 exFAT systemd units (by-label mount + boot sync)…${NC}"
+        if bash "$EXFAT_UNIT_SH" "$USER_CASPAR"; then
+            echo -e "  ${GREEN}✓${NC} exFAT units installed (LABEL=HIGHASCGEXF)"
+        else
+            echo -e "  ${YELLOW}○${NC} install-exfat-systemd-units.sh failed (non-fatal)"
+        fi
+    else
+        echo -e "  ${YELLOW}○${NC} install-exfat-systemd-units.sh missing at $EXFAT_UNIT_SH"
+    fi
 fi
 
 # systemd service (ensure unit exists whenever the app tree is present)
 if [ -f /home/casparcg/highascg/package.json ]; then
+if [ -f /etc/systemd/system/home-casparcg-exfat.mount ] && [ -f /etc/systemd/system/highascg-exfat-sync.service ]; then
+	read -r -d '' HIGHASCG_UNIT_DEPS <<'EUD' || true
+After=network.target home-casparcg-exfat.mount highascg-exfat-sync.service
+Wants=home-casparcg-exfat.mount highascg-exfat-sync.service
+EUD
+else
+	HIGHASCG_UNIT_DEPS="After=network.target"
+fi
 # systemd service
 cat <<EOF > /etc/systemd/system/highascg.service
 [Unit]
 Description=HighAsCG Playout Control Server
-After=network.target
+${HIGHASCG_UNIT_DEPS}
 
 [Service]
 Type=simple

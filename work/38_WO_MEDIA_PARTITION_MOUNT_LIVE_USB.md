@@ -11,7 +11,7 @@
 
 ## Goal
 
-On **live-USB** (or similar) deployments where the OS runs from removable media, let operators **bind the machine’s internal drive** to HighAsCG’s **fixed media directory** so CasparCG and the web UI use that disk for playout and ingest — without SSH.
+On **live-USB** (or similar) deployments where the OS runs from removable media, let operators **bind the machine’s internal drive** to **`/home/casparcg/highascg/media/drive`** (under the normal Caspar media root) so CasparCG and the web UI see that volume as **`MEDIA/drive/...`** — without SSH.
 
 The operator picks a **block device / partition** in **Settings**, confirms a **destructive warning**, and the server **unmounts any previous use of the mount point, clears the mount-point directory, mounts the chosen partition**, and **persists the choice** so the same partition is mounted again on the next HighAsCG start (config lives on the USB / writable config store).
 
@@ -19,9 +19,9 @@ The operator picks a **block device / partition** in **Settings**, confirms a **
 
 | Constant | Path |
 |----------|------|
-| Media mount point | `/home/casparcg/highascg/media` |
+| Media mount point | `/home/casparcg/highascg/media/drive` |
 
-CasparCG / HighAsCG must already be configured to use this path as the media root (`local_media_path` / `casparcg.config` `<paths><media-path>` — align with existing settings; this WO does not introduce a second configurable media root for mount).
+CasparCG / HighAsCG must already be configured to use **`/home/casparcg/highascg/media`** as the media root (`local_media_path` / `casparcg.config` `<paths><media-path>`); the WO-38 partition appears **under** that tree as **`media/drive/`** (large library or internal disk). This WO does not replace the top-level media path.
 
 ---
 
@@ -30,7 +30,7 @@ CasparCG / HighAsCG must already be configured to use this path as the media roo
 1. Settings tab currently labeled **“Media (USB)”** is renamed to **`media/usb`** (display + `data-tab` id updated consistently in templates, JS tab switching, and any deep links/docs in-repo).
 2. The **`media/usb`** pane layout: **top** = new **“Media disk mount (live / internal)”** block; **below** = existing USB import controls (Caspar media path field, enable import, subfolder template, overwrite policy, SHA1 verify) unchanged in behaviour unless noted.
 3. **Partition picker:** dropdown populated from the server with **candidate partitions** (e.g. `lsblk` output: `NAME`, `SIZE`, `FSTYPE`, `LABEL`, `UUID`, `MOUNTPOINT`, `RM`, `HOTPLUG`). UX copy should distinguish **internal** vs **removable** where possible; implementation may filter or group (exact filter is an implementation detail — document chosen rules in code comments).
-4. **Mount** button (enabled when a row is selected): opens a **modal confirmation** stating clearly that proceeding will **delete all existing files under** `/home/casparcg/highascg/media` **before mounting**, making them **unrecoverable** from that folder (explain that this is required so the mount point is empty and operators are not confused by “hidden” pre-mount files).
+4. **Mount** button (enabled when a row is selected): opens a **modal confirmation** stating clearly that proceeding will **delete all existing files under** `/home/casparcg/highascg/media/drive` **before mounting**, making them **unrecoverable** from that folder (explain that this is required so the mount point is empty and operators are not confused by “hidden” pre-mount files).
 5. On confirm: server runs a **single guarded pipeline** (see Architecture): umount-if-needed on the fixed mount point → recursive delete of contents of that directory only (`rm -rf` scoped to the mount point; never wildcard parent paths) → `mount` selected partition → persist selection in config → refresh media list / optional WS event.
 6. **Persistence:** On **HighAsCG process startup** (after config load from the USB-backed config store), if saved settings contain a **media mount target** (`UUID` strongly preferred; `PARTUUID` / kernel `by-id` path as optional fallback), invoke the **same mount helper** so the partition is mounted before or early enough that media indexing and CasparCG see the disk (ordering vs CasparCG start may require a systemd **After=** dependency or explicit “ensure mount” step in `index.js` — see Tasks).
 7. **Privileges:** mounting arbitrary partitions requires **elevated privileges**. Prefer a **narrow sudoers rule** allowing **only** the HighAsCG service user to execute **one root-owned wrapper script** with **no arbitrary arguments**, or **`sudo NOPASSWD` for that script only**. Alternative: **`pkexec`/polkit** is possible but heavier for non-interactive server; justify if chosen.
@@ -40,7 +40,8 @@ CasparCG / HighAsCG must already be configured to use this path as the media roo
 
 ## Relationship to existing work
 
-- **WO-29 (USB ingest)** targets **mounted removable USB** volumes and copying into media. This WO targets **explicit bind of a partition** to the **fixed media path** for **live USB / large internal library**. The two features share the **`media/usb`** settings tab UI but serve different workflows; avoid breaking WO-29 endpoints (`/api/usb/*`).
+- **WO-47 (exFAT data + mtime boot sync)** — preferred pattern for **USB exFAT**: fixed mount **`/home/casparcg/exfat`**, **optional bind under** `media/_exfat` **without** clearing **`media/`**, and **boot sync** (newer `mtime` wins). Use WO-38 for **mounting a library partition at** **`/home/casparcg/highascg/media/drive`** (destructive clear of that subfolder only); see **`work/47_WO_EXFAT_DATA_MOUNT_AND_MTIME_BOOT_SYNC.md`**.
+- **WO-29 (USB ingest)** targets **mounted removable USB** volumes and copying into media. This WO targets **explicit mount of a partition** at **`media/drive`** for **live USB / large internal library**. The two features share the **`media/usb`** settings tab UI but serve different workflows; avoid breaking WO-29 endpoints (`/api/usb/*`).
 - **`work/docs/LIVE_USB_IMAGE.md`**: persistence assumption — config writable on USB; reference in install/boot docs once behaviour exists.
 
 ---
@@ -89,7 +90,7 @@ Exact mechanism is implementation detail; WO requires **narrow privilege surface
 
 Order (must match Linux expectations):
 
-1. If `/home/casparcg/highascg/media` is **already a mount point**, **`umount -l`** (lazy) or standard `umount` — behaviour if CasparCG has files open: surface **explicit error** (“stop playback / restart Caspar”); document in UX.
+1. If `/home/casparcg/highascg/media/drive` is **already a mount point**, **`umount -l`** (lazy) or standard `umount` — behaviour if CasparCG has files open: surface **explicit error** (“stop playback / restart Caspar”); document in UX.
 2. **Confirm** UX already obtained — server trusts only authenticated Settings user (same as existing settings auth model).
 3. Delete **contents** inside mount point (**not** the directory inode itself): e.g. after umount, `find mountpoint -mindepth 1 -maxdepth 1 -exec rm -rf {} +` or equivalent **with path normalisation** and **realpath** check that resolved path **equals** allowed base.
 4. **`mount -t auto`** or explicit fstype from `lsblk` row — read-only option **out of scope** (read-write default for ingest + playout).
@@ -130,7 +131,7 @@ Order (must match Linux expectations):
 
 ### Phase 1 — Design & safety
 - [x] **T38.1** Document threat model: who can POST mount (same auth as settings); symlink attacks on `/dev/disk/by-uuid/*`; denial of mounting system disks.
-- [x] **T38.2** Freeze canonical mount point path **`/home/casparcg/highascg/media`** and add compile-time / runtime assert in helper that target path matches.
+- [x] **T38.2** Freeze canonical mount point path **`/home/casparcg/highascg/media/drive`** and add compile-time / runtime assert in helper that target path matches.
 
 ### Phase 2 — Privileged helper + install
 - [x] **T38.3** Implement **`media-mount.sh`** (or similar): `mount-by-uuid`, `umount-media`, `status` subcommands; **no** `eval`; log to journal or `/var/log/highascg/mount.log`.
@@ -162,7 +163,7 @@ Order (must match Linux expectations):
 ## Technical considerations
 
 - **Clearing the folder:** The Linux kernel allows mounting on a non-empty directory (contents become hidden), but that is **operationally dangerous**. This WO mandates **explicit delete-with-warning** so operators are not surprised by “missing” or “reappearing” files after umount.
-- **`rm -rf` scope:** Only under realpath-normalised `/home/casparcg/highascg/media`. Refuse if path is not a directory or is a symlink to outside tree.
+- **`rm -rf` scope:** Only under realpath-normalised `/home/casparcg/highascg/media/drive`. Refuse if path is not a directory or is a symlink to outside tree.
 - **LUKS / BitLocker:** out of scope unless unlocked by user at OS level first.
 - **Dual boot:** mounting Windows “C:” NTFS while hibernated — **read-only** or refuse; document **Windows fast startup** risk (optional `ntfs-3g` ro mount).
 - **ZFS / btrfs subvolumes:** v1 may exclude unknown FSTYPES; return clear “unsupported fstype” in API.
@@ -215,6 +216,14 @@ Marked implementation tasks **T38.1–T38.13** as done per landed code/API/UI/he
 **Work Done:** Created WO-38 from product request: `media/usb` tab rename, partition dropdown + destructive clear + mount to fixed path, sudo/NOPASSWD narrow wrapper, startup persistence from config on USB.
 
 **Status:** Specification draft; subsequent entry documents implementation landing.
+
+### 2026-05-17 — Agent (WO-38 mount point → `media/drive`)
+
+**Work done:** WO-38 fixed mount moved from **`/home/casparcg/highascg/media`** to **`/home/casparcg/highascg/media/drive`** in **`scripts/highascg-media-mount.sh`**, **`src/system/media-partition-mount.js`**, **`src/config/defaults.js`** (comment), **`scripts/sudoers.d/highascg-media-mount`** (comment), **`scripts/install-phase4.sh`** (mkdir), **`tools/live-usb/ensure-empty-live-usb-dirs.sh`**, Settings UI copy (**`web/components/settings-modal-templates.js`**, **`settings-modal.js`**), **`docs/HIGHASCG_PASSWORDLESS_SUDO.md`**, **`work/docs/MANUAL_INSTALL.md`**, **`work/docs/LIVE_USB_IMAGE.md`**, **`tools/live-usb/HIGHASCG_FOLDER_USB_PARTITION.md`**, **`work/38_WO_…`**, **`work/47_WO_…`**.
+
+**Rationale:** Keeps the Caspar media root at **`…/media`** while mounting the extra volume **inside** it as **`drive/`**, so other content under **`media/`** is not replaced by the mount.
+
+**Instructions for next agent:** Re-run **`scripts/install-phase4.sh`** (or manually reinstall **`/usr/local/lib/highascg/media-mount.sh`**) on deployed hosts so the root helper matches Node’s **`FIXED_MEDIA_MOUNT`**; hardware QA **T38.16–T38.17** on **`media/drive`**; confirm Caspar CLS paths for files on the mounted volume (e.g. **`MEDIA/drive/...`**).
 
 ---
 

@@ -1,0 +1,21 @@
+# Install as: /etc/systemd/system/highascg-exfat-sync.service
+# Runs mtime-priority sync before HighAsCG (requires exfat mounted at /home/casparcg/exfat).
+# Adjust User if the service user is not casparcg.
+
+[Unit]
+Description=HighAsCG exFAT ↔ project sync (WO-47)
+DefaultDependencies=no
+After=network-pre.target home-casparcg-exfat.mount
+Wants=home-casparcg-exfat.mount
+Before=highascg.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=casparcg
+Group=casparcg
+WorkingDirectory=/home/casparcg/highascg
+ExecStart=/usr/bin/node /home/casparcg/highascg/tools/exfat-sync-cli.js
+
+[Install]
+WantedBy=multi-user.target

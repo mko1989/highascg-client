@@ -62,7 +62,7 @@ export function showSettingsModal(initialTab) {
 				lines.push(`Mounted: ${mRes.source || '?'} (${mRes.fstype || '?'})  uuid=${mRes.uuid || '?'}`)
 			else if (mRes?.inheritsFromFilesystem)
 				lines.push(
-					`On host filesystem (${mRes.inheritsFromFilesystem}); no partition mounted solely at /home/casparcg/highascg/media.`,
+					`On host filesystem (${mRes.inheritsFromFilesystem}); no partition mounted solely at /home/casparcg/highascg/media/drive.`,
 				)
 			else lines.push('Folder is not separately mounted.')
 			if (mRes?.savedUuid)
@@ -73,6 +73,68 @@ export function showSettingsModal(initialTab) {
 			if (applyBtn) applyBtn.disabled = !sel.value
 		} catch (e) {
 			line.textContent = e?.message || String(e)
+		}
+	}
+
+	function escapeHtml(s) {
+		return String(s || '')
+			.replace(/&/g, '&amp;')
+			.replace(/</g, '&lt;')
+			.replace(/>/g, '&gt;')
+			.replace(/"/g, '&quot;')
+	}
+
+	function exfatPairStatus(row) {
+		if (row.pairError) return row.pairError
+		if (!row.exfatExists && !row.projectExists) return 'both sides missing'
+		if (!row.exfatExists) return 'exFAT side missing'
+		if (!row.projectExists) return 'project side missing'
+		if (row.exfatIsDirectory && row.projectIsDirectory) return 'directory ↔ directory'
+		if (row.exfatIsFile || row.projectIsFile) return 'file pair'
+		return 'ok'
+	}
+
+	async function refreshExfatSyncPanel() {
+		const line = modal.querySelector('#exfat-sync-status-line')
+		const tbody = modal.querySelector('#exfat-sync-pairs-table tbody')
+		if (!line || !tbody) return
+		line.textContent = 'Loading…'
+		try {
+			const r = await api.get('/api/system/exfat-sync')
+			if (r?.unsupported) {
+				line.textContent = 'exFAT sync map is only listed on Linux.'
+				tbody.innerHTML = ''
+				return
+			}
+			const bits = []
+			if (r?.mapPath) bits.push(`map: ${r.mapPath}`)
+			else bits.push('no map file matched')
+			if (r?.mapLoadError) bits.push(r.mapLoadError)
+			bits.push(
+				r?.mounted ?
+					`mounted: ${r.mountSource || '?'} (${r.mountFstype || '?'})`
+				:	`exFAT root not mounted (${r.exfatRoot || '/home/casparcg/exfat'})`,
+			)
+			line.textContent = bits.join(' · ')
+			const pairs = Array.isArray(r?.pairs) ? r.pairs : []
+			tbody.innerHTML = ''
+			for (const row of pairs) {
+				const tr = document.createElement('tr')
+				tr.style.borderBottom = '1px solid rgba(255,255,255,0.06)'
+				const excl = Array.isArray(row.exclude) ? row.exclude.join(', ') : ''
+				const dir = String(row.direction || 'both')
+				tr.innerHTML = `<td style="padding:0.25rem 0.35rem;vertical-align:top">${escapeHtml(row.id)}</td><td style="padding:0.25rem 0.35rem;vertical-align:top"><code>${escapeHtml(row.exfatRelative)}</code></td><td style="padding:0.25rem 0.35rem;vertical-align:top"><code>${escapeHtml(row.projectPath)}</code></td><td style="padding:0.25rem 0.35rem;vertical-align:top;max-width:10rem;overflow:hidden;text-overflow:ellipsis" title="${escapeHtml(excl)}">${escapeHtml(excl)}</td><td style="padding:0.25rem 0.35rem;vertical-align:top">${escapeHtml(dir)}</td><td style="padding:0.25rem 0.35rem;vertical-align:top">${escapeHtml(exfatPairStatus(row))}</td>`
+				tbody.appendChild(tr)
+			}
+			if (!pairs.length) {
+				const tr = document.createElement('tr')
+				tr.innerHTML =
+					'<td colspan="6" style="padding:0.35rem">No pairs in map. Add a JSON map (see <code>config/exfat-sync.json</code>).</td>'
+				tbody.appendChild(tr)
+			}
+		} catch (e) {
+			line.textContent = e?.message || String(e)
+			tbody.innerHTML = ''
 		}
 	}
 
@@ -156,7 +218,7 @@ export function showSettingsModal(initialTab) {
 			<div class="modal-content settings-modal" style="max-width:28rem">
 				<div class="modal-header"><h2>Mount partition</h2></div>
 				<div class="modal-body settings-body">
-					<p class="settings-note">This will <strong>permanently delete</strong> all files currently under <code>/home/casparcg/highascg/media</code> on this host, then mount the selected partition at that path. Anything that only lived in that folder (not on the disk you select) will be gone.</p>
+					<p class="settings-note">This will <strong>permanently delete</strong> all files currently under <code>/home/casparcg/highascg/media/drive</code> on this host, then mount the selected partition at that path. Anything that only lived in that folder (not on the disk you select) will be gone.</p>
 					<div class="settings-group checkbox">
 						<label><input type="checkbox" id="media-mount-ack-delete" /> I understand existing files in that folder will be deleted</label>
 					</div>
@@ -211,12 +273,29 @@ export function showSettingsModal(initialTab) {
 				console.warn('[settings-modal] optional mount failed:', tabName, e)
 			}
 		}
-		if (tabName === 'media-usb') void refreshMediaMountPanel()
+		if (tabName === 'media-usb') {
+			void refreshMediaMountPanel()
+			void refreshExfatSyncPanel()
+		}
 		if (tabName === 'system-hardware') void refreshSystemHardwarePanel()
 		if (tabName === 'decklink') void refreshDecklinkPanel()
 	}
 
 	modal.querySelector('#media-mount-refresh-btn')?.addEventListener('click', () => void refreshMediaMountPanel())
+	modal.querySelector('#exfat-sync-refresh-btn')?.addEventListener('click', () => void refreshExfatSyncPanel())
+	modal.querySelector('#exfat-sync-dryrun-btn')?.addEventListener('click', async () => {
+		const line = modal.querySelector('#exfat-sync-status-line')
+		if (line) line.textContent = 'Dry-run…'
+		try {
+			const res = await api.post('/api/system/exfat-sync/run', { dryRun: true })
+			const err = Array.isArray(res?.errors) ? res.errors.join('; ') : ''
+			if (line) {
+				line.textContent = `Dry-run: would update ${res?.copied ?? 0} file(s), skip ${res?.skipped ?? 0}. ${err || (res?.ok ? 'ok' : 'see errors')}`
+			}
+		} catch (e) {
+			if (line) line.textContent = e?.message || String(e)
+		}
+	})
 	modal.querySelector('#media-mount-part-select')?.addEventListener('change', e => {
 		const applyBtn = modal.querySelector('#media-mount-apply-btn')
 		if (applyBtn) applyBtn.disabled = !(e.target && e.target.value)

@@ -2,9 +2,6 @@
 #
 # Entries are relative to filesystem root (no leading slash).
 
-# --- other users (don't ship personal data) ---
-home/serwer/*
-
 # --- HighAsCG runtime/working artifacts (regenerated on first run) ---
 home/casparcg/highascg/media
 home/casparcg/highascg/media/*

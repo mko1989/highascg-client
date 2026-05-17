@@ -260,7 +260,7 @@ module.exports = {
 		verifyHash: false,
 	},
 	/**
-	 * Mount a partition onto /home/casparcg/highascg/media (live USB internal library, WO-38).
+	 * Mount a partition onto /home/casparcg/highascg/media/drive (live USB internal library, WO-38).
 	 * Persists `uuid`; applied at HighAsCG startup via sudo NOPASSWD helper.
 	 */
 	mediaMount: {

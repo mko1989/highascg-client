@@ -222,6 +222,7 @@ async function runPeriodicInfoConfigRefresh(self) {
 		const xmlStr = responseToStr(res?.data)
 		if (!xmlStr) return
 		self.gatheredInfo = self.gatheredInfo || {}
+		const oldXml = self.gatheredInfo.infoConfig || ''
 		self.gatheredInfo.infoConfig = xmlStr
 		if (self.variables) self.variables.info_config = xmlStr
 		if (typeof self.setVariableValues === 'function') self.setVariableValues({ info_config: xmlStr })
@@ -243,6 +244,12 @@ async function runPeriodicInfoConfigRefresh(self) {
 			self.samplingManager.updateConfig(self.config.dmx).catch((err) => {
 				if (typeof self.log === 'function') self.log('debug', '[DMX] Periodic INFO CONFIG: ' + (err?.message || err))
 			})
+		}
+		if (xmlStr !== oldXml && typeof self._wsBroadcast === 'function' && typeof self.getState === 'function') {
+			const st = self.getState()
+			if (st?.channelMap) {
+				self._wsBroadcast('change', { path: 'channelMap', value: st.channelMap })
+			}
 		}
 	} catch (e) {
 		if (typeof self.log === 'function') self.log('debug', 'Periodic INFO CONFIG: ' + (e?.message || e))

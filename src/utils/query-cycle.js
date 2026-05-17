@@ -284,6 +284,9 @@ function finishConnectionGather(self) {
 		if (typeof self.log === 'function') self.log('debug', 'Live scene reconcile: ' + (e?.message || e))
 	})
 	if (typeof self.startPeriodicSync === 'function') self.startPeriodicSync(self)
+	if (typeof self._wsBroadcast === 'function' && typeof self.getState === 'function') {
+		self._wsBroadcast('state', self.getState())
+	}
 }
 
 /**

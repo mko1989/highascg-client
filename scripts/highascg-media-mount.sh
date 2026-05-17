@@ -1,10 +1,10 @@
 #!/bin/bash
-# HighAsCG — mount a partition onto the fixed media folder (WO-38).
+# HighAsCG — mount a partition onto /home/casparcg/highascg/media/drive (WO-38).
 # Run as root: sudo -n /usr/local/lib/highascg/media-mount.sh (no arguments).
 # Request: line 1 of /run/highascg/media-mount.req — partition UUID (lowercase canonical).
 set -euo pipefail
 
-MP="/home/casparcg/highascg/media"
+MP="/home/casparcg/highascg/media/drive"
 REQ_DIR="/run/highascg"
 REQ="${REQ_DIR}/media-mount.req"
 LOG_TAG="highascg-media-mount"

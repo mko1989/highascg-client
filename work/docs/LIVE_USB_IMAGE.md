@@ -130,8 +130,8 @@ journalctl --vacuum-time=1d
 # rm -rf /opt/casparcg/media/*
 # or only heavy files: rm -f /opt/casparcg/media/clip_xyz.mp4
 
-# Optional: admin / build user home (e.g. serwer) — large project or CI artifacts
-# rm -rf /home/serwer/your-build-dir
+# Optional: another local user's home — large project or CI artifacts
+# rm -rf /home/otheruser/your-build-dir
 ```
 
 > [!TIP]
@@ -233,40 +233,41 @@ snapshot_prefix: ""
 compression: zstd           # fast compression, good ratio
 ```
 
-### 4.2.1 HighAsCG default: `serwer` home and Caspar media (empty in the image)
+### 4.2.1 HighAsCG: empty mount points in the squashfs (`casparcg`)
 
 This repository ships a **mksquashfs exclude fragment** and helper scripts in
-`tools/live-usb/`. The goal: **`/home/serwer` and `/opt/casparcg/media` still
-exist on the live USB, but are empty** — no build junk under the former, no
-media files under the latter.
+`tools/live-usb/`. The goal: **runtime trees under `/home/casparcg/highascg` are
+empty in the live image** (media, logs, cache, etc.), while **WO‑38 / WO‑47
+mount points** such as **`media/drive`** and **`/home/casparcg/exfat`** still
+exist as **empty directories** so systemd can mount onto them after boot.
 
 penguins-eggs calls `mksquashfs` with **`-wildcards`**. The patterns use
-**`/*`** so **only the contents** of each directory are excluded; the
-**parent** directory (empty) remains in the squash — that is the usual
-HighAsCG / Caspar layout for mount points. Paths in the fragment are **relative
-to the imaged root, no leading slash** (see upstream
-`penguins-eggs` `conf/exclude.list.d/master.list` for the same style).
+**`/*`** where needed so **only the contents** of each directory are excluded;
+**parent** directory nodes remain in the squash when they were created on the
+build host. Paths in the fragment are **relative to the imaged root, no leading
+slash** (see upstream `penguins-eggs` `conf/exclude.list.d/master.list` for the
+same style).
 
 **Produced files (copy or clone the repo on the build host):**
 
 | File | Role |
 |------|------|
-| `tools/live-usb/penguins-eggs-exclude-highascg-fragment.list` | The two lines (`home/serwer/*`, `opt/casparcg/media/*`) you merge into eggs |
-| `tools/live-usb/ensure-empty-live-usb-dirs.sh` | `mkdir` + `chown` on the *source* host so empty dirs exist before imaging |
+| `tools/live-usb/penguins-eggs-exclude-highascg-fragment.list` | Paths under `home/casparcg/highascg/…` (and caches) to omit from squashfs — merge into eggs |
+| `tools/live-usb/ensure-empty-live-usb-dirs.sh` | `mkdir` + optional `chown` for **`casparcg`** on **`…/media/drive`** and **`/home/casparcg/exfat`** before imaging |
 | `tools/live-usb/merge-penguins-eggs-exclude-highascg.sh` | Appends the fragment to `/etc/penguins-eggs.d/exclude.list` (idempotent) |
 
 **On the source host (as root), before the final `eggs produce`:**
 
 1. **Empty mount points on disk** (so the squash has those folder nodes). On a
-   machine that already has `serwer` and `casparcg`, you can use:
+   machine that already has **`casparcg`**:
 
    ```bash
-   cd /opt/highascg   # or wherever this repo is checked out
+   cd /path/to/highascg   # this repo checkout
    sudo ./tools/live-usb/ensure-empty-live-usb-dirs.sh
    ```
 
-   The script is safe if the `serwer` user does not exist (it will note that and
-   still try to create `/home/serwer` for you to fix up).
+   If **`casparcg`** does not exist yet, the script still creates the
+   directories (owned by root); fix ownership after user creation if needed.
 
 2. **Merge the fragment** into the eggs config file. This requires
    `/etc/penguins-eggs.d/exclude.list` to **already exist** — on most installs,
@@ -306,7 +307,7 @@ to the imaged root, no leading slash** (see upstream
 
 ```bash
 # --clone  : include all user accounts and data (see §4.2.1 for the HighAsCG
-#             fragment that keeps /home/serwer and /opt/casparcg/media empty)
+#             fragment + ensure-empty dirs so casparcg mount points stay empty)
 # --excludes static : do not rebuild exclude.list (required after merge script)
 # --basename : name for the ISO file
 # --prefix : prefix (empty = cleaner name)
@@ -318,7 +319,8 @@ sudo eggs produce --clone --excludes static --basename "highascg-server"
 > **`--clone` copies the whole system and user tree** by default, including
 > every user under `/home/*` and all of `/opt/casparcg` and `/opt/highascg`.
 > Use §4.2.1 (merge the HighAsCG fragment, then use **`--excludes static`**) so
-> `serwer` and Caspar `media` are present but empty in the image. If you
+> **`casparcg`** HighAsCG runtime dirs and mount parents are present but empty
+> in the image. If you
 > want a "clean" image without *any* user data (only packages and system
 > config), omit `--clone` instead and do not rely on the fragment.
 
@@ -601,7 +603,7 @@ Pick one strategy and bake it into the image or systemd layout:
 | **A. Full live persistence — default (`/ union` on eggs/Debian Live)** | After `dd`, **`add-union-persistence-partition.sh`** + GRUB **Live with persistence** — **[`BUILD_AND_FLASH.md`](../../tools/live-usb/BUILD_AND_FLASH.md)**, **[`FLASH_AND_PERSIST.md`](../../tools/live-usb/FLASH_AND_PERSIST.md)**. Survives: **NVIDIA/DKMS**, **DeckLink-related `/etc`**, **Tailscale**, **`/var`**, **home**, **`~/highascg`**. |
 | **B. Install to internal disk** (§8) | Normal install persistence. |
 | **C. Stable data mount + `HIGHASCG_CONFIG_PATH`** | HighAsCG reads config from env first (**`index.js`**). Point it at **`/mnt/your-disk/config`** (and optionally put **`media`** next to it) so USB live RAM resets do not wipe operator state. Requires the mount on boot (fstab/unit) **or** repetition each session. |
-| **D. WO‑38 partition on internal disk → `/home/casparcg/highascg/media`** | Large clips on NVMe/SATA survive reboot once mount runs; **`mediaMount` UUID still needs persisted config**, so combine with **C** or **A**/**B**. |
+| **D. WO‑38 partition on internal disk → `/home/casparcg/highascg/media/drive`** | Large clips on NVMe/SATA survive reboot once mount runs; **`mediaMount` UUID still needs persisted config**, so combine with **C** or **A**/**B**. |
 
 **CasparCG note (WO‑38):** If you remount that folder **while CasparCG is already running**, **restart CasparCG** afterward so scanners and loaders see the new filesystem. **`umount` fails when files are busy** (`device busy`) — stop playback first. Narrow **`sudo`** for the mount helper: **`scripts/install-phase4.sh`**, **`docs/HIGHASCG_PASSWORDLESS_SUDO.md`**, **`work/docs/MANUAL_INSTALL.md`** §7. Cold **HighAsCG** start attempts the saved mount before connecting AMCP; **Caspar Scanner** (often started from Openbox) may still need a scanner restart after you change mounts outside a full reboot — treat **reboot / restart scanner** as the blunt fix.
 

@@ -6,10 +6,17 @@ directories, and **`/home/casparcg/highascg`**. That requires Debian Live
 **`persistence`** + **`persistence.conf`** with **`/ union`**, and booting
 **Live with persistence** every time.
 
+**WO-47 exFAT data (optional, no UUID edits):** systemd mounts **`LABEL=HIGHASCGEXF`** at **`/home/casparcg/exfat`** (installed by **`scripts/install-phase4.sh`**). After `dd`, if you want **both** exFAT and **`/ union`** persistence, run **exFAT first**, then persistence — see **`EXFAT_DATA_ZERO_TOUCH.md`**.
+
 **Automation:** from the HighAsCG repo, after `dd` + `sync`:
 
 ```bash
+# exFAT + persistence: exFAT first (default 4 GiB), then persistence uses the tail.
+sudo bash tools/live-usb/add-exfat-data-partition.sh /dev/sdX
 sudo bash tools/live-usb/add-union-persistence-partition.sh /dev/sdX
+
+# Persistence only (no exFAT slice):
+# sudo bash tools/live-usb/add-union-persistence-partition.sh /dev/sdX
 ```
 
 Use `--dry-run` first if you like. If `parted` cannot infer free space, set

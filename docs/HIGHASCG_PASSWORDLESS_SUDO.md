@@ -12,7 +12,7 @@ Always prefer **one fixed path per action** (wrapper script with **no user-contr
 
 | Fragment / rule | User | Command | Feature |
 |-----------------|------|---------|---------|
-| **`/etc/sudoers.d/highascg-media-mount`** | `casparcg` | `/usr/local/lib/highascg/media-mount.sh` | WO-38: mount internal/partition → `/home/casparcg/highascg/media` (`src/system/media-partition-mount.js`) |
+| **`/etc/sudoers.d/highascg-media-mount`** | `casparcg` | `/usr/local/lib/highascg/media-mount.sh` | WO-38: mount internal/partition → `/home/casparcg/highascg/media/drive` (`src/system/media-partition-mount.js`) |
 | **`/etc/sudoers.d/highascg-nvidia-apply-from-pool`** | `casparcg` | `/usr/local/lib/highascg/nvidia-apply-from-pool.sh` | WO-39: NVIDIA driver apply from offline pool (**reads** `/run/highascg/nvidia-apply.req` then deletes it — no argv) |
 
 Source templates in the repo:
@@ -21,7 +21,7 @@ Source templates in the repo:
 - `scripts/sudoers.d/highascg-nvidia-apply-from-pool`
 - `scripts/install-phase4.sh` (installs helpers + sudoers fragments)
 
-**WO-38 operations:** If you remount **`/home/casparcg/highascg/media`** while CasparCG is up, **restart Caspar** afterward; **umount** needs open files closed (see **`work/docs/MANUAL_INSTALL.md`** §7, **`work/docs/LIVE_USB_IMAGE.md`** §7.2).
+**WO-38 operations:** If you remount **`/home/casparcg/highascg/media/drive`** while CasparCG is up, **restart Caspar** afterward; **umount** needs open files closed (see **`work/docs/MANUAL_INSTALL.md`** §7, **`work/docs/LIVE_USB_IMAGE.md`** §7.2).
 
 
 ### Optional ALSA — **`highascg-asound`** (off by default)

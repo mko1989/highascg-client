@@ -36,6 +36,8 @@ const routesUsbIngest = require('./routes-usb-ingest')
 const routesStreamingChannel = require('./routes-streaming-channel')
 const routesSystemSetup = require('./routes-system-setup')
 const routesSystemHardware = require('./routes-system-hardware')
+const routesSystemStorage = require('./routes-system-storage')
+const routesExfatSync = require('./routes-exfat-sync')
 const routesCasparConfig = require('./routes-caspar-config')
 const routesLogs = require('./routes-logs')
 const routesHostStats = require('./routes-host-stats')
@@ -106,8 +108,20 @@ async function routeRequest(method, path, body, ctx, req) {
 		return await routesHostStats.handleGet(ctx)
 	}
 
-	if (method === 'GET' && (p === '/api/system/block-devices' || p === '/api/system/media-mount/status')) {
+	if (method === 'GET' && (p === '/api/system/block-devices' || p === '/api/system/media-mount/status' || p === '/api/system/exfat-sync')) {
+		if (p === '/api/system/exfat-sync') {
+			const r = await routesExfatSync.handleGet(p, ctx)
+			if (r) return r
+		}
 		const r = await routesSystemStorage.handleGet(p, ctx)
+		if (r) return r
+	}
+	if (method === 'POST' && p === '/api/system/media-mount') {
+		const r = await routesSystemStorage.handlePost(p, body, ctx)
+		if (r) return r
+	}
+	if (method === 'POST' && p === '/api/system/exfat-sync/run') {
+		const r = await routesExfatSync.handlePost(p, body, ctx)
 		if (r) return r
 	}
 	if (method === 'GET' && (p === '/api/system/gpu-nvidia' || p === '/api/system/decklink')) {

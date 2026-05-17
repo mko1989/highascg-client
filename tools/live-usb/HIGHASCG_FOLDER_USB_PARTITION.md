@@ -79,7 +79,7 @@ already has the tree you want.
 ## Gotchas
 
 - **`nofail`** in the example allows boot without the data stick (recovery). Drop it if a missing partition should hard-fail.
-- **WO-38** stacks: internal disk can still be mounted **on** `/home/casparcg/highascg/media` after this USB tree mount.
+- **WO-38** stacks: internal disk can still be mounted **on** `/home/casparcg/highascg/media/drive` after this USB tree mount.
 - **Empty partition** → empty app tree until you **seed** with `rsync` (above) or restore from backup.
 
 ---

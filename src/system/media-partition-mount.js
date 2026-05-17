@@ -1,5 +1,5 @@
 /**
- * WO-38: Mount a persisted partition UUID onto /home/casparcg/highascg/media via root helper + sudo NOPASSWD.
+ * WO-38: Mount a persisted partition UUID onto /home/casparcg/highascg/media/drive via root helper + sudo NOPASSWD.
  */
 'use strict'
 
@@ -12,7 +12,7 @@ const defaults = require('../config/defaults')
 
 const execFileAsync = promisify(execFile)
 
-const FIXED_MEDIA_MOUNT = '/home/casparcg/highascg/media'
+const FIXED_MEDIA_MOUNT = '/home/casparcg/highascg/media/drive'
 const REQ_DIR = '/run/highascg'
 const REQ_PATH = `${REQ_DIR}/media-mount.req`
 const HELPER_SCRIPT =

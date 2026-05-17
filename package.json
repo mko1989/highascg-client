@@ -16,6 +16,8 @@
 		"smoke:previs-texture-crop": "node tools/smoke-previs-texture-crop.mjs",
 		"smoke:usb-lsblk": "node --test tools/smoke-usb-lsblk.js",
 		"smoke:media-mount": "node --test tools/smoke-media-mount-lsblk.js",
+		"exfat-sync": "node tools/exfat-sync-cli.js",
+		"smoke:exfat-sync": "node --test tools/smoke-exfat-sync.js",
     "test:device-graph": "node --test tools/smoke-device-graph.js",
     "test:os-layout-w40": "node --test tools/smoke-os-layout-w40.js",
     "test:mapping-gpu-os-layout": "node --test tools/smoke-mapping-gpu-os-layout.js",

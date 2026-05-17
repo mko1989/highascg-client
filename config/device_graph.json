@@ -238,5 +238,23 @@
       "w": 170,
       "h": 120
     }
-  }
+  },
+  "sources": [
+    {
+      "id": "dst_in_dst_mp4fu33j_1",
+      "label": "PGM/PRV 1",
+      "videoMode": "720p5000",
+      "width": 1280,
+      "height": 720,
+      "fps": 50
+    },
+    {
+      "id": "dst_in_dst_mp7g9t8u_1",
+      "label": "Multiview 1",
+      "videoMode": "1080p5000",
+      "width": 1920,
+      "height": 1080,
+      "fps": 50
+    }
+  ]
 }

@@ -34,7 +34,7 @@ export function getMainModalHtml() {
 					</div>
 					<div class="settings-pane" id="settings-pane-media-usb">
 						<h3 class="settings-category">Media disk mount (live / internal)</h3>
-						<p class="settings-note">Fixed folder: <code>/home/casparcg/highascg/media</code>. Mounting deletes <strong>all files</strong> currently in that folder (not recoverable here), then mounts the chosen partition. The partition UUID is saved and remounted automatically when HighAsCG starts (<code>sudo</code> helper + <code>sudoers.d</code> required — see <code>docs/HIGHASCG_PASSWORDLESS_SUDO.md</code> / installer). After you change the mount while CasparCG is already running, <strong>restart CasparCG</strong>; stop playback first if umount reports the device is busy.</p>
+						<p class="settings-note">Fixed folder: <code>/home/casparcg/highascg/media/drive</code>. Mounting deletes <strong>all files</strong> currently in that folder (not recoverable here), then mounts the chosen partition there. Other paths under <code>media/</code> are unchanged. The partition UUID is saved and remounted automatically when HighAsCG starts (<code>sudo</code> helper + <code>sudoers.d</code> required — see <code>docs/HIGHASCG_PASSWORDLESS_SUDO.md</code> / installer). After you change the mount while CasparCG is already running, <strong>restart CasparCG</strong>; stop playback first if umount reports the device is busy.</p>
 						<div class="settings-group" style="display:flex;flex-wrap:wrap;gap:0.5rem;align-items:center">
 							<label for="media-mount-part-select" style="flex:1 1 100%">Partition</label>
 							<button type="button" class="btn btn--secondary" id="media-mount-refresh-btn" style="flex:0">Refresh drives</button>
@@ -42,6 +42,28 @@ export function getMainModalHtml() {
 							<button type="button" class="btn btn--primary" id="media-mount-apply-btn" disabled style="flex:0">Mount…</button>
 						</div>
 						<p class="settings-note" id="media-mount-status-line" style="margin-top:0.25rem"></p>
+						<h3 class="settings-category">exFAT ↔ project sync (WO-47)</h3>
+						<p class="settings-note">Expect the data partition at <code>/home/casparcg/exfat</code> (see <code>tools/live-usb/systemd/home-casparcg-exfat.mount.example</code>). Map: <code>HIGHASCG_EXFAT_SYNC_MAP</code>, then <code>/etc/highascg/exfat-sync.json</code>, then repo <code>config/exfat-sync.json</code>. Per file, newer <code>mtime</code> wins; deletes are not synced.</p>
+						<div class="settings-group" style="display:flex;flex-wrap:wrap;gap:0.5rem;align-items:center">
+							<button type="button" class="btn btn--secondary" id="exfat-sync-refresh-btn">Refresh sync map</button>
+							<button type="button" class="btn btn--secondary" id="exfat-sync-dryrun-btn">Dry-run sync</button>
+						</div>
+						<p class="settings-note" id="exfat-sync-status-line" style="margin-top:0.25rem"></p>
+						<div class="settings-group" style="overflow:auto;max-height:14rem;border:1px solid rgba(255,255,255,0.12);border-radius:0.35rem;padding:0.35rem">
+							<table id="exfat-sync-pairs-table" style="width:100%;font-size:0.82rem;border-collapse:collapse">
+								<thead>
+									<tr style="text-align:left;border-bottom:1px solid rgba(255,255,255,0.15)">
+										<th style="padding:0.2rem 0.35rem">ID</th>
+										<th style="padding:0.2rem 0.35rem">exFAT rel</th>
+										<th style="padding:0.2rem 0.35rem">Project</th>
+										<th style="padding:0.2rem 0.35rem">Exclude</th>
+										<th style="padding:0.2rem 0.35rem">Way</th>
+										<th style="padding:0.2rem 0.35rem">Status</th>
+									</tr>
+								</thead>
+								<tbody></tbody>
+							</table>
+						</div>
 						<hr style="border:none;border-top:1px solid rgba(255,255,255,0.12);margin:1rem 0" />
 						<h3 class="settings-category">USB media import</h3>
 						<div class="settings-group"><label>CasparCG Media Path</label><input type="text" id="set-local-media-path" placeholder="/home/casparcg/highascg/media"></div>

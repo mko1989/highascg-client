@@ -75,6 +75,8 @@ export class SceneState {
 		}
 		
 		this._save()
+		this._emit('screenChange')
+		this._emit('change')
 	}
 
 	getCanvasForScreen(screenIdx = this.activeScreenIndex) { return this._getCanvas(screenIdx) }
