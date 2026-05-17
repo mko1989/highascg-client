@@ -1,5 +1,7 @@
 'use strict';
 
+let animId = null;
+
 /**
  * LED Test Pattern Generators
  */
@@ -49,60 +51,146 @@ export const Patterns = {
 	},
 
 	'bouncing-element': (container, options) => {
+		if (animId) {
+			cancelAnimationFrame(animId);
+			animId = null;
+		}
 		const n = Math.max(1, Math.min(48, parseInt(options?.charCount, 10) || 1));
-		const bounceAssets = [
-			'../ch_both_open_green.svg',
-			'../ch_left_closed_green.svg',
-			'../ch_right_closed_green.svg',
-			'../ch_both_open_red.svg',
-			'../ch_left_closed_red.svg',
-			'../ch_right_closed_red.svg'
-		];
+		const canvas = document.createElement('canvas');
+		canvas.style.cssText = 'position:absolute; inset:0; width:100%; height:100%; display:block;';
+		container.innerHTML = '';
+		container.appendChild(canvas);
+
 		const width = window.innerWidth || 1920;
 		const height = window.innerHeight || 1080;
-		const bounceSize = 250;
-		const travelX = Math.max(100, width - bounceSize);
-		const travelY = Math.max(100, height - bounceSize);
-		const baseSpeed = 250; // Pixels per second constant speed
+		canvas.width = width;
+		canvas.height = height;
 
+		const ctx = canvas.getContext('2d', { alpha: false });
+
+		const bounceAssets = [
+			'../ch_both_open_green.png',
+			'../ch_left_closed_green.png',
+			'../ch_right_closed_green.png',
+			'../both_open.png',
+			'../left_closed.png',
+			'../right_closed.png'
+		];
+
+		const images = [];
+		let loadedCount = 0;
+
+		function checkStart() {
+			loadedCount++;
+			if (loadedCount === bounceAssets.length) {
+				startLoop();
+			}
+		}
+
+		for (let idx = 0; idx < bounceAssets.length; idx++) {
+			const img = new Image();
+			img.onload = checkStart;
+			img.onerror = checkStart;
+			img.src = bounceAssets[idx];
+			images.push(img);
+		}
+
+		const bounceSize = 250;
+		const baseSpeed = 250;
+
+		const characters = [];
 		for (let i = 0; i < n; i++) {
-			const nodeX = document.createElement('div');
-			nodeX.className = 'bouncing-character-x';
-			nodeX.style.setProperty('--bounce-size', `${bounceSize}px`);
-			nodeX.style.setProperty('--travel-x', `${travelX}px`);
-			
-			const nodeY = document.createElement('div');
-			nodeY.className = 'bouncing-character-y';
-			nodeY.style.setProperty('--travel-y', `${travelY}px`);
-			
-			// Randomize speed slightly per character for visual interest
+			const travelX = Math.max(10, width - bounceSize);
+			const travelY = Math.max(10, height - bounceSize);
+
 			const speedX = baseSpeed * (0.8 + Math.random() * 0.4);
 			const speedY = baseSpeed * (0.8 + Math.random() * 0.4);
-			const durX = (travelX / speedX).toFixed(2) + 's';
-			const durY = (travelY / speedY).toFixed(2) + 's';
-			const delay = (Math.random() * -10).toFixed(2) + 's';
-			
-			nodeX.style.animationDuration = durX;
-			nodeX.style.animationDelay = delay;
-			
-			nodeY.style.animationDuration = durY;
-			nodeY.style.animationDelay = delay;
 
-			const img = document.createElement('img');
-			img.className = 'bouncing-character__img';
-			img.src = bounceAssets[Math.floor(Math.random() * bounceAssets.length)];
-			nodeX.addEventListener('animationiteration', ((imgEl) => () => {
-				imgEl.src = bounceAssets[Math.floor(Math.random() * bounceAssets.length)];
-			})(img));
+			const vx = speedX * (Math.random() > 0.5 ? 1 : -1);
+			const vy = speedY * (Math.random() > 0.5 ? 1 : -1);
 
-			nodeY.appendChild(img);
-			nodeX.appendChild(nodeY);
-			container.appendChild(nodeX);
+			const x = Math.random() * travelX;
+			const y = Math.random() * travelY;
+
+			const imgIndex = Math.floor(Math.random() * images.length);
+
+			characters.push({
+				x: x,
+				y: y,
+				vx: vx,
+				vy: vy,
+				imgIndex: imgIndex
+			});
+		}
+
+		let lastTime = performance.now();
+
+		function startLoop() {
+			function tick(now) {
+				let dt = (now - lastTime) / 1000;
+				lastTime = now;
+
+				if (dt > 0.1) dt = 0.1;
+
+				ctx.fillStyle = '#000000';
+				ctx.fillRect(0, 0, width, height);
+
+				const maxW = width - bounceSize;
+				const maxH = height - bounceSize;
+
+				for (let j = 0; j < characters.length; j++) {
+					const ch = characters[j];
+					ch.x += ch.vx * dt;
+					ch.y += ch.vy * dt;
+
+					let bounced = false;
+
+					if (ch.x < 0) {
+						ch.x = 0;
+						ch.vx = -ch.vx;
+						bounced = true;
+					} else if (ch.x > maxW) {
+						ch.x = maxW;
+						ch.vx = -ch.vx;
+						bounced = true;
+					}
+
+					if (ch.y < 0) {
+						ch.y = 0;
+						ch.vy = -ch.vy;
+						bounced = true;
+					} else if (ch.y > maxH) {
+						ch.y = maxH;
+						ch.vy = -ch.vy;
+						bounced = true;
+					}
+
+					if (bounced) {
+						ch.imgIndex = Math.floor(Math.random() * images.length);
+					}
+
+					const imgEl = images[ch.imgIndex];
+					if (imgEl && imgEl.complete && imgEl.naturalWidth > 0) {
+						ctx.drawImage(imgEl, ch.x, ch.y, bounceSize, bounceSize);
+					} else {
+						ctx.fillStyle = '#00ff00';
+						ctx.fillRect(ch.x, ch.y, bounceSize, bounceSize);
+					}
+				}
+
+				animId = requestAnimationFrame(tick);
+			}
+
+			animId = requestAnimationFrame(tick);
 		}
 	}
 };
 
 export function renderPattern(name, container, options) {
+	if (animId) {
+		cancelAnimationFrame(animId);
+		animId = null;
+	}
 	container.innerHTML = '';
 	container.className = 'pattern-layer';
 	container.style.backgroundColor = '';
