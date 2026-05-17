@@ -30,19 +30,28 @@ export function initLedTestCard(container, stateStore) {
 
 	async function applyLedTest(enabled) {
 		try {
-			const s = getLedTestSettings()
-			const { gridByChannel: _g, ...rest } = s
+			const s = getLedTestSettings(stateStore)
+			const { gridByChannel: _g, channelsEnabled: _c, ...rest } = s
 			const st = stateStore?.getState?.() || {}
 			const programChannelsRaw = Array.isArray(st?.channelMap?.programChannels) ? st.channelMap.programChannels : [1]
 			const programChannels = [...new Set(programChannelsRaw.map((x) => parseInt(String(x), 10)).filter((n) => Number.isFinite(n) && n > 0))]
-			const mvCh = parseInt(String(st?.channelMap?.multiviewCh ?? ''), 10)
-			const gridExtra = Object.entries(s.gridByChannel || {})
+			
+			const activeChs = Object.entries(s.channelsEnabled || {})
 				.filter(([, v]) => v === true)
 				.map(([k]) => parseInt(k, 10))
-				.filter((n) => Number.isFinite(n) && n > 0)
-			const channelsToApply = [...programChannels, ...(Number.isFinite(mvCh) && mvCh > 0 ? [mvCh] : []), ...gridExtra]
-			const uniqueChannels = [...new Set(channelsToApply)]
-			const targets = uniqueChannels.length ? uniqueChannels : [1]
+			const gridChs = Object.entries(s.gridByChannel || {})
+				.filter(([, v]) => v === true)
+				.map(([k]) => parseInt(k, 10))
+			const channelsToApply = [...activeChs, ...gridChs]
+			const uniqueChannels = [...new Set(channelsToApply)].filter((n) => Number.isFinite(n) && n > 0)
+			
+			let targets = []
+			if (enabled) {
+				targets = uniqueChannels.length ? uniqueChannels : [1]
+			} else {
+				const mvCh = parseInt(String(st?.channelMap?.multiviewCh ?? ''), 10)
+				targets = [...new Set([...programChannels, ...(Number.isFinite(mvCh) && mvCh > 0 ? [mvCh] : []), ...uniqueChannels])].filter((n) => Number.isFinite(n) && n > 0)
+			}
 			const failures = []
 
 			for (const channel of targets) {

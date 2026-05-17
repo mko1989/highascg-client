@@ -14,6 +14,7 @@ const LS = {
 	circle: 'highascg_led_test_show_circle',
 	cross: 'highascg_led_test_show_cross',
 	gridByCh: 'highascg_led_test_grid_by_ch',
+	channelsEnabled: 'highascg_led_test_channels_enabled',
 	pattern: 'highascg_led_test_pattern',
 	charCount: 'highascg_led_test_char_count',
 }
@@ -29,10 +30,27 @@ function loadGridByChannel() {
 	}
 }
 
+function loadChannelsEnabled(st) {
+	try {
+		const raw = localStorage.getItem(LS.channelsEnabled)
+		if (raw) {
+			const o = JSON.parse(raw)
+			if (o && typeof o === 'object') return o
+		}
+	} catch {}
+	const o = {}
+	const programChannelsRaw = Array.isArray(st?.channelMap?.programChannels) ? st.channelMap.programChannels : [1]
+	for (const ch of programChannelsRaw) {
+		o[String(ch)] = true
+	}
+	return o
+}
+
 /**
- * @returns {{ cols: number, rows: number, panelWidth: number, panelHeight: number, centerLabel: string, showCenterCharacter: boolean, showPanelLabels: boolean, showSpecLine: boolean, showCircle: boolean, showCross: boolean, gridByChannel: Record<string, boolean>, pattern: string, charCount: number }}
+ * @returns {{ cols: number, rows: number, panelWidth: number, panelHeight: number, centerLabel: string, showCenterCharacter: boolean, showPanelLabels: boolean, showSpecLine: boolean, showCircle: boolean, showCross: boolean, gridByChannel: Record<string, boolean>, channelsEnabled: Record<string, boolean>, pattern: string, charCount: number }}
  */
-export function getLedTestSettings() {
+export function getLedTestSettings(stateStore) {
+	const st = typeof stateStore?.getState === 'function' ? stateStore.getState() : {}
 	return {
 		cols: Math.max(1, parseInt(localStorage.getItem(LS.cols) || '20', 10) || 20),
 		rows: Math.max(1, parseInt(localStorage.getItem(LS.rows) || '10', 10) || 10),
@@ -45,6 +63,7 @@ export function getLedTestSettings() {
 		showCircle: localStorage.getItem(LS.circle) !== 'false',
 		showCross: localStorage.getItem(LS.cross) !== 'false',
 		gridByChannel: loadGridByChannel(),
+		channelsEnabled: loadChannelsEnabled(st),
 		pattern: localStorage.getItem(LS.pattern) || 'grid-white',
 		charCount: Math.max(1, Math.min(48, parseInt(localStorage.getItem(LS.charCount) || '3', 10) || 3)),
 	}
@@ -66,6 +85,9 @@ export function saveLedTestSettings(s) {
 	localStorage.setItem(LS.cross, s.showCross !== false ? 'true' : 'false')
 	if (s.gridByChannel && typeof s.gridByChannel === 'object') {
 		localStorage.setItem(LS.gridByCh, JSON.stringify(s.gridByChannel))
+	}
+	if (s.channelsEnabled && typeof s.channelsEnabled === 'object') {
+		localStorage.setItem(LS.channelsEnabled, JSON.stringify(s.channelsEnabled))
 	}
 	localStorage.setItem(LS.pattern, s.pattern || 'grid-white')
 	localStorage.setItem(LS.charCount, String(Math.max(1, Math.min(48, s.charCount || 1))))
@@ -111,6 +133,17 @@ export function showLedTestModal(onApplied, stateStore) {
 					.join('')
 			: '<p class="led-test-modal__muted">Connect to Caspar to list channels from INFO CONFIG.</p>'
 
+	const showMap = loadChannelsEnabled(st)
+	const showRows =
+		channelsSorted.length > 0
+			? channelsSorted
+					.map(
+						(c) =>
+							`<label class="led-test-modal__grid-ch"><input type="checkbox" data-led-show-ch="${c.index}" /> Show test card · ch ${c.index} <span class="led-test-modal__muted">${escapeHtml(consumerHint(c))}</span> <span class="led-test-modal__muted">${escapeHtml(c.videoMode || '')}</span></label>`
+					)
+					.join('')
+			: '<p class="led-test-modal__muted">Connect to Caspar to list channels from INFO CONFIG.</p>'
+
 	const modal = document.createElement('div')
 	modal.id = 'led-test-modal'
 	modal.className = 'modal-overlay'
@@ -122,6 +155,10 @@ export function showLedTestModal(onApplied, stateStore) {
 			</div>
 			<div class="modal-body led-test-modal__body">
 				<p class="led-test-modal__hint">Template <code>led_test_pattern</code> on layer <strong>999</strong>. Default view is <strong>screens</strong> (logo, Caspar resolution from INFO CONFIG, LAN IPs, circle + cross). Enable <strong>Full LED grid</strong> per Caspar channel when aligning a physical LED wall (including DeckLink-only outputs).</p>
+				<div class="led-test-modal__section">
+					<div class="led-test-modal__section-title">Enable test card (screens/pattern) on channel</div>
+					<div class="led-test-modal__grid-ch-wrap">${showRows}</div>
+				</div>
 				<div class="led-test-modal__section">
 					<div class="led-test-modal__section-title">Pattern & Overlays</div>
 					<div class="led-test-modal__full">
@@ -221,6 +258,11 @@ export function showLedTestModal(onApplied, stateStore) {
 		if (ch != null) inp.checked = gridMap[ch] === true
 	})
 
+	modal.querySelectorAll('[data-led-show-ch]').forEach((inp) => {
+		const ch = inp.getAttribute('data-led-show-ch')
+		if (ch != null) inp.checked = showMap[ch] === true
+	})
+
 	function close() {
 		modal.remove()
 	}
@@ -232,6 +274,14 @@ export function showLedTestModal(onApplied, stateStore) {
 			if (ch != null) {
 				if (inp.checked) nextGrid[ch] = true
 				else delete nextGrid[ch]
+			}
+		})
+		const nextShow = {}
+		modal.querySelectorAll('[data-led-show-ch]').forEach((inp) => {
+			const ch = inp.getAttribute('data-led-show-ch')
+			if (ch != null) {
+				if (inp.checked) nextShow[ch] = true
+				else nextShow[ch] = false
 			}
 		})
 		const next = {
@@ -246,6 +296,7 @@ export function showLedTestModal(onApplied, stateStore) {
 			showCircle: circleCb.checked,
 			showCross: crossCb.checked,
 			gridByChannel: nextGrid,
+			channelsEnabled: nextShow,
 			pattern: patternSel.value,
 			charCount: Math.max(1, Math.min(48, parseInt(charCountInp.value, 10) || 1)),
 		}
