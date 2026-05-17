@@ -720,11 +720,10 @@ function handlePlaylistOscUpdate(self, snapshot) {
 					if (layer.sourceMode === 'list' && Array.isArray(layer.playlist) && layer.playlist.length > 0 && layer.playlistAdvance === 'auto') {
 						// Find physical layer index
 						const pLayer = require('./scene-transition').phys(Number(layer.layerNumber), activeBank)
-
 						// Check current file in OSC snapshot
 						const chOsc = snapshot.channels && snapshot.channels[chKey]
 						const layerOsc = chOsc && chOsc.layers && chOsc.layers[pLayer]
-						const playingFile = layerOsc && layerOsc.file && layerOsc.file.name
+						const playingFile = layerOsc && layerOsc.file && (layerOsc.file.name || layerOsc.file.path)
 
 						if (playingFile) {
 							const itemIdx = layer.playlist.findIndex(item => sameFileName(item.value, playingFile))
