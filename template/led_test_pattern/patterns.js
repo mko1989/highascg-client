@@ -66,9 +66,14 @@ export const Patterns = {
 		const baseSpeed = 250; // Pixels per second constant speed
 
 		for (let i = 0; i < n; i++) {
-			const node = document.createElement('div');
-			node.className = 'bouncing-character';
-			node.style.setProperty('--bounce-size', `${bounceSize}px`);
+			const nodeX = document.createElement('div');
+			nodeX.className = 'bouncing-character-x';
+			nodeX.style.setProperty('--bounce-size', `${bounceSize}px`);
+			nodeX.style.setProperty('--travel-x', `${travelX}px`);
+			
+			const nodeY = document.createElement('div');
+			nodeY.className = 'bouncing-character-y';
+			nodeY.style.setProperty('--travel-y', `${travelY}px`);
 			
 			// Randomize speed slightly per character for visual interest
 			const speedX = baseSpeed * (0.8 + Math.random() * 0.4);
@@ -76,18 +81,23 @@ export const Patterns = {
 			const durX = (travelX / speedX).toFixed(2) + 's';
 			const durY = (travelY / speedY).toFixed(2) + 's';
 			const delay = (Math.random() * -10).toFixed(2) + 's';
-			node.style.animationDuration = durX + ', ' + durY;
-			node.style.animationDelay = delay + ', ' + delay;
+			
+			nodeX.style.animationDuration = durX;
+			nodeX.style.animationDelay = delay;
+			
+			nodeY.style.animationDuration = durY;
+			nodeY.style.animationDelay = delay;
 
 			const img = document.createElement('img');
 			img.className = 'bouncing-character__img';
 			img.src = bounceAssets[Math.floor(Math.random() * bounceAssets.length)];
-			node.addEventListener('animationiteration', ((imgEl) => () => {
+			nodeX.addEventListener('animationiteration', ((imgEl) => () => {
 				imgEl.src = bounceAssets[Math.floor(Math.random() * bounceAssets.length)];
 			})(img));
 
-			node.appendChild(img);
-			container.appendChild(node);
+			nodeY.appendChild(img);
+			nodeX.appendChild(nodeY);
+			container.appendChild(nodeX);
 		}
 	}
 };

@@ -268,9 +268,14 @@ function renderBouncingCharacter(layer, count) {
 	var baseSpeed = 250 // Pixels per second constant speed
 
 	for (var i = 0; i < n; i++) {
-		var node = document.createElement('div')
-		node.className = 'bouncing-character'
-		node.style.setProperty('--bounce-size', bounceSize + 'px')
+		var nodeX = document.createElement('div')
+		nodeX.className = 'bouncing-character-x'
+		nodeX.style.setProperty('--bounce-size', bounceSize + 'px')
+		nodeX.style.setProperty('--travel-x', travelX + 'px')
+		
+		var nodeY = document.createElement('div')
+		nodeY.className = 'bouncing-character-y'
+		nodeY.style.setProperty('--travel-y', travelY + 'px')
 		
 		// Randomize speed slightly per character for visual interest
 		var speedX = baseSpeed * (0.8 + Math.random() * 0.4)
@@ -278,8 +283,12 @@ function renderBouncingCharacter(layer, count) {
 		var durX = (travelX / speedX).toFixed(2) + 's'
 		var durY = (travelY / speedY).toFixed(2) + 's'
 		var delay = (Math.random() * -10).toFixed(2) + 's'
-		node.style.animationDuration = durX + ', ' + durY
-		node.style.animationDelay = delay + ', ' + delay
+		
+		nodeX.style.animationDuration = durX
+		nodeX.style.animationDelay = delay
+		
+		nodeY.style.animationDuration = durY
+		nodeY.style.animationDelay = delay
 
 		var img = document.createElement('img')
 		img.className = 'bouncing-character__img'
@@ -287,15 +296,16 @@ function renderBouncingCharacter(layer, count) {
 		img.src = ledTestAssetUrl(bounceAssets[curIdx])
 		
 		// Optional: individual blink/swap per character on iteration
-		node.addEventListener('animationiteration', (function(imgEl) {
+		nodeX.addEventListener('animationiteration', (function(imgEl) {
 			return function() {
 				var nextIdx = Math.floor(Math.random() * bounceAssets.length)
 				imgEl.src = ledTestAssetUrl(bounceAssets[nextIdx])
 			}
 		})(img))
 
-		node.appendChild(img)
-		layer.appendChild(node)
+		nodeY.appendChild(img)
+		nodeX.appendChild(nodeY)
+		layer.appendChild(nodeX)
 	}
 }
 
