@@ -110,7 +110,15 @@ async function buildTakeJobs(opts) {
 		const cl = chLayerAmcp(channel, pLayer)
 		const af = audioRouteToAudioFilter(layer.audioRoute || '1+2')
 
-		const loadOpts = { loop: !!layer.loop }
+		let isLoop = !!layer.loop
+		if (layer.sourceMode === 'list' && Array.isArray(layer.playlist) && layer.playlist.length === 1) {
+			const firstItem = layer.playlist[0]
+			const isImg = firstItem.type === 'image' || /\.(png|jpg|jpeg|gif|bmp|webp)$/i.test(firstItem.value)
+			if (!isImg && layer.playlistLoop !== false) {
+				isLoop = true
+			}
+		}
+		const loadOpts = { loop: isLoop }
 		if (af) loadOpts.audioFilter = af
 		if (layer.playSeekFrames != null && Number.isFinite(Number(layer.playSeekFrames))) {
 			loadOpts.seek = Math.max(0, Math.floor(Number(layer.playSeekFrames)))

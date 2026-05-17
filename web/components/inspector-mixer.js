@@ -124,7 +124,7 @@ export function appendSceneLayerMixerGroup(root, { sceneId, layerIndex, layer })
 	alphaWrap.appendChild(alphaLab)
 	mixGrp.appendChild(alphaWrap)
 
-	const showLoop = sourceSupportsLoopPlayback(layer.source?.value, layer.source?.type)
+	const showLoop = sourceSupportsLoopPlayback(layer.source?.value, layer.source?.type) && layer.sourceMode !== 'list'
 	if (showLoop) {
 		const loopWrap = document.createElement('div')
 		loopWrap.className = 'inspector-field inspector-row'

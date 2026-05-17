@@ -879,7 +879,11 @@ function triggerPlaylistAdvance(self, channel, pLayer, scene, layer, nextIdx) {
 
 function sameFileName(a, b) {
 	if (!a || !b) return false
-	const clean = (s) => String(s).toLowerCase().replace(/\\/g, '/').replace(/\.[^/.]+$/, '')
+	const clean = (s) => {
+		const parts = String(s).toLowerCase().replace(/\\/g, '/').split('/')
+		const base = parts[parts.length - 1]
+		return base.replace(/\.[^/.]+$/, '')
+	}
 	return clean(a) === clean(b)
 }
 
