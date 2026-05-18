@@ -1,7 +1,7 @@
 # PF-01 — Big snapshots & serialization (`getState`, WS `state`)
 
 **Linked bulletin:** PERF-K2, PERF-I1, PERF-C1, PERF-C2  
-**Status:** Design / implementation roadmap (not implemented in this doc)
+**Status:** **Partly implemented** — phased checklist under [Implementation path](#implementation-path-phased); summary in [`README.md`](./README.md).
 
 ---
 
@@ -41,6 +41,13 @@ Treat **`state`** WS messages as **three tiers**, not one blob:
 
 ## Implementation path (phased)
 
+| Phase | In-tree |
+|-------|---------|
+| A | Done — `HIGHASCG_WS_FULL_STATE_BYTES` (sampled warn in `ws-server.js`). |
+| B | Done — `getStateWsBootstrap`, `HIGHASCG_WS_SLIM_BOOTSTRAP`, slim `getState` / HTTP; web UI fills catalog via **WS** `catalog_request` / `catalog_subscribe` + `catalog_chunk` (`deferred-catalog-ws.js`), with **GET `/api/state` fallback**. |
+| C | Done — WS **`catalog_request`** (one slice) and **`catalog_subscribe`** (server pumps **`catalog_chunk`** for `media`); templates use a single `catalog_request`. Server: `ws-catalog-handlers.js`. Env **`HIGHASCG_WS_CATALOG_CHUNK_LIMIT`**, **`HIGHASCG_WS_CATALOG_CHUNK_ENRICH`**. |
+| D | **Partial** — `HIGHASCG_GETSTATE_CINF_MAX`, `?full_cinf=1` / `?fullCinf=1` on `/api/state` & `/api/media`, shared CINF helper, parse cache in `StateManager`. |
+
 ### Phase A — Instrument & guardrails (low risk)
 
 - Add optional **`HIGHASCG_WS_FULL_STATE_BYTES`** log line when serialized **`state`** exceeds a threshold (sampled).  
@@ -56,6 +63,8 @@ Treat **`state`** WS messages as **three tiers**, not one blob:
 
 - WS message **`catalog_subscribe`** with **`{ slice: 'media', offset, limit }`** → server pushes **`catalog_chunk`**.  
 - Or HTTP **`GET /api/media?page=`** already exists patterns — mirror that over WS for parity.
+
+*Implemented:* **`catalog_request`** (one chunk) and **`catalog_subscribe`** (server auto-pumps **`catalog_chunk`** for **`media`**); chunks carry **`slice`**, **`offset`**, **`total`**, **`items`**, **`done`**, **`requestId`**, optional **`streamId`**. **`HIGHASCG_WS_CATALOG_CHUNK_ENRICH=0`** sends raw CLS rows without per-chunk probe/CINF merge (fastest).
 
 ### Phase D — Lazy enrichment
 

@@ -1,7 +1,7 @@
 {
   "version": 2,
   "name": "Untitled",
-  "savedAt": "2026-05-17T15:22:48.378Z",
+  "savedAt": "2026-05-18T14:07:44.509Z",
   "scenes": {
     "scenes": [
       {
@@ -204,17 +204,17 @@
               "value": "TESTOWE/BIG_BUCK_BUNNY_1080P24",
               "isPlaceholder": false
             },
-            "loop": false,
+            "loop": true,
             "audioRoute": "1+2",
             "volume": 1,
             "muted": false,
             "straightAlpha": false,
-            "contentFit": "fill-canvas",
+            "contentFit": "vertical",
             "aspectLocked": true,
             "fill": {
-              "x": 0,
+              "x": 0.4,
               "y": 0,
-              "scaleX": 1,
+              "scaleX": 0.2,
               "scaleY": 1
             },
             "opacity": 1,
@@ -239,7 +239,7 @@
             "layerNumber": 20,
             "source": {
               "type": "media",
-              "value": "TESTOWE/FOREST_JESTER-DV",
+              "value": "TESTOWE/SINTEL_TRAILER_2K_1080P24",
               "isPlaceholder": false
             },
             "loop": true,
@@ -250,10 +250,10 @@
             "contentFit": "native",
             "aspectLocked": true,
             "fill": {
-              "x": 0.3233068059867793,
-              "y": 0.16111804707374716,
-              "scaleX": 0.5625,
-              "scaleY": 0.6666666666666666
+              "x": 0.5287981455064195,
+              "y": 0.08606297810279986,
+              "scaleX": 0.125,
+              "scaleY": 0.625
             },
             "opacity": 1,
             "rotation": 0,
@@ -271,18 +271,7 @@
               "tween": "linear"
             },
             "playlistLoop": true,
-            "playlistAdvance": "auto",
-            "effects": [
-              {
-                "type": "crop",
-                "params": {
-                  "left": 0.2,
-                  "top": 0.1,
-                  "right": 0.9,
-                  "bottom": 0.9
-                }
-              }
-            ]
+            "playlistAdvance": "auto"
           }
         ],
         "mainScope": "0",
@@ -598,7 +587,16 @@
             "fadeOnEnd": {
               "enabled": false,
               "frames": 12
-            }
+            },
+            "sourceMode": "single",
+            "playlist": [],
+            "playlistTransition": {
+              "type": "MIX",
+              "duration": 12,
+              "tween": "linear"
+            },
+            "playlistLoop": true,
+            "playlistAdvance": "auto"
           }
         ],
         "mainScope": "0",
@@ -714,7 +712,16 @@
             "fadeOnEnd": {
               "enabled": false,
               "frames": 6
-            }
+            },
+            "sourceMode": "single",
+            "playlist": [],
+            "playlistTransition": {
+              "type": "MIX",
+              "duration": 12,
+              "tween": "linear"
+            },
+            "playlistLoop": true,
+            "playlistAdvance": "auto"
           }
         ],
         "mainScope": "0",
@@ -733,13 +740,639 @@
           "artnetPatch": {
             "startChannel": 1,
             "universe": 0
+          },
+          "activePgmLayer": 998
+        }
+      },
+      {
+        "id": "sc_1779032667766_ya7nkyr",
+        "name": "Look 12",
+        "layers": [
+          {
+            "layerNumber": 10,
+            "source": {
+              "type": "media",
+              "value": "testowe/forest_jester-dv.mov",
+              "isPlaceholder": false
+            },
+            "loop": false,
+            "audioRoute": "1+2",
+            "volume": 1,
+            "muted": false,
+            "straightAlpha": false,
+            "contentFit": "vertical",
+            "aspectLocked": true,
+            "fill": {
+              "x": 0.415625,
+              "y": 0,
+              "scaleX": 0.16875,
+              "scaleY": 1
+            },
+            "opacity": 1,
+            "rotation": 0,
+            "transition": null,
+            "fadeOnEnd": {
+              "enabled": false,
+              "frames": 12
+            },
+            "pipOverlays": [],
+            "sourceMode": "list",
+            "playlist": [
+              {
+                "id": "pl_1779032676775",
+                "type": "media",
+                "value": "testowe/forest_jester-dv.mov",
+                "label": "testowe/forest_jester-dv.mov",
+                "duration": 5
+              },
+              {
+                "id": "pl_1779032680956_uxyu7wd",
+                "type": "media",
+                "value": "testowe/firebelly-torches-dv.mov",
+                "label": "testowe/firebelly-torches-dv.mov",
+                "duration": 5
+              }
+            ],
+            "playlistTransition": {
+              "type": "MIX",
+              "duration": 25,
+              "tween": "linear"
+            },
+            "playlistLoop": true,
+            "playlistAdvance": "auto"
           }
+        ],
+        "mainScope": "0",
+        "defaultTransition": {
+          "type": "MIX",
+          "duration": 25,
+          "tween": "linear"
+        },
+        "globalBorder": {
+          "enabled": false,
+          "type": "border",
+          "params": {
+            "side": "inside"
+          },
+          "slices": [],
+          "artnetPatch": {
+            "startChannel": 1,
+            "universe": 0
+          },
+          "activePgmLayer": 998
+        }
+      },
+      {
+        "id": "sc_1779035753103_0nglnhm",
+        "name": "Look 13",
+        "layers": [
+          {
+            "layerNumber": 10,
+            "source": {
+              "type": "media",
+              "value": "TESTOWE/FOREST_JESTER-DV",
+              "isPlaceholder": false
+            },
+            "loop": false,
+            "audioRoute": "1+2",
+            "volume": 1,
+            "muted": false,
+            "straightAlpha": false,
+            "contentFit": "vertical",
+            "aspectLocked": true,
+            "fill": {
+              "x": 0.078125,
+              "y": 0,
+              "scaleX": 0.84375,
+              "scaleY": 1
+            },
+            "opacity": 1,
+            "rotation": 0,
+            "transition": null,
+            "fadeOnEnd": {
+              "enabled": false,
+              "frames": 12
+            },
+            "pipOverlays": [],
+            "sourceMode": "single",
+            "playlist": [],
+            "playlistTransition": {
+              "type": "MIX",
+              "duration": 12,
+              "tween": "linear"
+            },
+            "playlistLoop": true,
+            "playlistAdvance": "auto"
+          }
+        ],
+        "mainScope": "1",
+        "defaultTransition": {
+          "type": "MIX",
+          "duration": 25,
+          "tween": "linear"
+        },
+        "globalBorder": {
+          "enabled": false,
+          "type": "border",
+          "params": {
+            "side": "inside"
+          },
+          "slices": [],
+          "artnetPatch": {
+            "startChannel": 1,
+            "universe": 0
+          },
+          "activePgmLayer": 998
+        }
+      },
+      {
+        "id": "sc_1779035784658_5fav8va",
+        "name": "Look 14",
+        "layers": [
+          {
+            "layerNumber": 10,
+            "source": {
+              "type": "route",
+              "value": "route://1",
+              "isPlaceholder": false
+            },
+            "loop": false,
+            "audioRoute": "1+2",
+            "volume": 1,
+            "muted": false,
+            "straightAlpha": false,
+            "contentFit": "native",
+            "aspectLocked": true,
+            "fill": {
+              "x": -4.228776543221283,
+              "y": -0.15296158078763378,
+              "scaleX": 8,
+              "scaleY": 1.6
+            },
+            "opacity": 1,
+            "rotation": 0,
+            "transition": null,
+            "fadeOnEnd": {
+              "enabled": false,
+              "frames": 12
+            },
+            "pipOverlays": [],
+            "sourceMode": "single",
+            "playlist": [],
+            "playlistTransition": {
+              "type": "MIX",
+              "duration": 12,
+              "tween": "linear"
+            },
+            "playlistLoop": true,
+            "playlistAdvance": "auto"
+          }
+        ],
+        "mainScope": "1",
+        "defaultTransition": {
+          "type": "MIX",
+          "duration": 25,
+          "tween": "linear"
+        },
+        "globalBorder": {
+          "enabled": false,
+          "type": "border",
+          "params": {
+            "side": "inside"
+          },
+          "slices": [],
+          "artnetPatch": {
+            "startChannel": 1,
+            "universe": 0
+          },
+          "activePgmLayer": 998
+        }
+      },
+      {
+        "id": "sc_1779040194273_0tok7n4",
+        "name": "Look 6 (copy)",
+        "layers": [
+          {
+            "layerNumber": 10,
+            "source": {
+              "type": "media",
+              "value": "TESTOWE/BIG_BUCK_BUNNY_1080P24",
+              "isPlaceholder": false
+            },
+            "loop": true,
+            "straightAlpha": false,
+            "contentFit": "vertical",
+            "aspectLocked": true,
+            "fill": {
+              "x": 0.19172610556348077,
+              "y": 0,
+              "scaleX": 0.2,
+              "scaleY": 1
+            },
+            "opacity": 1,
+            "rotation": 0,
+            "transition": null,
+            "audioRoute": "1+2",
+            "muted": false,
+            "volume": 1,
+            "fadeOnEnd": {
+              "enabled": false,
+              "frames": 12
+            },
+            "sourceMode": "single",
+            "playlist": [],
+            "playlistTransition": {
+              "type": "MIX",
+              "duration": 12,
+              "tween": "linear"
+            },
+            "playlistLoop": true,
+            "playlistAdvance": "auto"
+          },
+          {
+            "layerNumber": 20,
+            "source": {
+              "type": "media",
+              "value": "TESTOWE/BIG_BUCK_BUNNY_1080P24",
+              "isPlaceholder": false
+            },
+            "loop": true,
+            "straightAlpha": false,
+            "contentFit": "vertical",
+            "aspectLocked": true,
+            "fill": {
+              "x": 0,
+              "y": 0.03803888321145005,
+              "scaleX": 0.2,
+              "scaleY": 1
+            },
+            "opacity": 1,
+            "rotation": 0,
+            "transition": null,
+            "audioRoute": "1+2",
+            "muted": false,
+            "volume": 1,
+            "fadeOnEnd": {
+              "enabled": false,
+              "frames": 12
+            },
+            "sourceMode": "single",
+            "playlist": [],
+            "playlistTransition": {
+              "type": "MIX",
+              "duration": 12,
+              "tween": "linear"
+            },
+            "playlistLoop": true,
+            "playlistAdvance": "auto"
+          },
+          {
+            "layerNumber": 30,
+            "source": {
+              "type": "media",
+              "value": "TESTOWE/BIG_BUCK_BUNNY_1080P24",
+              "isPlaceholder": false
+            },
+            "loop": true,
+            "straightAlpha": false,
+            "contentFit": "vertical",
+            "aspectLocked": true,
+            "fill": {
+              "x": 0.3843081312410842,
+              "y": -0.012679627737150017,
+              "scaleX": 0.2,
+              "scaleY": 1
+            },
+            "opacity": 1,
+            "rotation": 0,
+            "transition": null,
+            "audioRoute": "1+2",
+            "muted": false,
+            "volume": 1,
+            "fadeOnEnd": {
+              "enabled": false,
+              "frames": 12
+            },
+            "sourceMode": "single",
+            "playlist": [],
+            "playlistTransition": {
+              "type": "MIX",
+              "duration": 12,
+              "tween": "linear"
+            },
+            "playlistLoop": true,
+            "playlistAdvance": "auto"
+          },
+          {
+            "layerNumber": 40,
+            "source": {
+              "type": "media",
+              "value": "TESTOWE/BIG_BUCK_BUNNY_1080P24",
+              "isPlaceholder": false
+            },
+            "loop": true,
+            "straightAlpha": false,
+            "contentFit": "vertical",
+            "aspectLocked": true,
+            "fill": {
+              "x": 0.5783166904422254,
+              "y": -0.012679627737150017,
+              "scaleX": 0.2,
+              "scaleY": 1
+            },
+            "opacity": 1,
+            "rotation": 0,
+            "transition": null,
+            "audioRoute": "1+2",
+            "muted": false,
+            "volume": 1,
+            "fadeOnEnd": {
+              "enabled": false,
+              "frames": 12
+            },
+            "sourceMode": "single",
+            "playlist": [],
+            "playlistTransition": {
+              "type": "MIX",
+              "duration": 12,
+              "tween": "linear"
+            },
+            "playlistLoop": true,
+            "playlistAdvance": "auto"
+          },
+          {
+            "layerNumber": 50,
+            "source": {
+              "type": "media",
+              "value": "TESTOWE/BIG_BUCK_BUNNY_1080P24",
+              "isPlaceholder": false
+            },
+            "loop": true,
+            "straightAlpha": false,
+            "contentFit": "vertical",
+            "aspectLocked": true,
+            "fill": {
+              "x": 0.8022824536376605,
+              "y": -0.012679627737150017,
+              "scaleX": 0.2,
+              "scaleY": 1
+            },
+            "opacity": 1,
+            "rotation": 0,
+            "transition": null,
+            "audioRoute": "1+2",
+            "muted": false,
+            "volume": 1,
+            "fadeOnEnd": {
+              "enabled": false,
+              "frames": 12
+            },
+            "sourceMode": "single",
+            "playlist": [],
+            "playlistTransition": {
+              "type": "MIX",
+              "duration": 12,
+              "tween": "linear"
+            },
+            "playlistLoop": true,
+            "playlistAdvance": "auto"
+          },
+          {
+            "layerNumber": 60,
+            "source": {
+              "type": "media",
+              "value": "TESTOWE/SINTEL_TRAILER_2K_1080P24",
+              "isPlaceholder": false
+            },
+            "loop": true,
+            "straightAlpha": false,
+            "contentFit": "native",
+            "aspectLocked": true,
+            "fill": {
+              "x": 0.1365014265335236,
+              "y": 0.18750000000000003,
+              "scaleX": 0.125,
+              "scaleY": 0.625
+            },
+            "opacity": 1,
+            "rotation": 0,
+            "transition": null,
+            "audioRoute": "1+2",
+            "muted": false,
+            "volume": 1,
+            "fadeOnEnd": {
+              "enabled": false,
+              "frames": 12
+            },
+            "sourceMode": "single",
+            "playlist": [],
+            "playlistTransition": {
+              "type": "MIX",
+              "duration": 12,
+              "tween": "linear"
+            },
+            "playlistLoop": true,
+            "playlistAdvance": "auto"
+          },
+          {
+            "layerNumber": 70,
+            "source": {
+              "type": "media",
+              "value": "TESTOWE/FOREST_JESTER-DV",
+              "isPlaceholder": false
+            },
+            "loop": true,
+            "straightAlpha": false,
+            "contentFit": "native",
+            "aspectLocked": true,
+            "fill": {
+              "x": 0.34559737528275997,
+              "y": 0.2401708827354212,
+              "scaleX": 0.08341295271550722,
+              "scaleY": 0.4942989790548576
+            },
+            "opacity": 1,
+            "rotation": 0,
+            "transition": null,
+            "audioRoute": "1+2",
+            "muted": false,
+            "volume": 1,
+            "fadeOnEnd": {
+              "enabled": false,
+              "frames": 12
+            },
+            "sourceMode": "single",
+            "playlist": [],
+            "playlistTransition": {
+              "type": "MIX",
+              "duration": 12,
+              "tween": "linear"
+            },
+            "playlistLoop": true,
+            "playlistAdvance": "auto"
+          },
+          {
+            "layerNumber": 80,
+            "source": {
+              "type": "media",
+              "value": "TESTOWE/FIREBELLY-TORCHES-DV",
+              "isPlaceholder": false
+            },
+            "loop": true,
+            "straightAlpha": false,
+            "contentFit": "native",
+            "aspectLocked": true,
+            "fill": {
+              "x": 0.5880272052308785,
+              "y": 0.15938511554769247,
+              "scaleX": 0.09784002605750126,
+              "scaleY": 0.5797927470074149
+            },
+            "opacity": 1,
+            "rotation": 0,
+            "transition": null,
+            "audioRoute": "1+2",
+            "muted": false,
+            "volume": 1,
+            "fadeOnEnd": {
+              "enabled": false,
+              "frames": 12
+            },
+            "sourceMode": "single",
+            "playlist": [],
+            "playlistTransition": {
+              "type": "MIX",
+              "duration": 12,
+              "tween": "linear"
+            },
+            "playlistLoop": true,
+            "playlistAdvance": "auto"
+          },
+          {
+            "layerNumber": 90,
+            "source": {
+              "type": "media",
+              "value": "TESTOWE/BREATHEOUT-STEALINGHEATHER-FORRESEARCHONLY",
+              "isPlaceholder": false
+            },
+            "loop": true,
+            "straightAlpha": false,
+            "contentFit": "native",
+            "aspectLocked": true,
+            "fill": {
+              "x": 0.817166279963554,
+              "y": 0.07549192629970794,
+              "scaleX": 0.14455474392453288,
+              "scaleY": 0.7222198700290839
+            },
+            "opacity": 1,
+            "rotation": 0,
+            "transition": null,
+            "audioRoute": "1+2",
+            "muted": false,
+            "volume": 1,
+            "fadeOnEnd": {
+              "enabled": false,
+              "frames": 12
+            },
+            "sourceMode": "single",
+            "playlist": [],
+            "playlistTransition": {
+              "type": "MIX",
+              "duration": 12,
+              "tween": "linear"
+            },
+            "playlistLoop": true,
+            "playlistAdvance": "auto"
+          }
+        ],
+        "mainScope": "0",
+        "defaultTransition": {
+          "type": "MIX",
+          "duration": 25,
+          "tween": "linear"
+        },
+        "globalBorder": {
+          "enabled": false,
+          "type": "border",
+          "params": {
+            "side": "inside"
+          },
+          "slices": [],
+          "artnetPatch": {
+            "startChannel": 1,
+            "universe": 0
+          },
+          "activePgmLayer": 998
+        }
+      },
+      {
+        "id": "sc_1779089287087_rrbmv88",
+        "name": "Look 16",
+        "layers": [
+          {
+            "layerNumber": 10,
+            "source": {
+              "type": "media",
+              "value": "led-grid-15360x1728.png",
+              "isPlaceholder": false
+            },
+            "loop": false,
+            "audioRoute": "1+2",
+            "volume": 1,
+            "muted": false,
+            "straightAlpha": false,
+            "contentFit": "native",
+            "aspectLocked": true,
+            "fill": {
+              "x": 0,
+              "y": 0,
+              "scaleX": 1,
+              "scaleY": 1
+            },
+            "opacity": 1,
+            "rotation": 0,
+            "transition": null,
+            "fadeOnEnd": {
+              "enabled": false,
+              "frames": 12
+            },
+            "pipOverlays": [],
+            "sourceMode": "single",
+            "playlist": [],
+            "playlistTransition": {
+              "type": "MIX",
+              "duration": 12,
+              "tween": "linear"
+            },
+            "playlistLoop": true,
+            "playlistAdvance": "auto"
+          }
+        ],
+        "mainScope": "0",
+        "defaultTransition": {
+          "type": "MIX",
+          "duration": 25,
+          "tween": "linear"
+        },
+        "globalBorder": {
+          "enabled": false,
+          "type": "border",
+          "params": {
+            "side": "inside"
+          },
+          "slices": [],
+          "artnetPatch": {
+            "startChannel": 1,
+            "universe": 0
+          },
+          "activePgmLayer": 998
         }
       }
     ],
     "liveSceneIdByMain": [
-      "sc_1779009156238_sn2l845",
-      null,
+      "sc_1779006278934_bzc1ntg",
+      "sc_1779035784658_5fav8va",
       null,
       null
     ],
@@ -749,7 +1382,7 @@
       null,
       null
     ],
-    "liveSceneId": "sc_1779009156238_sn2l845",
+    "liveSceneId": "sc_1779006278934_bzc1ntg",
     "previewSceneId": null,
     "activeScreenIndex": 0,
     "globalDefaultTransition": {
@@ -767,8 +1400,8 @@
     "lookPresets": [],
     "globalBorders": [
       {
-        "enabled": false,
-        "type": "edge_strip",
+        "enabled": true,
+        "type": "glow",
         "fadeDuration": 25,
         "params": {
           "width": 50,
@@ -841,8 +1474,8 @@
           }
         ],
         "pgmAirSnapshot": {
-          "enabled": false,
-          "type": "edge_strip",
+          "enabled": true,
+          "type": "glow",
           "params": {
             "width": 50,
             "color": "#d5ce70",
@@ -906,7 +1539,28 @@
           }
         ]
       },
-      null,
+      {
+        "enabled": false,
+        "type": "glow",
+        "fadeDuration": 25,
+        "params": {
+          "width": 50,
+          "color": "#e63946",
+          "radius": 0,
+          "opacity": 1,
+          "side": "inside",
+          "intensity": 50
+        },
+        "slices": [],
+        "artnetPatch": {
+          "startChannel": 1,
+          "universe": 0
+        },
+        "mirrorBorderOnPrv": false,
+        "activePgmLayer": 998,
+        "borderPresets": [],
+        "pgmAirSnapshot": null
+      },
       null,
       null
     ]
@@ -1215,11 +1869,28 @@
     "activeId": "tmp44b9k8zf5"
   },
   "multiview": {
-    "cells": [],
+    "cells": [
+      {
+        "id": "cell_mpb8xhqp",
+        "type": "pgm",
+        "label": "Program 1",
+        "x": -137.92060491493382,
+        "y": 11.965973534971674,
+        "w": 2166.805293005671,
+        "h": 365,
+        "source": {
+          "value": "route://1",
+          "type": "route",
+          "label": "Program 1"
+        },
+        "aspectLocked": true
+      }
+    ],
     "canvasWidth": 1920,
     "canvasHeight": 1080,
     "showOverlay": true,
-    "bgColor": "#000000"
+    "bgColor": "#000000",
+    "showTimersUnderLabels": true
   },
   "placeholders": []
 }

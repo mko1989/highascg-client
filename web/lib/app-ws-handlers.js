@@ -2,6 +2,26 @@
  * WebSocket event handlers for the main app.
  */
 import { consumeSkipRemoteProjectSync } from './project-remote-sync.js'
+import { loadDeferredCatalogOverWs } from './deferred-catalog-ws.js'
+
+/**
+ * @param {unknown} data
+ * @param {{ sceneState: object, programOutputState: object, appLogic: object }} ctx
+ */
+function applyWsStateSideEffects(data, { sceneState, programOutputState, appLogic }) {
+	if (!data || typeof data !== 'object') return
+	if (data.channelMap?.programResolutions) {
+		sceneState.setCanvasResolutions(data.channelMap.programResolutions)
+		programOutputState?.setCanvasResolutions?.(data.channelMap.programResolutions)
+	}
+	appLogic.syncMultiviewCanvas(data.channelMap)
+	appLogic.scheduleMultiviewRefresh()
+	appLogic.emitCasparConnectedIfNeeded(data)
+	if (data.scene?.live) sceneState.applyServerLiveChannels(data.scene.live, data.channelMap)
+	appLogic.updateStatus(true, null)
+	appLogic.refreshStatusLine()
+	appLogic.refreshEye()
+}
 
 export function attachWsHandlers(ws, { stateStore, sceneState, timelineState, multiviewState, programOutputState, projectState, dmxState, variableStore, appLogic }) {
 	ws.on('variable_update', (changed) => {
@@ -12,17 +32,12 @@ export function attachWsHandlers(ws, { stateStore, sceneState, timelineState, mu
 
 	ws.on('state', (data) => {
 		stateStore.setState(data)
-		if (data?.channelMap?.programResolutions) {
-			sceneState.setCanvasResolutions(data.channelMap.programResolutions)
-			programOutputState?.setCanvasResolutions?.(data.channelMap.programResolutions)
+		applyWsStateSideEffects(data, { sceneState, programOutputState, appLogic })
+		if (data?.catalogDeferred) {
+			void loadDeferredCatalogOverWs(ws, stateStore, (full) =>
+				applyWsStateSideEffects(full, { sceneState, programOutputState, appLogic }),
+			)
 		}
-		appLogic.syncMultiviewCanvas(data?.channelMap)
-		appLogic.scheduleMultiviewRefresh()
-		appLogic.emitCasparConnectedIfNeeded(data)
-		if (data?.scene?.live) sceneState.applyServerLiveChannels(data.scene.live, data.channelMap)
-		appLogic.updateStatus(true, null)
-		appLogic.refreshStatusLine()
-		appLogic.refreshEye()
 	})
 
 	ws.on('dmx:colors', (data) => dmxState.setLiveColors(data))

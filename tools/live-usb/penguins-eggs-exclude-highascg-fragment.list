@@ -1,8 +1,35 @@
 # HighAsCG — paths omitted from the live USB squashfs (penguins-eggs / mksquashfs)
 #
 # Entries are relative to filesystem root (no leading slash).
+# See docs/WO47_ISO_VS_EXFAT.md — minimal ISO shells vs payload on exFAT sim/highascg.
+#
+# --- Node / workspace tree (populate from labelled HIGHASCGEXF at boot via highascg-exfat-bootstrap) ---
+home/casparcg/highascg/examples
+home/casparcg/highascg/examples/*
+home/casparcg/highascg/node_modules
+home/casparcg/highascg/node_modules/*
+home/casparcg/highascg/samples
+home/casparcg/highascg/samples/*
+home/casparcg/highascg/scratch
+home/casparcg/highascg/scratch/*
+home/casparcg/highascg/scripts
+home/casparcg/highascg/scripts/*
+home/casparcg/highascg/src
+home/casparcg/highascg/src/*
+home/casparcg/highascg/tools
+home/casparcg/highascg/tools/*
+home/casparcg/highascg/web
+home/casparcg/highascg/web/*
+home/casparcg/highascg/work
+home/casparcg/highascg/work/*
 
-# --- HighAsCG runtime/working artifacts (regenerated on first run) ---
+# Root-level Node/app metadata (prefer exFAT / bootstrap)
+home/casparcg/highascg/package.json
+home/casparcg/highascg/package-lock.json
+home/casparcg/highascg/npm-shrinkwrap.json
+home/casparcg/highascg/index.js
+
+# --- HighAsCG runtime/working artifacts (regenerated on boot or from stick) ---
 home/casparcg/highascg/media
 home/casparcg/highascg/media/*
 home/casparcg/highascg/_media/
@@ -10,7 +37,6 @@ home/casparcg/highascg/cef-cache/
 home/casparcg/highascg/log/
 home/casparcg/highascg/data/
 home/casparcg/highascg/refs/
-home/casparcg/highascg/work/
 
 # --- WO-47 exFAT mount stub (empty mountpoint in ISO — no builder scratch on media) ---
 # Runtime: systemd mounts LABEL=HIGHASCGEXF at `/home/casparcg/exfat`. Exclude any stray files created on the dev host.

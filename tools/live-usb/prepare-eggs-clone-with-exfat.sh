@@ -47,7 +47,7 @@ if [[ "$SKIP_APT" != "1" ]]; then
 	echo "==> apt: packages for WO-47 + stick tooling (offline-safe on target)"
 	export DEBIAN_FRONTEND=noninteractive
 	apt-get update -qq
-	apt-get install -y --no-install-recommends exfatprogs parted python3
+	apt-get install -y --no-install-recommends exfatprogs parted python3 rsync
 fi
 
 echo "==> empty mount stubs for squashfs (${HIGHASCG_ROOT}/media *, ~/exfat)"
@@ -55,7 +55,7 @@ bash "${HERE}/ensure-empty-live-usb-dirs.sh"
 
 echo "==> companion dirs under ${HIGHASCG_ROOT}"
 GRP=$(id -gn "$USER_CASPAR")
-mkdir -p "${HIGHASCG_ROOT}/"{media,media/drive,media/exfat,log,template,data,cef-cache,lib}
+mkdir -p "${HIGHASCG_ROOT}/"{bin,media,media/drive,media/exfat,log,template,data,cef-cache,lib}
 
 mkdir -p /home/casparcg/exfat
 mkdir -p /etc/highascg

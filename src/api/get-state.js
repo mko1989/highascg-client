@@ -9,11 +9,14 @@ const playbackTracker = require('../state/playback-tracker')
 const { parseCinfMedia } = require('../media/cinf-parse')
 const { buildChannelMap } = require('../config/channel-map-from-ctx')
 const { normalizeScreenDestinations } = require('../config/screen-destinations')
+const { enrichMediaListWithCinfAndProbe } = require('../utils/media-snapshot-cinf')
 
 /**
  * @param {object} ctx — app context (state, config, gatheredInfo, …)
+ * @param {{ slimCatalog?: boolean, fullCinfMedia?: boolean }} [opts] — when `slimCatalog`, omit media/templates bodies from WS bootstrap (PF-01). `fullCinfMedia` bypasses HIGHASCG_GETSTATE_CINF_MAX.
  */
-function getState(ctx) {
+function getState(ctx, opts = {}) {
+	const slimCatalog = opts.slimCatalog === true
 	const cfg = ctx.config || {}
 	const channelMap = buildChannelMap(ctx)
 
@@ -29,13 +32,35 @@ function getState(ctx) {
 			templates: (ctx.CHOICES_TEMPLATES || []).map((c) => ({ id: c.id, label: c.label })),
 		}
 	}
-	if (base.media) {
-		base.media = base.media.map((m) => {
-			const cinf = m.cinf || (ctx.mediaDetails || {})[m.id] || ''
-			const parsed = parseCinfMedia(cinf)
-			const probed = (ctx._mediaProbeCache || {})[m.id] || {}
-			return { ...m, ...parsed, ...probed }
-		})
+	if (slimCatalog) {
+		const mediaCount = Array.isArray(base.media) ? base.media.length : 0
+		const templateCount = Array.isArray(base.templates) ? base.templates.length : 0
+		base = {
+			...base,
+			media: [],
+			templates: [],
+			mediaCount,
+			templateCount,
+			catalogDeferred: true,
+		}
+	} else if (base.media) {
+		const capOverride = opts.fullCinfMedia === true ? 0 : undefined
+		const { list, truncated, enrichedMax } = enrichMediaListWithCinfAndProbe(
+			base.media,
+			ctx,
+			(m) => {
+				const cinf = m.cinf || (ctx.mediaDetails || {})[m.id] || ''
+				const parsed = cinf ? parseCinfMedia(cinf) : {}
+				const probed = (ctx._mediaProbeCache || {})[m.id] || {}
+				return { ...m, ...parsed, ...probed }
+			},
+			capOverride,
+		)
+		base = { ...base, media: list }
+		if (truncated) {
+			base.mediaCinfTruncated = true
+			base.mediaCinfEnrichedMax = enrichedMax
+		}
 	}
 
 	const casparConn = ctx._casparStatus || {
@@ -101,4 +126,25 @@ function getState(ctx) {
 	}
 }
 
-module.exports = { getState }
+/**
+ * WS `state` broadcast: full snapshot, or slim bootstrap when env `HIGHASCG_WS_SLIM_BOOTSTRAP` is set (PF-01 / PF-04).
+ * @param {{ _wsBroadcast?: Function, getState?: Function, getStateWsBootstrap?: Function, log?: Function }} ctx
+ */
+function broadcastWsStateSnapshot(ctx) {
+	if (!ctx || typeof ctx._wsBroadcast !== 'function') return
+	const slim =
+		process.env.HIGHASCG_WS_SLIM_BOOTSTRAP === '1' ||
+		String(process.env.HIGHASCG_WS_SLIM_BOOTSTRAP || '').toLowerCase() === 'true'
+	try {
+		if (slim && typeof ctx.getStateWsBootstrap === 'function') {
+			ctx._wsBroadcast('state', ctx.getStateWsBootstrap())
+		} else if (typeof ctx.getState === 'function') {
+			ctx._wsBroadcast('state', ctx.getState())
+		}
+	} catch (e) {
+		const m = e instanceof Error ? e.message : String(e)
+		if (typeof ctx.log === 'function') ctx.log('warn', '[WS] state broadcast: ' + m)
+	}
+}
+
+module.exports = { getState, broadcastWsStateSnapshot }

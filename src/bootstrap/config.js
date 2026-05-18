@@ -43,6 +43,13 @@ function buildConfig(cli, configManager) {
 	if (mixerFlushEnv === '0' || String(mixerFlushEnv).toLowerCase() === 'false') cfg.amcp_mixer_commit_before_amcp_batch = false
 	else if (mixerFlushEnv === '1' || String(mixerFlushEnv).toLowerCase() === 'true') cfg.amcp_mixer_commit_before_amcp_batch = true
 
+	const offlineEnv = env.HIGHASCG_OFFLINE_MODE
+	if (offlineEnv !== undefined && String(offlineEnv).trim() !== '') {
+		const ov = String(offlineEnv).trim().toLowerCase()
+		if (ov === '1' || ov === 'true' || ov === 'yes') cfg.offline_mode = true
+		else if (ov === '0' || ov === 'false' || ov === 'no') cfg.offline_mode = false
+	}
+
 	return cfg
 }
 

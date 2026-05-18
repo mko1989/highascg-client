@@ -31,7 +31,8 @@ if [[ ! -f "$TARGET" ]]; then
 fi
 if grep -qF "$MARKER" "$TARGET" 2>/dev/null; then
   echo "Marker already present in $TARGET — nothing to do." >&2
-  echo "To re-append, remove the block starting at that marker, then re-run." >&2
+  echo "If you edited penguins-eggs-exclude-highascg-fragment.list, delete this marker block from" >&2
+  echo "  $TARGET then re-run: sudo bash $0" >&2
   exit 0
 fi
 {

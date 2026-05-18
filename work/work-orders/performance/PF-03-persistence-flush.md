@@ -1,7 +1,7 @@
 # PF-03 — Persistence flush storms (`persistence.set`, full-file rewrite)
 
 **Linked bulletin:** PERF-F2, PERF-E3 (`project_sync`)  
-**Status:** Design / implementation roadmap
+**Status:** **Implemented (Phases A + C; B via global debounced `set`)** — see [`README.md`](./README.md).
 
 ---
 
@@ -36,6 +36,12 @@ Optional later: **split keys** into separate files (**projects**, **prefs**) —
 ---
 
 ## Implementation path
+
+| Phase | In-tree |
+|-------|---------|
+| A | Done — `HIGHASCG_PERSISTENCE_FLUSH_MS`, `HIGHASCG_PERSISTENCE_PRETTY`, `flush` / `flushSync`, shutdown wiring. |
+| B | Done in practice — all `persistence.set` calls coalesce through the same debounced flush (incl. `web_project`). |
+| C | Done — `HIGHASCG_PROJECT_SYNC_DEBOUNCE_MS`, `flushProjectSyncBroadcast` before WS shutdown. |
 
 ### Phase A — Debounced **`_save`** (minimal surface change)
 

@@ -7,6 +7,7 @@
 
 const { JSON_HEADERS, jsonBody, parseBody } = require('./response')
 const persistence = require('../utils/persistence')
+const { scheduleProjectSyncBroadcast } = require('./routes-data')
 const PROJECT_DISK_KEY = 'web_project'
 
 /**
@@ -294,11 +295,7 @@ function updateProjectStateFromSelection(ctx, property, value) {
 			updatedValues 
 		})
 		
-		if (ctx._projectSyncTimer) clearTimeout(ctx._projectSyncTimer)
-		ctx._projectSyncTimer = setTimeout(() => {
-			ctx._projectSyncTimer = null
-			ctx._wsBroadcast('project_sync', project)
-		}, 500)
+		scheduleProjectSyncBroadcast(ctx, project)
 	}
 
 	return {

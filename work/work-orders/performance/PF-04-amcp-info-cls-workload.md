@@ -1,7 +1,7 @@
 # PF-04 — AMCP / INFO / CLS workload (gather + periodic sync + xml2js)
 
 **Linked bulletin:** PERF-D2, PERF-D3, PERF-F1  
-**Status:** Design / implementation roadmap
+**Status:** **Partly implemented** — Phases A–D largely landed; Phase D uses **xml2js fast mode** (`HIGHASCG_INFO_PARSE_MODE=fast`), not a separate regex extractor. Summary in [`README.md`](./README.md).
 
 ---
 
@@ -39,6 +39,15 @@ On Caspar connect and during periodic sync:
 
 ## Implementation path
 
+| Phase | In-tree |
+|-------|---------|
+| A | Done — `_periodicSyncInFlight` overlap guard (`periodic-sync.js`); tune **`periodic_sync_interval_sec`** for large catalogs. |
+| B | Done — `HIGHASCG_SYNC_INFO_STAGGER_MEDIA`, `HIGHASCG_SYNC_INFO_CHANNELS_PER_TICK`. |
+| C | **Mostly done** — skip `xml2js` when raw INFO XML unchanged (`StateManager._lastInfoXmlByChannel`). *Original “parsed DOM cache” is not separate from this string-level skip.* |
+| D | **Done (alternative to spec)** — shared `extractChannelInfoFromParsed` (`info-channel-parse.js`); **`HIGHASCG_INFO_PARSE_MODE=fast`** (`explicitArray: false`). `query-cycle.updateChannelVariablesFromXml` uses the same xml2js options. *Regex-only fast path from the spec below is not implemented.* |
+
+`finishConnectionGather` uses `broadcastWsStateSnapshot` (slim vs full follows `HIGHASCG_WS_SLIM_BOOTSTRAP` / bootstrap helpers — PF-01).
+
 ### Phase A — Scheduler hygiene
 
 - Ensure **`periodic-sync`** never overlaps CLS + INFO storms (**mutex already partially present** — audit call sites).  
@@ -54,7 +63,8 @@ On Caspar connect and during periodic sync:
 
 ### Phase D — Split **`updateFromInfo`**
 
-- Fast path: regex/text extract only variables UI needs; slow path full parse gated behind flag.
+- *Spec:* fast path: regex/text extract only variables UI needs; slow path full parse gated behind flag.  
+- *Shipped:* fast **xml2js** mode + shared extraction (see table above); regex-only path omitted.
 
 ---
 

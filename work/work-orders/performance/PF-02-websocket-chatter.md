@@ -1,7 +1,7 @@
 # PF-02 — WebSocket chatter (`change`, `log_line`, variable storms)
 
 **Linked bulletin:** PERF-C3, PERF-C1, PERF-F1  
-**Status:** Design / implementation roadmap
+**Status:** **Implemented (Phases A–C)** — see [`README.md`](./README.md); details below.
 
 ---
 
@@ -34,6 +34,12 @@
 ---
 
 ## Implementation path
+
+| Phase | In-tree |
+|-------|---------|
+| A | Done — `HIGHASCG_WS_LOG_LINE_MAX_HZ` (`ws-server.js`). |
+| B | Done — `HIGHASCG_WS_CHANGE_COALESCE_MS` (`ws-server.js`). |
+| C | Done — `HIGHASCG_WS_CHANNELS_INFO_DEBOUNCE_MS` (`state-manager.js`); OSC: `HIGHASCG_WS_CHANNELS_BLOB_DEBOUNCE_MS` (`periodic-sync.js`). |
 
 ### Phase A — **`log_line`** safety (highest ROI, isolated)
 

@@ -7,6 +7,7 @@ const EventEmitter = require('events')
 const { parseString } = require('xml2js')
 const { parseCinfMedia } = require('../media/cinf-parse')
 const { dedupeMediaList } = require('../utils/media-browser-dedupe')
+const { getInfoXml2jsOptions, extractChannelInfoFromParsed } = require('./info-channel-parse')
 
 const MAX_CHANGES = 500
 
@@ -16,6 +17,11 @@ const MAX_CHANGES = 500
  * @property {{ channelStatusLines?: Record<number|string, string> }} [gatheredInfo] - Parent may set channelStatusLines for INFO labels
  * @property {Record<string, string>} [variables] - Companion-style variables snapshot for getState()
  */
+
+const CHANNEL_INFO_EMIT_MS = Math.max(
+	0,
+	Math.min(250, parseInt(process.env.HIGHASCG_WS_CHANNELS_INFO_DEBOUNCE_MS || '100', 10) || 100),
+)
 
 class StateManager extends EventEmitter {
 	/**
@@ -50,6 +56,14 @@ class StateManager extends EventEmitter {
 		this._changes = []
 		this._pendingVarChanges = new Set()
 		this._varThrottleTimer = null
+		/** INFO-driven channel rows pending WebSocket coalesce */
+		this._pendingInfoChannelIds = new Set()
+		/** @type {ReturnType<typeof setTimeout> | null} */
+		this._infoChannelEmitTimer = null
+		/** Skip xml2js when INFO body unchanged (PF-04). */
+		this._lastInfoXmlByChannel = new Map()
+		/** CINF text → parseCinfMedia result; pruned on CLS refresh. */
+		this._cinfParseByMediaId = new Map()
 	}
 
 	_emit(path, value) {
@@ -57,6 +71,25 @@ class StateManager extends EventEmitter {
 		const ts = Date.now()
 		this._changes.push({ path, value, ts })
 		if (this._changes.length > MAX_CHANGES) this._changes.shift()
+	}
+
+	_queueInfoChannelWsEmit(channelId) {
+		if (CHANNEL_INFO_EMIT_MS <= 0) {
+			const entry = this._state.channels.find((c) => c.id === channelId)
+			if (entry) this._emit(`channels.${channelId}`, entry)
+			return
+		}
+		this._pendingInfoChannelIds.add(channelId)
+		if (this._infoChannelEmitTimer) clearTimeout(this._infoChannelEmitTimer)
+		this._infoChannelEmitTimer = setTimeout(() => {
+			this._infoChannelEmitTimer = null
+			const ids = [...this._pendingInfoChannelIds]
+			this._pendingInfoChannelIds.clear()
+			for (const id of ids) {
+				const entry = this._state.channels.find((c) => c.id === id)
+				if (entry) this._emit(`channels.${id}`, entry)
+			}
+		}, CHANNEL_INFO_EMIT_MS)
 	}
 
 	/**
@@ -93,66 +126,21 @@ class StateManager extends EventEmitter {
 	 */
 	updateFromInfo(channel, xml) {
 		if (!xml || typeof xml !== 'string') return
+		const prevXml = this._lastInfoXmlByChannel.get(channel)
+		if (prevXml === xml) return
+		this._lastInfoXmlByChannel.set(channel, xml)
 		const manager = this
-		parseString(xml, (err, result) => {
+		const xmlOpts = getInfoXml2jsOptions()
+		parseString(xml, xmlOpts, (err, result) => {
 			if (err) return
 			try {
-				let framerate = ''
+				const { framerate, layers: parsedLayers } = extractChannelInfoFromParsed(result)
 				const layers = []
-				if (result.channel && result.channel.framerate && result.channel.framerate[0]) {
-					framerate = result.channel.framerate[0]
-				}
-				if (result.channel && result.channel.stage && result.channel.stage[0] && result.channel.stage[0].layer && result.channel.stage[0].layer[0]) {
-					const layerObj = result.channel.stage[0].layer[0]
-					Object.keys(layerObj).forEach((key) => {
-						if (!key.startsWith('layer_') || !Array.isArray(layerObj[key]) || !layerObj[key][0]) return
-						const layerIdx = parseInt(key.replace('layer_', ''), 10)
-						const lr = layerObj[key][0]
-						const fg = lr.foreground && lr.foreground[0]
-						const bg = lr.background && lr.background[0]
-						let fgClip = ''
-						let fgState = 'empty'
-						let bgClip = ''
-						let nbFrames = 0
-						let currentFrame = 0
-						if (fg && fg.producer && fg.producer[0]) {
-							const p = fg.producer[0]
-							fgClip = p.$ && p.$.name ? p.$.name : p.name && p.name[0] ? p.name[0] : ''
-							fgState = fg.paused && fg.paused[0] === 'true' ? 'paused' : 'playing'
-							nbFrames = parseInt(p['nb-frames'] && p['nb-frames'][0], 10) || 0
-							currentFrame = parseInt(p.frame && p.frame[0], 10) || parseInt(p['frame-time'] && p['frame-time'][0], 10) || 0
-						}
-						if (fg && fg.file && fg.file[0]) {
-							const f = fg.file[0]
-							fgClip = f.$ && f.$.name ? f.$.name : f.clip && f.clip[1] ? String(f.clip[1]) : fgClip
-							if (f.clip && f.clip[1]) nbFrames = Math.floor(parseFloat(f.clip[1]) * (parseInt(framerate, 10) || 1))
-						}
-						if (bg && bg.producer && bg.producer[0]) {
-							bgClip = bg.producer[0].$ && bg.producer[0].$.name ? bg.producer[0].$.name : ''
-						}
-						const fpsNum = parseInt(framerate, 10) || 1
-						const durationSec = nbFrames > 0 ? (nbFrames / fpsNum).toFixed(2) : ''
-						const timeSec = nbFrames > 0 && currentFrame >= 0 ? (currentFrame / fpsNum).toFixed(2) : ''
-						const remainingSec = nbFrames > 0 && currentFrame >= 0 ? ((nbFrames - currentFrame) / fpsNum).toFixed(2) : ''
-						layers[layerIdx] = { fgClip, fgState, bgClip, durationSec, timeSec, remainingSec }
-					})
-				}
-				if (result.layer && result.layer.foreground && result.layer.foreground[0]) {
-					const p = result.layer.foreground[0].producer && result.layer.foreground[0].producer[0]
-					if (p) {
-						const fr = p.fps && p.fps[0] ? p.fps[0] : ''
-						const nb = parseInt(p['nb-frames'] && p['nb-frames'][0], 10) || 0
-						const cur = parseInt(p.frame && p.frame[0], 10) || 0
-						const fpsNum = parseInt(fr, 10) || 1
-						layers[0] = {
-							fgClip: p.$ && p.$.name ? p.$.name : p.name && p.name[0] ? p.name[0] : '',
-							fgState: result.layer.foreground[0].paused && result.layer.foreground[0].paused[0] === 'true' ? 'paused' : 'playing',
-							bgClip: '',
-							durationSec: nb > 0 ? (nb / fpsNum).toFixed(2) : '',
-							timeSec: nb > 0 && cur >= 0 ? (cur / fpsNum).toFixed(2) : '',
-							remainingSec: nb > 0 && cur >= 0 ? ((nb - cur) / fpsNum).toFixed(2) : '',
-						}
-					}
+				for (let i = 0; i < parsedLayers.length; i++) {
+					const l = parsedLayers[i]
+					if (!l) continue
+					const { fgFps: _fp, ...rest } = l
+					layers[i] = rest
 				}
 				let chIdx = this._state.channels.findIndex((c) => c.id === channel)
 				if (chIdx < 0) {
@@ -169,7 +157,7 @@ class StateManager extends EventEmitter {
 				ch.layers = layers
 				const lines = manager.gatheredInfo && manager.gatheredInfo.channelStatusLines
 				if (lines) ch.status = lines[channel] || ''
-				manager._emit(`channels.${channel}`, ch)
+				manager._queueInfoChannelWsEmit(channel)
 			} catch (e) {
 				const msg = e instanceof Error ? e.message : String(e)
 				manager._logger.debug('StateManager parse INFO: ' + msg)
@@ -220,8 +208,16 @@ class StateManager extends EventEmitter {
 		}
 		media = dedupeMediaList(media)
 		this._logger.debug(`CLS: parsed ${media.length} media items, ${media.filter((m) => m.resolution).length} with resolution`)
+		this._pruneCinfParseCache(media)
 		this._state.media = media
 		this._emit('media', media)
+	}
+
+	_pruneCinfParseCache(mediaList) {
+		const ids = new Set((mediaList || []).map((m) => m && m.id).filter(Boolean))
+		for (const k of this._cinfParseByMediaId.keys()) {
+			if (!ids.has(k)) this._cinfParseByMediaId.delete(k)
+		}
 	}
 
 	/**
@@ -282,7 +278,15 @@ class StateManager extends EventEmitter {
 		const md = mediaDetails || {}
 		this._state.media = (this._state.media || []).map((m) => {
 			const cinf = md[m.id] || ''
-			const parsed = cinf ? parseCinfMedia(cinf) : {}
+			if (!cinf) {
+				return { ...m, cinf: '' }
+			}
+			const hit = this._cinfParseByMediaId.get(m.id)
+			if (hit && hit.cinf === cinf) {
+				return { ...m, cinf, ...hit.parsed }
+			}
+			const parsed = parseCinfMedia(cinf)
+			this._cinfParseByMediaId.set(m.id, { cinf, parsed })
 			return { ...m, cinf, ...parsed }
 		})
 		this._emit('media', this._state.media)

@@ -176,7 +176,7 @@ rm -f /etc/systemd/system/casparcg-server.service
 
 # Setup directory structure with correct permissions
 echo -e "${CYAN}→ Setting up /home/casparcg/highascg directory structure...${NC}"
-mkdir -p /home/casparcg/highascg/{media,log,template,data,cef-cache,config,lib}
+mkdir -p /home/casparcg/highascg/{bin,media,log,template,data,cef-cache,config,lib}
 chown -R "$USER_CASPAR:$USER_CASPAR" /home/casparcg/highascg
 chmod -R 775 /home/casparcg/highascg
 

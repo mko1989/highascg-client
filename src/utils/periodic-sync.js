@@ -12,6 +12,50 @@ const { responseToStr, updateChannelVariablesFromXml } = require('./query-cycle'
 const handlers = require('./handlers')
 const { ensureLocalThumbnailCacheForMediaIds } = require('../media/local-media-ffmpeg')
 
+const CHANNELS_BLOB_DEBOUNCE_MS = Math.max(
+	0,
+	Math.min(2000, parseInt(process.env.HIGHASCG_WS_CHANNELS_BLOB_DEBOUNCE_MS || '80', 10) || 80),
+)
+/** @type {ReturnType<typeof setTimeout> | null} */
+let oscChannelsBlobTimer = null
+/** @type {object | null} */
+let oscChannelsBlobCtx = null
+
+function fireOscChannelsBlob(ctx) {
+	if (!ctx || typeof ctx._wsBroadcast !== 'function' || typeof ctx.state?.getState !== 'function') return
+	try {
+		ctx._wsBroadcast('change', { path: 'channels', value: ctx.state.getState().channels })
+	} catch {
+		/* ignore */
+	}
+}
+
+function flushOscChannelsFullBroadcast() {
+	if (oscChannelsBlobTimer) {
+		clearTimeout(oscChannelsBlobTimer)
+		oscChannelsBlobTimer = null
+	}
+	const ctx = oscChannelsBlobCtx
+	oscChannelsBlobCtx = null
+	fireOscChannelsBlob(ctx)
+}
+
+function scheduleOscChannelsFullBroadcast(self) {
+	if (!self || typeof self._wsBroadcast !== 'function' || typeof self.state?.getState !== 'function') return
+	if (CHANNELS_BLOB_DEBOUNCE_MS <= 0) {
+		fireOscChannelsBlob(self)
+		return
+	}
+	oscChannelsBlobCtx = self
+	if (oscChannelsBlobTimer) clearTimeout(oscChannelsBlobTimer)
+	oscChannelsBlobTimer = setTimeout(() => {
+		oscChannelsBlobTimer = null
+		const ctx = oscChannelsBlobCtx
+		oscChannelsBlobCtx = null
+		fireOscChannelsBlob(ctx)
+	}, CHANNELS_BLOB_DEBOUNCE_MS)
+}
+
 /** @type {ReturnType<typeof setInterval> | null} */
 let oscPlaybackInfoTimer = null
 
@@ -26,6 +70,34 @@ function getSyncChannelIds(self) {
 	for (const ch of map.previewChannels || []) want.add(ch)
 	const valid = new Set(self.gatheredInfo?.channelIds || [])
 	return [...want].filter((c) => valid.has(c))
+}
+
+/**
+ * When the media CLS catalog is huge, rotate AMCP INFO across ticks instead of querying every sync channel each time (PF-04).
+ * @param {object} self
+ * @param {number[]} channels
+ * @returns {number[]}
+ */
+function pickInfoChannelsThisTick(self, channels) {
+	if (!channels || channels.length === 0) return []
+	const rawTh = process.env.HIGHASCG_SYNC_INFO_STAGGER_MEDIA
+	const threshold = rawTh === undefined || rawTh === '' ? 8000 : parseInt(String(rawTh), 10)
+	const effectiveTh = Number.isFinite(threshold) ? threshold : 8000
+	const n = self.state?.getState?.()?.media?.length ?? 0
+	if (effectiveTh <= 0 || n < effectiveTh) return [...channels]
+
+	const perRaw = process.env.HIGHASCG_SYNC_INFO_CHANNELS_PER_TICK
+	const perTickParsed = perRaw === undefined || perRaw === '' ? 2 : parseInt(String(perRaw), 10)
+	const k = Math.max(1, Number.isFinite(perTickParsed) ? perTickParsed : 2)
+	const len = channels.length
+	let offset = self._amcpInfoStaggerOffset || 0
+	if (!Number.isFinite(offset) || offset < 0 || offset >= len) offset = 0
+	const out = []
+	for (let i = 0; i < k; i++) {
+		out.push(channels[(offset + i) % len])
+	}
+	self._amcpInfoStaggerOffset = (offset + k) % len
+	return out
 }
 
 /** Program channels for AMCP INFO when OSC is on — do not require `gatheredInfo.channelIds` (may be empty before first query cycle). */
@@ -44,6 +116,7 @@ function clearPeriodicSyncTimer(self) {
 		self.periodicSyncTimer = null
 	}
 	clearOscPlaybackInfoSupplement()
+	flushOscChannelsFullBroadcast()
 }
 
 /**
@@ -84,7 +157,7 @@ function resolveOscInfoSupplementMs(self) {
 async function runOscPlaybackInfoSupplementOnce(self) {
 	if (!canRunPeriodicSync(self)) return
 	if (!playbackTracker.isOscPlaybackActive(self)) return
-	const channels = getProgramChannelsForOscInfo(self)
+	const channels = pickInfoChannelsThisTick(self, getProgramChannelsForOscInfo(self))
 	if (channels.length === 0) return
 	for (const ch of channels) {
 		try {
@@ -101,13 +174,7 @@ async function runOscPlaybackInfoSupplementOnce(self) {
 			/* ignore */
 		}
 	}
-	if (typeof self._wsBroadcast === 'function') {
-		try {
-			self._wsBroadcast('change', { path: 'channels', value: self.state.getState().channels })
-		} catch {
-			/* ignore */
-		}
-	}
+	scheduleOscChannelsFullBroadcast(self)
 }
 
 /**
@@ -261,7 +328,7 @@ async function runPeriodicInfoConfigRefresh(self) {
  * @param {object} self
  */
 async function runPeriodicChannelInfoSync(self) {
-	const channels = getSyncChannelIds(self)
+	const channels = pickInfoChannelsThisTick(self, getSyncChannelIds(self))
 	if (channels.length === 0) return
 
 	for (const ch of channels) {
@@ -308,17 +375,25 @@ async function runPeriodicOscLightSync(self) {
  */
 async function runPeriodicSync(self) {
 	if (!canRunPeriodicSync(self)) return
-
-	if (playbackTracker.isOscPlaybackActive(self)) {
-		await runPeriodicOscLightSync(self)
-	} else {
-		await runPeriodicChannelInfoSync(self)
+	if (self._periodicSyncInFlight) {
+		if (typeof self.log === 'function') self.log('debug', 'Periodic sync: skipped (previous tick still in flight)')
+		return
 	}
-
+	self._periodicSyncInFlight = true
 	try {
-		if (typeof self.updateDynamicVariables === 'function') self.updateDynamicVariables(self)
-	} catch (_) {}
-	if (typeof self.checkFeedbacks === 'function') self.checkFeedbacks('program_tally', 'preview_tally')
+		if (playbackTracker.isOscPlaybackActive(self)) {
+			await runPeriodicOscLightSync(self)
+		} else {
+			await runPeriodicChannelInfoSync(self)
+		}
+
+		try {
+			if (typeof self.updateDynamicVariables === 'function') self.updateDynamicVariables(self)
+		} catch (_) {}
+		if (typeof self.checkFeedbacks === 'function') self.checkFeedbacks('program_tally', 'preview_tally')
+	} finally {
+		self._periodicSyncInFlight = false
+	}
 }
 
 /**
@@ -351,4 +426,5 @@ module.exports = {
 	getSyncChannelIds,
 	resolveIntervalSec,
 	runMediaClsTlsRefresh,
+	flushOscChannelsFullBroadcast,
 }

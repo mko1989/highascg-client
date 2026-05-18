@@ -19,6 +19,16 @@ sudo bash tools/live-usb/build-operator-stick.sh
 
 Runs **`build-highascg-egg.sh`** (WO‑47 **`/etc`** prep, Eggs **`--clone --max --excludes static`**, NVIDIA offline cache), confirms the **USB whole-disk** interactively (`dd`), adds **exFAT `HIGHASCGEXF`** with start **≥ hybrid ISO tail** and **≥ ceil(ISO MiB)+`EXFAT_AFTER_ISO_MARGIN_MIB`** (**1152** MiB default — adjust if your ISO grows), then **union persistence**. Warns if Blackmagic **`desktopvideo*`** packages are missing from the clone source; **`--decklink-required`** exits non‑zero unless they’re installed (*`sudo bash scripts/install.sh`* with Desktop Video tarball). The string **`highascg-data`** cannot be the literal exFAT volume label (**11 characters max**); operators still call it “data”; **`HIGHASCGEXF`** is what systemd mounts.
 
+### Desktop helper — Stick Studio (`tools/stick-tools`)
+
+On a workstation with a display (and **`python3-tk`**): flash ISO + optional exFAT + seed operator dirs + optional copy to `sim/highascg`, plus **Start simulation** — `npm run stick-studio` from the repo root. Destructive steps use **pkexec**. Details: **`tools/stick-tools/README.md`**. See **[`docs/CASPAR_IMAGE_VS_HIGHASCG_OVERLAY.md`](../docs/CASPAR_IMAGE_VS_HIGHASCG_OVERLAY.md)** for how a **Caspar-only** squashfs coexists with **HighAsCG synced from exFAT**.
+
+### Automated dev prerelease on GitHub (ISO + ZIP)
+
+To publish **`highascg_*.iso`** (Eggs WO‑47 excludes) and **`highascg_<UTC>.tar.gz`** (full tree, **`node_modules` included by default**) as GitHub prerelease assets from a machine already set up as a build/run host:
+
+[`docs/DEV_RELEASE_GITHUB.md`](../docs/DEV_RELEASE_GITHUB.md) · `npm run release:dev-github` (`release:dev-github:dry` preview).
+
 ## Build host (Ubuntu Noble recommended)
 
 1. **Install eggs** (if apt repo fails, use the latest `.deb` from  
@@ -144,6 +154,21 @@ Use **`/ union`** persistence so the stick **remembers** NVIDIA drivers, DeckLin
 ### Option D — No install — **only `~/highascg` on a data partition (advanced / narrow)**
 
 When you **deliberately** do **not** want full-root persistence: **[HIGHASCG_FOLDER_USB_PARTITION.md](./HIGHASCG_FOLDER_USB_PARTITION.md)** and [flash step 4 optional](#flash-to-usb). **Does not** preserve NVIDIA/Tailscale/system-wide changes.
+
+---
+
+## Windows / macOS — write ISO + HIGHASCGEXF layout (no Linux)
+
+**Manual Etcher + system partitioning:** [`MANUAL_STICK_WINDOWS_MACOS.md`](MANUAL_STICK_WINDOWS_MACOS.md).
+
+If you already have a **`*.iso`** built elsewhere:
+
+| OS | Script |
+|----|--------|
+| **Windows** (Admin PowerShell) | [`windows/make-highascg-stick.ps1`](windows/make-highascg-stick.ps1) |
+| **macOS** (sudo in Terminal) | [`macos/make-highascg-stick.sh`](macos/make-highascg-stick.sh) |
+
+Both: **visible menu** of removable targets, **explicit confirmations**, raw **ISO** write, then **exFAT** labelled **`HIGHASCGEXF`** (WO‑47) and seeded folders: **`sim/highascg`**, **`drop-config`**, **`media`**, **`templates`**, **`configs`**, **`snapshots/rear-panels`**. Hybrid ISO + free-space detection varies by OS; macOS may require **Disk Utility** or **Linux `add-exfat-data-partition.sh`** fallback if `diskutil addPartition` fails.
 
 ---
 

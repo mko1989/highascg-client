@@ -19,20 +19,11 @@ function getPersistence(ctx) {
 	return ctx.persistence || filePersistence
 }
 const { getState } = require('./get-state')
-const { parseCinfMedia } = require('../media/cinf-parse')
 const {
-	resolveSafe,
-	probeMedia,
-	getMediaIngestBasePath,
-	scanMediaRecursiveForBrowser,
-	normalizeMediaIdKey,
-} = require('../media/local-media')
-const { dedupeMediaList } = require('../utils/media-browser-dedupe')
-
-function isHiddenThumbnailBucket(id) {
-	const norm = String(id || '').replace(/\\/g, '/').toLowerCase()
-	return norm === 'tb' || norm.startsWith('tb/') || norm === '.tb' || norm.startsWith('.tb/')
-}
+	getRawMediaCatalog,
+	getTemplateCatalog,
+	enrichMediaListForHttp,
+} = require('./media-catalog')
 
 /**
  * @param {string} path
@@ -70,7 +61,8 @@ async function handleGet(path, ctx, query = {}) {
 					})
 				}
 			}
-			return { status: 200, headers: JSON_HEADERS, body: jsonBody(getState(ctx)) }
+			const forceFullCinf = query.full_cinf === '1' || query.fullCinf === '1'
+			return { status: 200, headers: JSON_HEADERS, body: jsonBody(getState(ctx, { fullCinfMedia: forceFullCinf })) }
 		}
 		case '/api/variables': {
 			let v = getAllVariables(ctx)
@@ -104,62 +96,16 @@ async function handleGet(path, ctx, query = {}) {
 			return { status: 200, headers: JSON_HEADERS, body: jsonBody(result) }
 		}
 		case '/api/media': {
-			const stateMedia = ctx.state?.getState?.()?.media || []
-			let media =
-				stateMedia.length > 0
-					? stateMedia
-					: (ctx.CHOICES_MEDIAFILES || []).map((c) => ({ id: c.id, label: c.label }))
-			media = media.filter((m) => !isHiddenThumbnailBucket(m?.id))
-			// Files on disk under the ingest folder (WeTransfer zip extract, etc.) may lag Caspar CLS — merge them in.
-			try {
-				const ingestBase = getMediaIngestBasePath(ctx.config)
-				const diskItems = scanMediaRecursiveForBrowser(ingestBase)
-				if (diskItems.length > 0) {
-					const seen = new Set(media.map((m) => normalizeMediaIdKey(m.id)))
-					for (const item of diskItems) {
-						if (isHiddenThumbnailBucket(item?.id)) continue
-						const key = normalizeMediaIdKey(item.id)
-						if (!seen.has(key)) {
-							seen.add(key)
-							media.push({ id: item.id, label: item.id, isDir: item.isDir })
-						}
-					}
-				}
-			} catch {
-				/* ignore scan errors */
-			}
-			const basePath = (ctx.config?.local_media_path || '').trim() || getMediaIngestBasePath(ctx.config)
-			if (basePath) {
-				ctx._mediaProbeCache = ctx._mediaProbeCache || {}
-				const toProbe = media
-					.filter((m) => !m.isDir && (!m.resolution || (m.fps == null && m.fps !== 0)))
-					.slice(0, 120)
-				await Promise.all(
-					toProbe.map(async (m) => {
-						const fp = resolveSafe(basePath, m.id)
-						if (fp) {
-							const probed = await probeMedia(fp)
-							if (Object.keys(probed).length) ctx._mediaProbeCache[m.id] = probed
-						}
-					}),
-				)
-				media = media.map((m) => ({ ...m, ...(ctx._mediaProbeCache[m.id] || {}) }))
-			}
-			media = dedupeMediaList(media)
-			// Same enrichment as GET /api/state — CINF duration/resolution for Caspar library items
-			media = media.map((m) => {
-				const cinf = m.cinf || (ctx.mediaDetails || {})[m.id] || ''
-				const parsed = parseCinfMedia(cinf)
-				const probed = (ctx._mediaProbeCache || {})[m.id] || {}
-				return { ...m, ...parsed, ...probed }
-			})
+			let media = getRawMediaCatalog(ctx)
+			const forceFullCinf = query.full_cinf === '1' || query.fullCinf === '1'
+			media = await enrichMediaListForHttp(ctx, media, { forceFullCinf })
 			return { status: 200, headers: JSON_HEADERS, body: jsonBody(media) }
 		}
 		case '/api/templates':
 			return {
 				status: 200,
 				headers: JSON_HEADERS,
-				body: jsonBody((ctx.CHOICES_TEMPLATES || []).map((c) => ({ id: c.id, label: c.label }))),
+				body: jsonBody(getTemplateCatalog(ctx)),
 			}
 		case '/api/channels':
 			return {

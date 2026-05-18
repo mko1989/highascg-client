@@ -1,7 +1,7 @@
 # PF-05 — Operational footguns (batch APIs, logging, config churn)
 
 **Linked bulletin:** PERF-D4, PERF-J2, PERF-A2  
-**Status:** Design / implementation roadmap
+**Status:** **Implemented (Phases A–D)** — see [`README.md`](./README.md).
 
 ---
 
@@ -34,6 +34,13 @@
 ---
 
 ## Implementation path
+
+| Phase | In-tree |
+|-------|---------|
+| A | Done — large **`raw-batch`** body logs warn (prefer `/api/amcp/batch`). |
+| B | Done — Art-Net per-delta logs at **`debug`**. |
+| C | Done — `hashSubsystemReload` in `index.js`; skip subsystem recycle when hash unchanged (`HIGHASCG_CONFIG_FORCE_RELOAD` overrides). |
+| D | Done — `HIGHASCG_CONFIG_CHANGE_DEDUPE_MS` in `config-manager.js`. |
 
 ### Phase A — AMCP guardrail
 

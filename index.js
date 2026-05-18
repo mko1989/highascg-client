@@ -18,6 +18,7 @@ const { addStreamingConsumers, removeStreamingConsumers } = require('./src/strea
 const { resolveFreeStreamingBasePort } = require('./src/streaming/streaming-udp-ports'); const { prepareNdiStreaming } = require('./src/streaming/ndi-resolve')
 const { startPeriodicSync, startOscPlaybackInfoSupplement } = require('./src/utils/periodic-sync')
 const { ConfigManager } = require('./src/config/config-manager'); const { refreshConfigComparison } = require('./src/config/config-compare')
+const { hashSubsystemReload } = require('./src/config/config-reload-signature')
 const { applyCasparConfigToDiskAndRestart } = require('./src/api/routes-caspar-config'); const { SamplingManager } = require('./src/sampling/dmx-sampling')
 const { getChannelMap } = require('./src/config/routing'); const { createStreamingLifecycle } = require('./src/bootstrap/streaming-lifecycle')
 const { createOscLifecycle } = require('./src/bootstrap/osc-lifecycle'); const { createFetchServerInfoConfigAndBroadcast } = require('./src/bootstrap/fetch-server-info-config')
@@ -103,7 +104,9 @@ function main() {
 		})()
 
 		appCtx.timelineEngine = new TimelineEngine(appCtx); appCtx.clipEndFadeWatcher = new ClipEndFadeWatcher(appCtx)
-		appCtx.getState = () => getState(appCtx); appCtx.startPeriodicSync = (self) => startPeriodicSync(self || appCtx)
+		appCtx.getState = () => getState(appCtx)
+		appCtx.getStateWsBootstrap = () => getState(appCtx, { slimCatalog: true })
+		appCtx.startPeriodicSync = (self) => startPeriodicSync(self || appCtx)
 		appCtx.refreshConfigComparison = refreshConfigComparison; appCtx.samplingManager = new SamplingManager(appCtx)
 		appCtx.parseInfoConfigForDecklinks = parseInfoConfigForDecklinks
 		
@@ -123,8 +126,21 @@ function main() {
 		const fetchInfo = createFetchServerInfoConfigAndBroadcast({ appCtx, config, onAfterInfoConfigReady: () => handleCasparConnected() })
 		if (!config.streaming.enabled) void enqueueStreaming(async () => await stopStreamingSubsystem())
 
+		/** Subsystem recycle hash — null until first config change after boot. */
+		let subsystemReloadSig = null
+
 		configManager.on('change', () => {
-			logger.info('[Config] Reloading subsystems...'); syncRuntimeConfigFromManager()
+			syncRuntimeConfigFromManager()
+			const forceReload =
+				process.env.HIGHASCG_CONFIG_FORCE_RELOAD === '1' ||
+				String(process.env.HIGHASCG_CONFIG_FORCE_RELOAD || '').toLowerCase() === 'true'
+			const nextSig = hashSubsystemReload(config)
+			if (!forceReload && subsystemReloadSig !== null && nextSig === subsystemReloadSig) {
+				logger.info('[Config] Applied file change; subsystem recycle skipped (Caspar / OSC / streaming / DMX signature unchanged).')
+				return
+			}
+			subsystemReloadSig = nextSig
+			logger.info('[Config] Reloading subsystems...')
 			if (appCtx.restartOscSubsystem) appCtx.restartOscSubsystem(); handleConfigReload()
 			if (appCtx.samplingManager) appCtx.samplingManager.updateConfig(config.dmx).catch(e => appCtx.log('error', '[DMX] update failed: ' + (e.message || e)))
 			if (casparConn) {
@@ -192,7 +208,7 @@ function main() {
 		const { startOscSubsystem, stopOscSubsystem, restartOscSubsystem, getOscReceiverStats } = createOscLifecycle({ appCtx, config, cli, logger, normalizeOscConfig, OscState, OscListener, applyOscSnapshotToVariables, clearOscVariables, startOscPlaybackInfoSupplement })
 		startOscSubsystem(); appCtx.restartOscSubsystem = restartOscSubsystem; appCtx.getOscReceiverStats = getOscReceiverStats
 
-		const shutdown = Shutdown.createShutdownHandler({ logger, appCtx, moduleRegistry, stopStreamingSubsystem, stopOscSubsystem, wsHandle, httpServer })
+		const shutdown = Shutdown.createShutdownHandler({ logger, appCtx, moduleRegistry, stopStreamingSubsystem, stopOscSubsystem, wsHandle, httpServer, persistence })
 		process.on('SIGINT', shutdown); process.on('SIGTERM', shutdown)
 	} catch (e) {
 		logger.error(`[Main] CRITICAL STARTUP ERROR: ${e.message}\n${e.stack}`)

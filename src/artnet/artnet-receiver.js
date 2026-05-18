@@ -72,7 +72,7 @@ class ArtnetReceiver {
 
 		if (changedIndices.size === 0) return
 
-		this.log('info', `[ArtNet] Received data change. Changed DMX indices: ${[...changedIndices].join(',')}`)
+		this.log('debug', `[ArtNet] Received data change. Changed DMX indices: ${[...changedIndices].join(',')}`)
 		this.lastData = [...data]
 
 		const liveSceneState = require('../state/live-scene-state')

@@ -7,8 +7,13 @@
 'use strict'
 
 const { parseString } = require('xml2js')
+const { getInfoXml2jsOptions, extractChannelInfoFromParsed } = require('../state/info-channel-parse')
 const handlers = require('./handlers')
 const { ensureLocalThumbnailCacheForMediaIds } = require('../media/local-media-ffmpeg')
+const { broadcastWsStateSnapshot } = require('../api/get-state')
+
+/** Skip redundant INFO XML parse for Companion variables when body unchanged (PF-04). */
+const _channelXmlForVariables = new Map()
 
 function scheduleStartupHqThumbnailPrewarm(self) {
 	if (self?._hqThumbStartupPrewarmDone) return
@@ -285,9 +290,7 @@ function finishConnectionGather(self) {
 		if (typeof self.log === 'function') self.log('debug', 'Live scene reconcile: ' + (e?.message || e))
 	})
 	if (typeof self.startPeriodicSync === 'function') self.startPeriodicSync(self)
-	if (typeof self._wsBroadcast === 'function' && typeof self.getState === 'function') {
-		self._wsBroadcast('state', self.getState())
-	}
+	broadcastWsStateSnapshot(self)
 }
 
 /**
@@ -297,63 +300,28 @@ function finishConnectionGather(self) {
  */
 function updateChannelVariablesFromXml(ctx, ch, xmlStr) {
 	if (!xmlStr) return
-	parseString(xmlStr, (err, result) => {
+	const key = String(ch)
+	if (_channelXmlForVariables.get(key) === xmlStr) return
+	_channelXmlForVariables.set(key, xmlStr)
+	const xmlOpts = getInfoXml2jsOptions()
+	parseString(xmlStr, xmlOpts, (err, result) => {
 		if (err) return
 		try {
-			let framerate = ''
+			const { framerate: chFr, layers: parsedLayers } = extractChannelInfoFromParsed(result)
 			const layerData = {}
-			if (result.channel && result.channel.framerate && result.channel.framerate[0])
-				framerate = result.channel.framerate[0]
-			if (result.channel && result.channel.stage && result.channel.stage[0] && result.channel.stage[0].layer && result.channel.stage[0].layer[0]) {
-				const layers = result.channel.stage[0].layer[0]
-				Object.keys(layers).forEach((key) => {
-					if (key.startsWith('layer_') && Array.isArray(layers[key]) && layers[key][0]) {
-						const layerIdx = key.replace('layer_', '')
-						const fg = layers[key][0].foreground && layers[key][0].foreground[0]
-						const bg = layers[key][0].background && layers[key][0].background[0]
-						let fgClip = ''
-						let fgState = 'empty'
-						let bgClip = ''
-						let nbFrames = 0
-						let currentFrame = 0
-						if (fg && fg.producer && fg.producer[0]) {
-							const p = fg.producer[0]
-							fgClip = p.$ && p.$.name ? p.$.name : p.name && p.name[0] ? p.name[0] : ''
-							fgState = fg.paused && fg.paused[0] === 'true' ? 'paused' : 'playing'
-							nbFrames = parseInt(p['nb-frames'] && p['nb-frames'][0], 10) || 0
-							currentFrame = parseInt(p.frame && p.frame[0], 10) || parseInt(p['frame-time'] && p['frame-time'][0], 10) || 0
-						}
-						if (fg && fg.file && fg.file[0]) {
-							const f = fg.file[0]
-							fgClip = f.$ && f.$.name ? f.$.name : f.clip && f.clip[1] ? String(f.clip[1]) : fgClip
-							if (f.clip && f.clip[1]) nbFrames = Math.floor(parseFloat(f.clip[1]) * (parseInt(framerate, 10) || 1))
-						}
-						if (bg && bg.producer && bg.producer[0])
-							bgClip = bg.producer[0].$ && bg.producer[0].$.name ? bg.producer[0].$.name : ''
-						const fpsNum = parseInt(framerate, 10) || 1
-						const durationSec = nbFrames > 0 ? (nbFrames / fpsNum).toFixed(2) : ''
-						const timeSec = nbFrames > 0 && currentFrame >= 0 ? (currentFrame / fpsNum).toFixed(2) : ''
-						const remainingSec = nbFrames > 0 && currentFrame >= 0 ? ((nbFrames - currentFrame) / fpsNum).toFixed(2) : ''
-						layerData[layerIdx] = { framerate, fgClip, fgState, bgClip, durationSec, timeSec, remainingSec }
-					}
-				})
-			}
-			if (result.layer && result.layer.foreground && result.layer.foreground[0]) {
-				const p = result.layer.foreground[0].producer && result.layer.foreground[0].producer[0]
-				if (p) {
-					const fr = p.fps && p.fps[0] ? p.fps[0] : ''
-					const nb = parseInt(p['nb-frames'] && p['nb-frames'][0], 10) || 0
-					const cur = parseInt(p.frame && p.frame[0], 10) || 0
-					const fpsNum = parseInt(fr, 10) || 1
-					layerData['0'] = {
-						framerate: fr,
-						fgClip: p.$ && p.$.name ? p.$.name : p.name && p.name[0] ? p.name[0] : '',
-						fgState: result.layer.foreground[0].paused && result.layer.foreground[0].paused[0] === 'true' ? 'paused' : 'playing',
-						bgClip: '',
-						durationSec: nb > 0 ? (nb / fpsNum).toFixed(2) : '',
-						timeSec: nb > 0 && cur >= 0 ? (cur / fpsNum).toFixed(2) : '',
-						remainingSec: nb > 0 && cur >= 0 ? ((nb - cur) / fpsNum).toFixed(2) : '',
-					}
+			for (let layerIdx = 0; layerIdx < parsedLayers.length; layerIdx++) {
+				const entry = parsedLayers[layerIdx]
+				if (!entry) continue
+				const frForVars = chFr || entry.fgFps || ''
+				const { fgFps: _f, ...layer } = entry
+				layerData[String(layerIdx)] = {
+					framerate: frForVars,
+					fgClip: layer.fgClip || '',
+					fgState: layer.fgState || 'empty',
+					bgClip: layer.bgClip || '',
+					durationSec: layer.durationSec,
+					timeSec: layer.timeSec,
+					remainingSec: layer.remainingSec,
 				}
 			}
 			if (!ctx.variables) ctx.variables = {}

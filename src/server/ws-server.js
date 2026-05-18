@@ -7,6 +7,7 @@
 
 const WebSocket = require('ws')
 const { dispatchStructuredAmcp, isStructuredAmcpMessage } = require('./ws-amcp-dispatch')
+const { dispatchCatalogWsMessage } = require('./ws-catalog-handlers')
 
 /**
  * @typedef {object} WsAppContext
@@ -34,6 +35,28 @@ function attachWebSocketServer(httpServer, ctx, options = {}) {
 	const clients = new Set()
 	const wss = new WebSocket.Server({ noServer: true })
 
+	const logLineMaxHzRaw = parseInt(process.env.HIGHASCG_WS_LOG_LINE_MAX_HZ || '50', 10)
+	const logLineMaxHz = Number.isFinite(logLineMaxHzRaw) ? logLineMaxHzRaw : 50
+	const LOG_LINE_WINDOW_MS = 1000
+	/** @type {number[]} */
+	const logLineTimestamps = []
+	let logLineThrottleWarnAt = 0
+
+	function logLineSendAllowed() {
+		if (!Number.isFinite(logLineMaxHz) || logLineMaxHz <= 0) return true
+		const now = Date.now()
+		while (logLineTimestamps.length && now - logLineTimestamps[0] > LOG_LINE_WINDOW_MS) logLineTimestamps.shift()
+		if (logLineTimestamps.length >= logLineMaxHz) {
+			if (now - logLineThrottleWarnAt >= 10_000) {
+				logLineThrottleWarnAt = now
+				log(`[WS] log_line traffic exceeded ${logLineMaxHz}/s (rolling ${LOG_LINE_WINDOW_MS}ms); dropping excess. Set HIGHASCG_WS_LOG_LINE_MAX_HZ=0 to disable.`)
+			}
+			return false
+		}
+		logLineTimestamps.push(now)
+		return true
+	}
+
 	function safeStringify(payload) {
 		try {
 			return JSON.stringify(payload)
@@ -46,7 +69,17 @@ function attachWebSocketServer(httpServer, ctx, options = {}) {
 		}
 	}
 
-	function getSnapshot() {
+	function getSnapshot(preferFullCatalog = false) {
+		const slimWs =
+			process.env.HIGHASCG_WS_SLIM_BOOTSTRAP === '1' ||
+			String(process.env.HIGHASCG_WS_SLIM_BOOTSTRAP || '').toLowerCase() === 'true'
+		if (slimWs && !preferFullCatalog && typeof ctx.getStateWsBootstrap === 'function') {
+			try {
+				return ctx.getStateWsBootstrap()
+			} catch (e) {
+				log('ws slim bootstrap: ' + (e?.message || e))
+			}
+		}
 		if (typeof ctx.getState === 'function') return ctx.getState()
 		if (ctx.state && typeof ctx.state.getState === 'function') return ctx.state.getState()
 		return {
@@ -62,11 +95,58 @@ function attachWebSocketServer(httpServer, ctx, options = {}) {
 	 * @param {string} event
 	 * @param {unknown} data
 	 */
+	const STATE_BYTES_WARN = parseInt(process.env.HIGHASCG_WS_FULL_STATE_BYTES || '0', 10) || 0
+	let lastStatePayloadWarnAt = 0
+
 	function broadcast(event, data) {
+		if (event === 'log_line' && !logLineSendAllowed()) return
 		const msg = safeStringify({ type: event, data })
+		if (event === 'state' && STATE_BYTES_WARN > 0) {
+			const len = Buffer.byteLength(msg, 'utf8')
+			if (len >= STATE_BYTES_WARN) {
+				const now = Date.now()
+				if (now - lastStatePayloadWarnAt > 60_000) {
+					lastStatePayloadWarnAt = now
+					log(
+						`[WS] state message ~${len} B (threshold ${STATE_BYTES_WARN} via HIGHASCG_WS_FULL_STATE_BYTES); large catalogs dominate CPU/bandwidth — see PF-01.`,
+					)
+				}
+			}
+		}
 		for (const ws of clients) {
 			if (ws.readyState === WebSocket.OPEN) ws.send(msg)
 		}
+	}
+
+	const CHANGE_COALESCE_MS = Math.max(
+		0,
+		Math.min(500, parseInt(process.env.HIGHASCG_WS_CHANGE_COALESCE_MS || '75', 10) || 75),
+	)
+	/** @type {Map<string, unknown>} */
+	const pendingStateChanges = new Map()
+	/** @type {ReturnType<typeof setTimeout> | null} */
+	let stateChangeTimer = null
+
+	function flushPendingStateChanges() {
+		if (stateChangeTimer) {
+			clearTimeout(stateChangeTimer)
+			stateChangeTimer = null
+		}
+		if (pendingStateChanges.size === 0) return
+		for (const [path, value] of pendingStateChanges) {
+			broadcast('change', { path, value })
+		}
+		pendingStateChanges.clear()
+	}
+
+	function queueStateChange(path, value) {
+		pendingStateChanges.set(String(path), value)
+		if (CHANGE_COALESCE_MS <= 0) {
+			flushPendingStateChanges()
+			return
+		}
+		if (stateChangeTimer) clearTimeout(stateChangeTimer)
+		stateChangeTimer = setTimeout(flushPendingStateChanges, CHANGE_COALESCE_MS)
 	}
 
 	ctx._wsBroadcast = broadcast
@@ -77,7 +157,7 @@ function attachWebSocketServer(httpServer, ctx, options = {}) {
 			broadcast('variable_update', changed)
 		})
 		ctx.state.on('change', (path, value) => {
-			broadcast('change', { path, value })
+			queueStateChange(path, value)
 		})
 	}
 
@@ -157,6 +237,8 @@ function attachWebSocketServer(httpServer, ctx, options = {}) {
 					}
 					const data = await dispatchStructuredAmcp(ctx, msg)
 					ws.send(safeStringify({ type: 'amcp_result', data, id: msg.id }))
+				} else if (await dispatchCatalogWsMessage(ws, ctx, msg, safeStringify)) {
+					return
 				} else if (msg.type === 'multiview_sync' && msg.data) {
 					ctx._multiviewLayout = msg.data
 					const persistence = ctx.persistence || require('../utils/persistence')
@@ -213,7 +295,7 @@ function attachWebSocketServer(httpServer, ctx, options = {}) {
 	if (intervalMs > 0) {
 		timer = setInterval(() => {
 			try {
-				broadcast('state', getSnapshot())
+				broadcast('state', getSnapshot(true))
 			} catch (e) {
 				log('ws periodic state: ' + (e?.message || e))
 			}
@@ -227,6 +309,7 @@ function attachWebSocketServer(httpServer, ctx, options = {}) {
 		wss,
 		clients,
 		stop() {
+			flushPendingStateChanges()
 			if (timer) {
 				clearInterval(timer)
 				timer = null

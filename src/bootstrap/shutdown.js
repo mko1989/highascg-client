@@ -5,8 +5,9 @@
 
 const { clearPeriodicSyncTimer } = require('../utils/periodic-sync')
 const { stopHttpServer } = require('../server/http-server')
+const { flushProjectSyncBroadcast } = require('../api/routes-data')
 
-function createShutdownHandler({ logger, appCtx, moduleRegistry, stopStreamingSubsystem, stopOscSubsystem, wsHandle, httpServer }) {
+function createShutdownHandler({ logger, appCtx, moduleRegistry, stopStreamingSubsystem, stopOscSubsystem, wsHandle, httpServer, persistence }) {
 	let shutdownStarted = false
 
 	return async function shutdown() {
@@ -36,11 +37,25 @@ function createShutdownHandler({ logger, appCtx, moduleRegistry, stopStreamingSu
 			stopOscSubsystem()
 			if (typeof appCtx._stopUsbHotplugWatcher === 'function') appCtx._stopUsbHotplugWatcher()
 
+			try {
+				flushProjectSyncBroadcast()
+			} catch (e) {
+				logger.warn(`[Shutdown] project sync flush: ${e.message}`)
+			}
+
 			wsHandle.stop()
 			if (appCtx.casparConnection) {
 				appCtx.casparConnection.destroy()
 				appCtx.casparConnection = null
 				appCtx.amcp = null
+			}
+
+			if (persistence && typeof persistence.flushSync === 'function') {
+				try {
+					persistence.flushSync()
+				} catch (e) {
+					logger.warn(`[Shutdown] persistence flush: ${e.message}`)
+				}
 			}
 
 			const forceExit = setTimeout(() => { process.exit(0) }, 5000)

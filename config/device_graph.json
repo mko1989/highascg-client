@@ -217,6 +217,13 @@
       "index": 3,
       "label": "Mixer In 4",
       "externalRef": "4"
+    },
+    {
+      "id": "dst_in_dst_mp9zrnpf_1",
+      "deviceId": "destinations",
+      "kind": "destination_in",
+      "label": "PGM 2",
+      "externalRef": "dst_mp9zrnpf_1"
     }
   ],
   "edges": [
@@ -229,6 +236,21 @@
       "id": "e_dst_in_dst_mp7g9t8u_1_gpu_unmapped_0",
       "sourceId": "dst_in_dst_mp7g9t8u_1",
       "sinkId": "gpu_unmapped_0"
+    },
+    {
+      "id": "e_dst_in_dst_mp4fu33j_1_rec_1",
+      "sourceId": "dst_in_dst_mp4fu33j_1",
+      "sinkId": "rec_1"
+    },
+    {
+      "id": "e_dst_in_dst_mp9zrnpf_1_dlsdi_4",
+      "sourceId": "dst_in_dst_mp9zrnpf_1",
+      "sinkId": "dlsdi_4"
+    },
+    {
+      "id": "e_dst_in_dst_mp9zrnpf_1_str_1",
+      "sourceId": "dst_in_dst_mp9zrnpf_1",
+      "sinkId": "str_1"
     }
   ],
   "layout": {
@@ -243,14 +265,22 @@
     {
       "id": "dst_in_dst_mp4fu33j_1",
       "label": "PGM/PRV 1",
-      "videoMode": "720p5000",
-      "width": 1280,
-      "height": 720,
+      "videoMode": "custom",
+      "width": 15360,
+      "height": 1728,
       "fps": 50
     },
     {
       "id": "dst_in_dst_mp7g9t8u_1",
       "label": "Multiview 1",
+      "videoMode": "1080p5000",
+      "width": 1920,
+      "height": 1080,
+      "fps": 50
+    },
+    {
+      "id": "dst_in_dst_mp9zrnpf_1",
+      "label": "PGM 2",
       "videoMode": "1080p5000",
       "width": 1920,
       "height": 1080,

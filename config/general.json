@@ -77,12 +77,6 @@
       "value": "ndi://cccccc/\"vMix - Output 1\"",
       "label": "cccccc vMix - Output 1",
       "useDirect": true
-    },
-    {
-      "type": "browser",
-      "value": "https://www.youtube.com/",
-      "label": "https://www.youtube.com/",
-      "thumbnailChannel": 3
     }
   ],
   "screen_1_system_id": "HDMI-0",

@@ -5,6 +5,9 @@
 
 'use strict'
 
+/** Prefer chunked `/api/amcp/batch` over sequential `raw` lines when this is exceeded. */
+const RAW_BATCH_WARN_MIN_LINES = 50
+
 const { JSON_HEADERS, jsonBody, parseBody } = require('./response')
 const playbackTracker = require('../state/playback-tracker')
 const { notifyProgramMutationMayInvalidateLive } = require('../state/live-scene-state')
@@ -75,6 +78,12 @@ async function handlePost(path, body, ctx) {
 					headers: JSON_HEADERS,
 					body: jsonBody({ error: `commands: at most ${MAX} lines per raw-batch` }),
 				}
+			}
+			if (lines.length > RAW_BATCH_WARN_MIN_LINES && typeof ctx.log === 'function') {
+				ctx.log(
+					'warn',
+					`[AMCP] raw-batch uses ${lines.length} sequential AMCP round-trips — prefer POST /api/amcp/batch for chunked sends (PERF-D4).`,
+				)
 			}
 			for (const line of lines) {
 				await amcp.raw(line)

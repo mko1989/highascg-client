@@ -29,9 +29,16 @@
 		"smoke:companion-press": "node tools/smoke-companion-press.mjs",
 		"smoke:streaming-ch": "node tools/verify-streaming-channel.mjs",
 		"amcp:test": "node tools/amcp-tester.js",
+		"test:highascg": "node --test tools/highascg-health-api-amcp.test.js",
 		"install:base": "npm install --omit=optional",
 		"install:previs": "npm install --include=optional",
-		"install:cg-studio": "npm install --no-save grapesjs"
+		"install:cg-studio": "npm install --no-save grapesjs",
+		"portable:sim": "node tools/portable-desktop/launch-sim-from-exfat.js",
+		"portable:sim:check": "node --check tools/portable-desktop/launch-sim-from-exfat.js",
+		"stick-studio": "python3 tools/stick-tools/stick_studio.py",
+		"release:dev-github": "bash tools/release/make-dev-github-release.sh",
+		"release:dev-github:dry": "bash tools/release/make-dev-github-release.sh --dry-run",
+		"smoke:wo47-manifest": "node tools/smoke-wo47-manifest.mjs"
 	},
 	"engines": {
 		"node": ">=20"

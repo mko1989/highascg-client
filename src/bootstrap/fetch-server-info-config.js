@@ -3,6 +3,7 @@
 const { refreshConfigComparison } = require('../config/config-compare')
 const { responseToStr } = require('../utils/query-cycle')
 const { runStartupLedTestPatternIfNeeded } = require('./startup-led-test-pattern')
+const { broadcastWsStateSnapshot } = require('../api/get-state')
 
 /**
  * @param {{
@@ -44,7 +45,7 @@ function createFetchServerInfoConfigAndBroadcast({ appCtx, config, onAfterInfoCo
 					appCtx.log('debug', 'configComparison: ' + (e?.message || e))
 				}
 				if (typeof appCtx._wsBroadcast === 'function') {
-					appCtx._wsBroadcast('state', appCtx.getState())
+					broadcastWsStateSnapshot(appCtx)
 				}
 				if (appCtx.samplingManager && config.dmx?.enabled) {
 					clearTimeout(dmxAfterInfoConfigTimer)

@@ -41,6 +41,9 @@ class ConfigManager extends EventEmitter {
 		this.logger = logger || console
 		this.config = { ...defaults }
 		this.isLoaded = false
+		/** Dedupe rapid `emit('change')` for identical JSON (PF-05 Phase D). */
+		this._lastConfigChangeJson = null
+		this._lastConfigChangeAt = 0
 	}
 
 	/**
@@ -114,6 +117,18 @@ class ConfigManager extends EventEmitter {
 			}
 
 			this.config = { ...newConfig }
+			const dedupeMs = Math.max(0, parseInt(process.env.HIGHASCG_CONFIG_CHANGE_DEDUPE_MS || '300', 10) || 300)
+			const payloadJson = JSON.stringify(newConfig)
+			const now = Date.now()
+			if (
+				dedupeMs > 0 &&
+				payloadJson === this._lastConfigChangeJson &&
+				now - this._lastConfigChangeAt < dedupeMs
+			) {
+				return true
+			}
+			this._lastConfigChangeJson = payloadJson
+			this._lastConfigChangeAt = now
 			this.emit('change', this.config)
 			return true
 		} catch (e) {

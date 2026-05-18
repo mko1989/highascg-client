@@ -22,19 +22,26 @@ GNAME="$(id -gn "$USER_CASPAR")"
 
 HIGHASCG_HOME="/home/casparcg/highascg"
 
+COND_LINE="ConditionPathExists=${HIGHASCG_HOME}/package.json"
+
 if [[ ! -f "${HIGHASCG_HOME}/package.json" ]]; then
-	echo "Skipping: ${HIGHASCG_HOME}/package.json not found." >&2
-	exit 1
+	echo "Note: ${HIGHASCG_HOME}/package.json not present yet — enabling highascg.service anyway (skipped at boot until synced)." >&2
 fi
 
 if [[ -f /etc/systemd/system/home-casparcg-exfat.mount ]] &&
 	[[ -f /etc/systemd/system/highascg-exfat-sync.service ]]; then
-	AF_LIST="network.target home-casparcg-exfat.mount highascg-exfat-sync.service"
-	WA_LIST="home-casparcg-exfat.mount highascg-exfat-sync.service"
+	AF_LIST="network.target home-casparcg-exfat.mount"
+	WA_LIST="home-casparcg-exfat.mount"
 	if [[ -f /etc/systemd/system/home-casparcg-highascg-media-exfat.mount ]]; then
 		AF_LIST="$AF_LIST home-casparcg-highascg-media-exfat.mount"
 		WA_LIST="$WA_LIST home-casparcg-highascg-media-exfat.mount"
 	fi
+	if [[ -f /etc/systemd/system/highascg-exfat-bootstrap.service ]]; then
+		AF_LIST="$AF_LIST highascg-exfat-bootstrap.service"
+		WA_LIST="$WA_LIST highascg-exfat-bootstrap.service"
+	fi
+	AF_LIST="$AF_LIST highascg-exfat-sync.service"
+	WA_LIST="$WA_LIST highascg-exfat-sync.service"
 	read -r -d '' HIGHASCG_UNIT_DEPS <<EUD || true
 After=${AF_LIST}
 Wants=${WA_LIST}
@@ -47,6 +54,7 @@ install -d /etc/systemd/system
 cat <<EOF > /etc/systemd/system/highascg.service
 [Unit]
 Description=HighAsCG Playout Control Server
+${COND_LINE}
 ${HIGHASCG_UNIT_DEPS}
 
 [Service]
