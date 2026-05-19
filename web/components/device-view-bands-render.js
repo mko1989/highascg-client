@@ -324,8 +324,8 @@ export function appendSegment(parent, title) {
 	return body
 }
 
-export function renderBands(bands, ctx, { currentSettings, statusEl, load, setCasparRestartDirty }) {
-	bands.innerHTML = ''; const live = ctx.live; if (!live) return
+export function renderBands(mappingPanel, rearPanel, ctx, { currentSettings, statusEl, load, setCasparRestartDirty }) {
+	mappingPanel.innerHTML = ''; rearPanel.innerHTML = ''; const live = ctx.live; if (!live) return
 	const internalCtx = {
 		...ctx,
 		currentSettings,
@@ -436,10 +436,10 @@ export function renderBands(bands, ctx, { currentSettings, statusEl, load, setCa
 			} catch (e) { setStatus(statusEl, e?.message || String(e), false) }
 		}
 	}
-	const proc = appendSegment(bands, '')
+	const proc = appendSegment(mappingPanel, '')
 	proc.append(renderMappingsBand(internalCtx))
 
-	const eq = appendSegment(bands, '')
+	const eq = appendSegment(rearPanel, '')
 	eq.parentElement?.classList.add('device-view__segment--rear-only')
 	eq.append(renderCasparBand(internalCtx))
 	// We only need the graphical rear panel, not the additional list views.

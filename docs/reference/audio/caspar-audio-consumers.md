@@ -2,7 +2,7 @@
 
 How to declare **audio outputs** in `casparcg.config`: system default sink, FFmpeg to ALSA/Pulse, NDI, audio-only channels, and **channel layouts**. Complements the Linux stack guides ([ALSA](./alsa-device-enumeration.md), [PipeWire](./pipewire-multichannel-routing.md), [NVIDIA / stereo / USB](./caspar-outputs-nvidia-stereo-usb.md)).
 
-**Consolidated:** [Audio setup guide](./audio-setup-guide.md) · [Audio routing reference](./audio-routing-reference.md) (MIXER, buses, FFmpeg `AF`).
+**Consolidated:** [Audio setup guide](../../guides/audio/audio-setup-guide.md) · [Audio routing reference](./audio-routing-reference.md) (MIXER, buses, FFmpeg `AF`).
 
 **Context:** WO-06 Audio playout · Phase 2 (T2.1–T2.5)
 

@@ -17,6 +17,17 @@ In particular:
 Bundled installers, signing, notarization, and CI‑built artifacts are **out of scope** for this README until WO‑50 §D–§E land.
 
 
+## Operator CLI (Mac / Windows)
+
+End-to-end **`prepare-stick`** (ISO + **`HIGHASCGEXF`** + release **`.tar.gz`** or unpacked repo) and **`sim`** routing live in **`tools/operator-desktop/`**:
+
+```bash
+npm run operator-kit -- prepare-stick --iso path/to.iso --tar-gz path/to/highascg_….tar.gz
+npm run operator-kit -- sim
+```
+
+See **[`tools/operator-desktop/README.md`](../operator-desktop/README.md)**.
+
 ## Prerequisites
 
 1. Stick or disk with volume label **`HIGHASCGEXF`** (manual steps: **`tools/live-usb/MANUAL_STICK_WINDOWS_MACOS.md`**).

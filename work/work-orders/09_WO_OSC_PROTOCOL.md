@@ -365,7 +365,7 @@ The following methods/queries in the current codebase **poll** CasparCG via AMCP
   - Troubleshooting: common issues (firewall, port conflicts)
   - Architecture: OSC ↔ state manager ↔ WebSocket ↔ browser
 
-- [x] **T6.2** Create `docs/polling-vs-osc.md`
+- [x] **T6.2** Create `docs/reference/polling-vs-osc.md`
   - Document which data sources were replaced by OSC
   - Performance comparison: polling frequency vs OSC push rate
   - Fallback behavior when OSC is unavailable
@@ -464,7 +464,7 @@ CasparCG Server
 ### 2026-04-04 — Agent (T6.1 / T6.2 documentation)
 **Work Done:**
 - [`docs/osc-integration.md`](docs/osc-integration.md): architecture, OSC message tables, Caspar config + firewall + `config-hint`, HighAsCG env/settings, REST `/api/osc/*`, WebSocket notes, troubleshooting, source pointers.
-- [`docs/polling-vs-osc.md`](docs/polling-vs-osc.md): replacement table, performance comparison, periodic-sync vs OSC, fallback paths, when to use AMCP.
+- [`docs/reference/polling-vs-osc.md`](docs/reference/polling-vs-osc.md): replacement table, performance comparison, periodic-sync vs OSC, fallback paths, when to use AMCP.
 
 **Status:**
 - **T6.1** and **T6.2** complete.

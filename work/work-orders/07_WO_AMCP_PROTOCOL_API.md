@@ -423,7 +423,7 @@ All files in `src/api/`. Each ≤ 500 lines.
   - Organized by category (Basic, Mixer, CG, Data, Query, Thumbnail, System)
   - Examples for each endpoint (curl + JavaScript fetch)
 
-- [x] **T4.2** Create `docs/amcp-mapping.md`
+- [x] **T4.2** Create `docs/reference/amcp-mapping.md`
   
   Side-by-side mapping table: AMCP command ↔ REST endpoint ↔ JS method
   - Complete coverage verification
@@ -571,7 +571,7 @@ All files in `src/api/`. Each ≤ 500 lines.
 ### 2026-04-04 — Agent (Phase 4 completion)
 **Work Done:**
 - Created `docs/api-reference.md` describing all HighAsCG REST AMCP commands along with examples.
-- Created `docs/amcp-mapping.md` showing a side-by-side table on how native Caspar AMCP commands map to backend API paths and core class logic (Mixer, Basic, Query, CG, Thumb). 
+- Created `docs/reference/amcp-mapping.md` showing a side-by-side table on how native Caspar AMCP commands map to backend API paths and core class logic (Mixer, Basic, Query, CG, Thumb). 
 
 **Status:**
 - **T4.1 through T4.2** completed. Phase 4 is done.

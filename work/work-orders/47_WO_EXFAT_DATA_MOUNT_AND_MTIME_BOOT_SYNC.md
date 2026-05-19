@@ -26,7 +26,7 @@ Improve the **live-USB + cross-platform data** story beyond **WO-38** (partition
 |------|----------------|
 | **WO-38** (`mediaMount`, `highascg-media-mount.sh`) | Mounts one UUID at **`/home/casparcg/highascg/media/drive`** after clearing that subfolder. This WO **does not remove WO-38**; it adds **exFAT at `/home/casparcg/exfat`**, **optional bind**, and **boot sync**. |
 | **`tools/live-usb/add-union-persistence-partition.sh`** | Already avoids carving persistence into the ISO region; **same discipline** applies to any **new primary** for exFAT: start **after the last hybrid MBR partition end**, never trust **`parted … print free`** alone for start sector. |
-| **`work/docs/LIVE_USB_IMAGE.md`**, **`tools/live-usb/FLASH_AND_PERSIST.md`** | After implementation, add a short **operator subsection** linking here (one paragraph + link). |
+| **`docs/LIVE_USB_IMAGE.md`**, **`tools/live-usb/FLASH_AND_PERSIST.md`** | After implementation, add a short **operator subsection** linking here (one paragraph + link). |
 
 ---
 
@@ -53,7 +53,7 @@ Improve the **live-USB + cross-platform data** story beyond **WO-38** (partition
 
 ### D. Operator / cross-platform
 
-- [ ] **D1.** **`work/docs/LIVE_USB_IMAGE.md`** (or **`tools/live-usb/`** doc): **“Adding exFAT after Etcher”** — **Linux-first** procedure (`parted`/`gparted`, `mkfs.exfat`, `blkid`); **Windows** and **macOS** paragraphs with **honest limits** (hybrid ISO: **Disk Management** / **Disk Utility** may hide unallocated or show only one volume; **wrong shrink/create can brick the stick**).
+- [ ] **D1.** **`docs/LIVE_USB_IMAGE.md`** (or **`tools/live-usb/`** doc): **“Adding exFAT after Etcher”** — **Linux-first** procedure (`parted`/`gparted`, `mkfs.exfat`, `blkid`); **Windows** and **macOS** paragraphs with **honest limits** (hybrid ISO: **Disk Management** / **Disk Utility** may hide unallocated or show only one volume; **wrong shrink/create can brick the stick**).
 - [ ] **D2.** Optional **first-boot wizard** or **desktop notification** (“exFAT data partition not found — see …”) — **nice-to-have**; not blocking if docs are clear.
 
 ---
@@ -142,7 +142,7 @@ For each **file** path pair `A` (exFAT) / `B` (project):
 |------|--------|
 | `tools/live-usb/systemd/` | New `*.mount.example`, `highascg-exfat-sync.service.example` |
 | `scripts/` or `tools/live-usb/` | `highascg-exfat-sync.sh` (or Node) + default map |
-| `work/docs/LIVE_USB_IMAGE.md` | Link + short operator subsection |
+| `docs/LIVE_USB_IMAGE.md` | Link + short operator subsection |
 | WO-38 doc | Cross-link + “when to use which” table |
 | Optional future | Settings UI to edit map (out of scope v1 — file-based only) |
 

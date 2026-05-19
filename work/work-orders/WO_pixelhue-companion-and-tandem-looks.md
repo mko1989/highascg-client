@@ -2,7 +2,7 @@
 
 **See also**
 
-- `docs/PIXELHUE_API.md` — HTTP/WSS endpoints and auth (from the PixelHue Companion module).  
+- `docs/reference/PIXELHUE_API.md` — HTTP/WSS endpoints and auth (from the PixelHue Companion module).  
 - `work/WO_pixelhue-highascg-webui-mixing.md` — concrete plan to proxy the API in HighAsCG and drive **Caspar + PixelHue** from the web UI.
 
 ## Vision

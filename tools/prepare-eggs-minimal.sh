@@ -28,9 +28,9 @@ rm -f /opt/old/casparcg/core || true
 rm -rf /opt/old/casparcg/cef-cache || true
 rm -rf /opt/old || true
 
-echo "==> Removing swap image from live payload (runtime zram is preferable)"
-swapoff /swap.img 2>/dev/null || true
-rm -f /swap.img || true
+HERE="$(cd "$(dirname "$0")" && pwd)"
+echo "==> Removing swap from live payload (runtime zram is preferable)"
+bash "${HERE}/live-usb/strip-host-swap-for-live-iso.sh" permanent
 
 echo "==> Cleaning caches/log debris"
 apt-get clean

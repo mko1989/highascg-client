@@ -1,18 +1,29 @@
 /* WO-33 — device view layout + destination visuals */
 .device-view {
 	padding: 12px 16px;
-	max-width: 1200px;
+	max-width: 1800px;
 	position: relative;
 }
 .device-view__layout {
 	display: grid;
-	grid-template-columns: minmax(0, 1fr) 340px;
-	gap: 12px;
+	grid-template-columns: 240px 180px 1fr 340px;
+	gap: 20px;
 	align-items: start;
 }
-.device-view__main {
-	position: relative;
+.device-view__mappings-column {
+	width: 100%;
+	box-sizing: border-box;
+}
+.device-view__mappings-column .device-view__ports {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	align-items: stretch;
+}
+.device-view__rear-column {
+	width: 100%;
 	min-width: 0;
+	box-sizing: border-box;
 }
 .device-view__side {
 	position: sticky;
@@ -67,7 +78,7 @@
 	border: 1px solid var(--color-border, #33333b);
 	border-radius: 12px;
 	padding: 14px 16px;
-	margin: 0 0 16px;
+	margin: 0;
 	background: #111116;
 	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
@@ -85,6 +96,18 @@
 	display: flex;
 	flex-wrap: wrap;
 	gap: 8px;
+}
+.device-view__destinations-vertical-stack {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+	width: 100%;
+}
+.device-view__destinations-vertical-stack .device-view__destination {
+	display: flex;
+	width: 200px;
+	max-width: 200px;
+	box-sizing: border-box;
 }
 .device-view__destination-visual {
 	position: relative;
@@ -407,7 +430,7 @@
 }
 .device-view__panel-row {
 	display: grid;
-	grid-template-columns: 1fr 1fr;
+	grid-template-columns: 1fr;
 	gap: 12px;
 }
 

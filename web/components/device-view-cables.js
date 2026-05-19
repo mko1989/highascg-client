@@ -25,15 +25,18 @@ export function connectorCenter(surfaceEl, connId) {
 }
 
 const CABLE_COLORS = [
-	'#3b82f6', // blue
-	'#ef4444', // red
-	'#10b981', // emerald
-	'#f59e0b', // amber
-	'#8b5cf6', // violet
-	'#ec4899', // pink
-	'#06b6d4', // cyan
-	'#f97316', // orange
-	'#14b8a6', // teal
+	'#2f3e46', // Charcoal / dark slate
+	'#4a5759', // Matte gray-blue
+	'#b07d62', // Rust orange
+	'#8b5e66', // Matte terracotta / dusty red
+	'#586f7c', // Slate blue
+	'#cca43d', // Dull mustard gold
+	'#556b2f', // Olive green
+	'#6c567b', // Muted lavender/plum
+	'#4a7c59', // Sage green
+	'#385a64', // Deep teal/navy
+	'#dcd6cd', // Muted cream/beige
+	'#7d4060', // Dusty magenta/plum
 ]
 function getCableColor(id) {
 	if (!id) return '#94a3b8'
@@ -49,27 +52,51 @@ function srand(n, seed) {
 }
 
 function buildCable(x1, y1, x2, y2, loops, seed) {
-	const straightDist = Math.hypot(x2 - x1, y2 - y1) || 1
+	const bootDrop = 16 // 16px straight down plug boot
+	
+	// Middle start/end points for the hanging run
+	const mx1 = x1
+	const my1 = y1 + bootDrop
+	const mx2 = x2
+	const my2 = y2 + bootDrop
+	
+	const straightDist = Math.hypot(mx2 - mx1, my2 - my1) || 1
 	const loopCount = Math.max(0, parseInt(loops, 10) || 0)
 	
-	// Resolution: higher resolution for longer cables to ensure smoothness.
-	// Roughly 1 segment per 12 pixels, but at least 24 segments.
-	const N_BASE = Math.max(24, Math.floor(straightDist / 12))
-	const STEPS_PER_LOOP = 32
+	// Deterministic slack and loop settings based on loopCount (messiness) and seed
+	let slackFactor = 1.0 // Slack factor disabled (cables are tight/straight)
+	let actualLoops = 0
 	
-	// 1. Generate waypoints for the ideal "intended" path.
+	if (loopCount === 1) {
+		if (straightDist >= 90) {
+			actualLoops = 1
+		}
+	} else if (loopCount === 2) {
+		if (straightDist >= 120) {
+			actualLoops = 2
+		} else if (straightDist >= 70) {
+			actualLoops = 1
+		}
+	}
+	
+	// Resolution: higher resolution for longer/looped cables to ensure smoothness.
+	const N_BASE = Math.max(28, Math.floor(straightDist / 10))
+	const STEPS_PER_LOOP = 36 // Slightly higher steps for perfect roundness
+	
+	// 1. Generate waypoints for the hanging "middle" run.
 	const wp = []
-	wp.push({ x: x1, y: y1 })
+	wp.push({ x: mx1, y: my1 })
 	
 	const loopTs = []
-	for (let li = 0; li < loopCount; li++) {
-		// Pick random spots between 20% and 80% of the run.
-		loopTs.push(0.2 + srand(li + 11, seed) * 0.6)
+	for (let li = 0; li < actualLoops; li++) {
+		// Pick deterministic positions along the cable run (e.g. around 35% and 65%)
+		const posBase = actualLoops === 1 ? 0.5 : (li === 0 ? 0.35 : 0.65)
+		loopTs.push(posBase - 0.1 + srand(li + 11, seed) * 0.2)
 	}
 	loopTs.sort((a, b) => a - b)
 	
-	const cDx = (x2 - x1) / straightDist
-	const cDy = (y2 - y1) / straightDist
+	const cDx = (mx2 - mx1) / straightDist
+	const cDy = (my2 - my1) / straightDist
 	
 	let prevT = 0
 	for (let li = 0; li < loopTs.length; li++) {
@@ -78,19 +105,19 @@ function buildCable(x1, y1, x2, y2, loops, seed) {
 		const segs = Math.max(1, Math.floor((t - prevT) * N_BASE))
 		for (let i = 1; i <= segs; i++) {
 			const st = prevT + (t - prevT) * (i / segs)
-			wp.push({ x: x1 + (x2 - x1) * st, y: y1 + (y2 - y1) * st })
+			wp.push({ x: mx1 + (mx2 - mx1) * st, y: my1 + (my2 - my1) * st })
 		}
 		
-		// Generate a "roundish" loop at this spot.
-		const loopR = 16 + srand(li + 42, seed) * 14 // Varied radius 16-30px
+		// Generate an organic spiral/loop coil.
+		const loopR = 20 + srand(li + 42, seed) * 12 // radius 20-32px
 		const loopSide = srand(li + 101, seed) > 0.5 ? 1 : -1
 		
-		// The loop center is offset perpendicular to the cable run.
-		const cx = x1 + (x2 - x1) * t + (-cDy * loopSide * loopR)
-		const cy = y1 + (y2 - y1) * t + (cDx * loopSide * loopR)
+		// Perfect mathematically continuous center offset perpendicular to the run
+		const cx = mx1 + (mx2 - mx1) * t + (-cDy * loopSide * loopR)
+		const cy = my1 + (my2 - my1) * t + (cDx * loopSide * loopR)
 		
-		// Calculate the angle where the loop connects back to the run.
-		const startAngle = Math.atan2(y1 + (y2 - y1) * t - cy, x1 + (x2 - x1) * t - cx)
+		// Start angle connecting back to the run
+		const startAngle = Math.atan2(my1 + (my2 - my1) * t - cy, mx1 + (mx2 - mx1) * t - cx)
 		for (let i = 1; i <= STEPS_PER_LOOP; i++) {
 			const angle = startAngle + loopSide * (i / STEPS_PER_LOOP) * Math.PI * 2
 			wp.push({
@@ -106,49 +133,102 @@ function buildCable(x1, y1, x2, y2, loops, seed) {
 	const finalSegs = Math.max(1, Math.floor((1 - prevT) * N_BASE))
 	for (let i = 1; i <= finalSegs; i++) {
 		const st = prevT + (1 - prevT) * (i / finalSegs)
-		wp.push({ x: x1 + (x2 - x1) * st, y: y1 + (y2 - y1) * st })
+		wp.push({ x: mx1 + (mx2 - mx1) * st, y: my1 + (my2 - my1) * st })
 	}
+	
+	// Now prefix with starting port and suffix with ending port to form rigid plug boots
+	wp.unshift({ x: x1, y: y1 })
+	wp.push({ x: x2, y: y2 })
 	
 	const N = wp.length - 1
 	const pts = wp.map((p) => ({ x: p.x, y: p.y, isLoop: !!p.isLoop }))
 	
-	// 2. Physics Simulation (Verlet Integration) for hanging sag.
-	// Calculate geometric length of our waypoint path.
-	let geoLen = 0
+	// Precalculate the exact initial lengths for distance and bending constraints!
+	// Enforcing these exact lengths (instead of a single average) guarantees loops don't distort.
+	const targetLen = []
 	for (let i = 0; i < N; i++) {
-		geoLen += Math.hypot(pts[i + 1].x - pts[i].x, pts[i + 1].y - pts[i].y)
+		targetLen[i] = Math.hypot(wp[i+1].x - wp[i].x, wp[i+1].y - wp[i].y) * (i === 0 || i === N - 1 ? 1.0 : slackFactor)
 	}
 	
-	// Slack logic: cables should sag but not "rapidly drop".
-	// We add 4-10% extra length depending on straight distance.
-	const slackFactor = 1.04 + Math.min(0.06, straightDist / 2000)
-	const segLen = (geoLen * slackFactor) / N
+	const bendLen2 = []
+	for (let i = 0; i < N - 1; i++) {
+		bendLen2[i] = Math.hypot(wp[i+2].x - wp[i].x, wp[i+2].y - wp[i].y) * (i === 0 || i === N - 2 ? 1.0 : slackFactor)
+	}
 	
-	const gravity = 0.45 // Reduced gravity for smoother, more elegant curves.
-	const ITERS = 300
-	const SUBSTEPS = 8 // Higher substeps for constraint stability on long cables.
+	const bendLen3 = []
+	for (let i = 0; i < N - 2; i++) {
+		bendLen3[i] = Math.hypot(wp[i+3].x - wp[i].x, wp[i+3].y - wp[i].y) * (i === 0 || i === N - 3 ? 1.0 : slackFactor)
+	}
+	
+	// 2. Physics Simulation (Verlet Integration) with Multi-Hop Bending Stiffness
+	const gravity = 0.85 // Elegant sag gravity
+	const ITERS = 200
+	const SUBSTEPS = 6
 	
 	for (let iter = 0; iter < ITERS; iter++) {
-		// Apply gravity to all interior points.
+		// Apply gravity only to interior hanging points (excluding the rigid boot points)
 		for (let i = 1; i < N; i++) {
-			pts[i].y += gravity
+			if (i > 1 && i < N - 1) {
+				pts[i].y += gravity
+			}
 		}
 		
 		// Constraint resolution passes.
 		for (let s = 0; s < SUBSTEPS; s++) {
+			// A. Direct segments (stiffness = 1.0)
 			for (let i = 0; i < N; i++) {
 				const a = pts[i], b = pts[i + 1]
 				const dx = b.x - a.x, dy = b.y - a.y
 				const d = Math.hypot(dx, dy) || 0.001
-				const diff = (d - segLen) / d
+				const target = targetLen[i]
+				const diff = (d - target) / d
 				const ox = dx * 0.5 * diff
 				const oy = dy * 0.5 * diff
 				
-				if (i > 0) { a.x += ox; a.y += oy }
-				if (i < N - 1) { b.x -= ox; b.y -= oy }
+				if (i > 1) { a.x += ox; a.y += oy }
+				if (i + 1 < N - 1) { b.x -= ox; b.y -= oy }
 			}
-			// Pin the ends.
+			
+			// B. 2-hop bending stiffness constraints (High stiffness on loops, very soft on straight sections to allow beautiful catenary sag)
+			for (let i = 0; i < N - 1; i++) {
+				const a = pts[i], b = pts[i + 2]
+				const dx = b.x - a.x, dy = b.y - a.y
+				const d = Math.hypot(dx, dy) || 0.001
+				const target = bendLen2[i]
+				const diff = (d - target) / d
+				
+				const isLoopConstraint = a.isLoop || b.isLoop || pts[i+1].isLoop
+				const stiffness = isLoopConstraint ? 0.6 : 0.06
+				
+				const ox = dx * 0.5 * diff * stiffness
+				const oy = dy * 0.5 * diff * stiffness
+				
+				if (i > 1) { a.x += ox; a.y += oy }
+				if (i + 2 < N - 1) { b.x -= ox; b.y -= oy }
+			}
+			
+			// C. 3-hop bending stiffness constraints (Reinforces large loops, soft on straight sections)
+			for (let i = 0; i < N - 2; i++) {
+				const a = pts[i], b = pts[i + 3]
+				const dx = b.x - a.x, dy = b.y - a.y
+				const d = Math.hypot(dx, dy) || 0.001
+				const target = bendLen3[i]
+				const diff = (d - target) / d
+				
+				const isLoopConstraint = a.isLoop || b.isLoop || pts[i+1].isLoop || pts[i+2].isLoop
+				const stiffness = isLoopConstraint ? 0.3 : 0.02
+				
+				const ox = dx * 0.5 * diff * stiffness
+				const oy = dy * 0.5 * diff * stiffness
+				
+				if (i > 1) { a.x += ox; a.y += oy }
+				if (i + 3 < N - 1) { b.x -= ox; b.y -= oy }
+			}
+			
+			// Pin the ends and their rigid boot drops perfectly.
 			pts[0].x = x1; pts[0].y = y1
+			pts[1].x = mx1; pts[1].y = my1
+			pts[N-1].x = mx2; pts[N-1].y = my2
 			pts[N].x = x2; pts[N].y = y2
 		}
 	}

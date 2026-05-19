@@ -1,6 +1,6 @@
 # xrandr GPU ↔ screen mapping (Device View)
 
-This document is the **implementation-facing** companion to the product narrative in [`work/docs/GPU_SCREEN_CONSUMER_AND_XRANDR.md`](../work/docs/GPU_SCREEN_CONSUMER_AND_XRANDR.md). It describes how HighAsCG picks **screen index `N`**, **`screen_N_*` settings**, and the **xrandr plan** so **Apply GPU** / `POST /api/settings/apply-os` does what operators expect.
+This document is the **implementation-facing** companion to the product narrative in [GPU_SCREEN_CONSUMER_AND_XRANDR.md](GPU_SCREEN_CONSUMER_AND_XRANDR.md). It describes how HighAsCG picks **screen index `N`**, **`screen_N_*` settings**, and the **xrandr plan** so **Apply GPU** / `POST /api/settings/apply-os` does what operators expect.
 
 ---
 

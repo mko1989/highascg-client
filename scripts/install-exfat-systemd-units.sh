@@ -128,9 +128,8 @@ Description=Seed HighAsCG tree from exFAT sim/highascg if ISO omitted Node sourc
 Documentation=${DOC_URI}
 DefaultDependencies=no
 After=network-pre.target home-casparcg-exfat.mount ${bind_mount_esc}
-Wants=home-casparcg-exfat.mount
-RequiresMountsFor=/home/casparcg/exfat
 Before=highascg-exfat-sync.service highascg.service
+ConditionPathIsMountPoint=/home/casparcg/exfat
 ConditionPathExists=/home/casparcg/exfat/sim/highascg/package.json
 
 [Service]
@@ -151,8 +150,8 @@ Description=HighAsCG exFAT to project mtime sync (WO-47)
 Documentation=${DOC_URI}
 DefaultDependencies=no
 After=network-pre.target home-casparcg-exfat.mount ${bind_mount_esc} ${bootstrap_svc}
-Wants=home-casparcg-exfat.mount
 Before=highascg.service
+ConditionPathIsMountPoint=/home/casparcg/exfat
 ConditionPathExists=/home/casparcg/highascg/tools/exfat-sync-cli.js
 
 [Service]

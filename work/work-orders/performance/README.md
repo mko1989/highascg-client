@@ -40,3 +40,5 @@ Non-exhaustive — **`grep HIGHASCG_ src/`** for the full set.
 | [PF-03-persistence-flush.md](./PF-03-persistence-flush.md) | Debounced **`persistence`** flush + shutdown sync |
 | [PF-04-amcp-info-cls-workload.md](./PF-04-amcp-info-cls-workload.md) | Stagger INFO, INFO XML dedupe / parser modes |
 | [PF-05-operational-footguns.md](./PF-05-operational-footguns.md) | **`raw-batch`** warnings, Art-Net logs, config diff |
+
+**Companion modules (Bitfocus):** [WebSocket slim bootstrap & catalog loading](../../../docs/companion-websocket-catalog-bootstrap.md)

@@ -2,7 +2,7 @@
 
 CasparCG exposes rich state in two ways: **AMCP** (TCP, request/response) and **OSC** (UDP, push). HighAsCG uses OSC for real-time mixer, layer, playback, profiler, and output data where implemented, and keeps AMCP for commands and for **fallback** when OSC is off or incomplete.
 
-**Related:** [osc-integration.md](./osc-integration.md)
+**Related:** [osc-integration.md](../osc-integration.md)
 
 ---
 
@@ -79,6 +79,6 @@ Minimum when enabled: **500** ms.
 
 ## Configuration pointers
 
-- OSC listener: `config/osc` + env in [osc-integration.md](./osc-integration.md#highascg-configuration).
+- OSC listener: `config/osc` + env in [osc-integration.md](../osc-integration.md#highascg-configuration).
 - Polling intervals: app settings + `HIGHASCG_PERIODIC_SYNC_SEC` / `HIGHASCG_PERIODIC_SYNC_OSC_SEC`.
 - OSC + AMCP `INFO` supplement: `osc_info_supplement_ms` / `HIGHASCG_OSC_INFO_MS` (see section above).

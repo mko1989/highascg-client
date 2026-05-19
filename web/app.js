@@ -114,6 +114,7 @@ function initTabs() {
 async function init() {
 	const eyeContainer = document.getElementById('connection-eye-container')
 	if (eyeContainer) {
+		eyeContainer.innerHTML = ''
 		connectionEye = createConnectionEye(eyeContainer); connectionEye.el.style.cursor = 'pointer'
 		connectionEye.el.addEventListener('click', () => showLogsModal())
 	}

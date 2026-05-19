@@ -42,7 +42,7 @@ CasparCG / HighAsCG must already be configured to use **`/home/casparcg/highascg
 
 - **WO-47 (exFAT data + mtime boot sync)** — preferred pattern for **USB exFAT**: fixed mount **`/home/casparcg/exfat`**, **optional bind under** `media/_exfat` **without** clearing **`media/`**, and **boot sync** (newer `mtime` wins). Use WO-38 for **mounting a library partition at** **`/home/casparcg/highascg/media/drive`** (destructive clear of that subfolder only); see **`work/47_WO_EXFAT_DATA_MOUNT_AND_MTIME_BOOT_SYNC.md`**.
 - **WO-29 (USB ingest)** targets **mounted removable USB** volumes and copying into media. This WO targets **explicit mount of a partition** at **`media/drive`** for **live USB / large internal library**. The two features share the **`media/usb`** settings tab UI but serve different workflows; avoid breaking WO-29 endpoints (`/api/usb/*`).
-- **`work/docs/LIVE_USB_IMAGE.md`**: persistence assumption — config writable on USB; reference in install/boot docs once behaviour exists.
+- **`docs/LIVE_USB_IMAGE.md`**: persistence assumption — config writable on USB; reference in install/boot docs once behaviour exists.
 
 ---
 
@@ -123,7 +123,7 @@ Order (must match Linux expectations):
 | Sudoers / install | `scripts/install-phase4.sh`, `sudoers.d` fragment under `scripts/sudoers.d/` |
 | Startup hook | `index.js`, `src/boot/*` |
 | Config defaults | `config/default.js`, `src/api/routes-settings.js` |
-| Docs | **`work/docs/MANUAL_INSTALL.md`** §7, **`work/docs/LIVE_USB_IMAGE.md`** §7.2 (**CasparCG note**), **`docs/HIGHASCG_PASSWORDLESS_SUDO.md`** |
+| Docs | **`docs/MANUAL_INSTALL.md`** §7, **`docs/LIVE_USB_IMAGE.md`** §7.2 (**CasparCG note**), **`docs/HIGHASCG_PASSWORDLESS_SUDO.md`** |
 
 ---
 
@@ -152,7 +152,7 @@ Order (must match Linux expectations):
 ### Phase 5 — Startup & operations
 - [x] **T38.13** On HighAsCG start, apply saved UUID mount; handle failure with **logged error** + **WS banner** optional.
 - [x] **T38.14** Document **CasparCG restart** requirement when mount changes while server running.
-- [x] **T38.15** Update **`work/docs/MANUAL_INSTALL.md`** and **`work/docs/LIVE_USB_IMAGE.md`** with persistence + sudoers (see also **`docs/HIGHASCG_PASSWORDLESS_SUDO.md`**).
+- [x] **T38.15** Update **`docs/MANUAL_INSTALL.md`** and **`docs/LIVE_USB_IMAGE.md`** with persistence + sudoers (see also **`docs/HIGHASCG_PASSWORDLESS_SUDO.md`**).
 
 ### Phase 6 — Verification
 - [ ] **T38.16** Manual: ext4 internal partition, NTFS internal partition, mount while media folder has files, umount + remount, reboot persistence.
@@ -199,7 +199,7 @@ Marked implementation tasks **T38.1–T38.13** as done per landed code/API/UI/he
 
 ### 2026-05-15 — Agent (WO-38 T38.14/T38.15 + startup ordering)
 
-**Work done:** Expanded **`settings-modal-templates.js`** (**media/usb** pane) Caspar/remount/copy; **`work/docs/MANUAL_INSTALL.md`** §7 WO-38 install + sudoers + operator notes; **`work/docs/LIVE_USB_IMAGE.md`** §7.2 Caspar/remount/`sudo`; **`index.js`** — await startup media-mount **before first `CasparConn.start()`** (no race with WO-38 persisted UUID).
+**Work done:** Expanded **`settings-modal-templates.js`** (**media/usb** pane) Caspar/remount/copy; **`docs/MANUAL_INSTALL.md`** §7 WO-38 install + sudoers + operator notes; **`docs/LIVE_USB_IMAGE.md`** §7.2 Caspar/remount/`sudo`; **`index.js`** — await startup media-mount **before first `CasparConn.start()`** (no race with WO-38 persisted UUID).
 
 **Instructions for next agent:** Hardware QA **T38.16–T38.17** (and **`npm run smoke:media-mount`** in CI optional); confirm Openbox/autostart scanner ordering on rigs that change mounts frequently.
 
@@ -219,7 +219,7 @@ Marked implementation tasks **T38.1–T38.13** as done per landed code/API/UI/he
 
 ### 2026-05-17 — Agent (WO-38 mount point → `media/drive`)
 
-**Work done:** WO-38 fixed mount moved from **`/home/casparcg/highascg/media`** to **`/home/casparcg/highascg/media/drive`** in **`scripts/highascg-media-mount.sh`**, **`src/system/media-partition-mount.js`**, **`src/config/defaults.js`** (comment), **`scripts/sudoers.d/highascg-media-mount`** (comment), **`scripts/install-phase4.sh`** (mkdir), **`tools/live-usb/ensure-empty-live-usb-dirs.sh`**, Settings UI copy (**`web/components/settings-modal-templates.js`**, **`settings-modal.js`**), **`docs/HIGHASCG_PASSWORDLESS_SUDO.md`**, **`work/docs/MANUAL_INSTALL.md`**, **`work/docs/LIVE_USB_IMAGE.md`**, **`tools/live-usb/HIGHASCG_FOLDER_USB_PARTITION.md`**, **`work/38_WO_…`**, **`work/47_WO_…`**.
+**Work done:** WO-38 fixed mount moved from **`/home/casparcg/highascg/media`** to **`/home/casparcg/highascg/media/drive`** in **`scripts/highascg-media-mount.sh`**, **`src/system/media-partition-mount.js`**, **`src/config/defaults.js`** (comment), **`scripts/sudoers.d/highascg-media-mount`** (comment), **`scripts/install-phase4.sh`** (mkdir), **`tools/live-usb/ensure-empty-live-usb-dirs.sh`**, Settings UI copy (**`web/components/settings-modal-templates.js`**, **`settings-modal.js`**), **`docs/HIGHASCG_PASSWORDLESS_SUDO.md`**, **`docs/MANUAL_INSTALL.md`**, **`docs/LIVE_USB_IMAGE.md`**, **`tools/live-usb/HIGHASCG_FOLDER_USB_PARTITION.md`**, **`work/38_WO_…`**, **`work/47_WO_…`**.
 
 **Rationale:** Keeps the Caspar media root at **`…/media`** while mounting the extra volume **inside** it as **`drive/`**, so other content under **`media/`** is not replaced by the mount.
 

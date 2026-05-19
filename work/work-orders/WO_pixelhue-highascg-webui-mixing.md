@@ -9,7 +9,7 @@ Bring **PixelHue** (Unico) control into **HighAsCG** so operators can **mix and 
 
 without constantly switching to PixelHue’s native UI or Companion-only surfaces.
 
-**Source of API truth:** `docs/PIXELHUE_API.md` (extracted from `companion-module-pixelhue-switcher-main 2/`).  
+**Source of API truth:** `docs/reference/PIXELHUE_API.md` (extracted from `companion-module-pixelhue-switcher-main 2/`).  
 **Related vision doc:** `work/WO_pixelhue-companion-and-tandem-looks.md` (tandem looks, RTSP, key+fill — may overlap; this WO focuses on **web UI + server proxy**).
 
 ---
@@ -180,7 +180,7 @@ Lock down with same **auth** as other sensitive routes if the server has admin m
 
 ## 8. Checklist (sign-off)
 
-- [ ] `docs/PIXELHUE_API.md` kept in sync with any endpoint change from vendor.  
+- [ ] `docs/reference/PIXELHUE_API.md` kept in sync with any endpoint change from vendor.  
 - [ ] `config` example + README snippet for PixelHue.  
 - [ ] No JWT or serial in client bundle or public logs.  
 - [ ] UI strings distinguish **PH show preset** vs **PH layer style** vs **HighAsCG look**.  

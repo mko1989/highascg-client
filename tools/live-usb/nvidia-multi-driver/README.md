@@ -1,8 +1,7 @@
 # Multi-NVIDIA driver support for the HighAsCG live USB
 
 The live image has to run on a fleet whose GPUs span more than one driver
-branch (e.g. legacy Kepler/Maxwell on `nvidia-driver-470`, modern Ada on 535,
-Blackwell on 580). Only one `nvidia.ko` can be loaded at a time, so the
+branch (e.g. `nvidia-driver-580` / `595` alongside the default `535` clone). Only one `nvidia.ko` can be loaded at a time, so the
 strategy is:
 
 1. **Bake the most common branch into the image.** Whatever is installed on
@@ -12,8 +11,7 @@ strategy is:
    doing any work — boot is instant.
 
 2. **Ship the alternate branches as offline `.deb`s** at **`/opt/nvidia-pool/`**.
-   `fetch-debs.sh` populates the cache (default `CACHE_DIR`); path lives inside the squashfs
-   so installs work without network.
+   `fetch-debs.sh` populates the cache (default branches **535 580 595**; override `NVIDIA_BRANCHES`). Existing `nvidia-driver-*` + `nvidia-dkms-*` metapackage `.deb`s for a branch **skip re-download** unless `NVIDIA_POOL_FORCE_REFRESH=1`.
 
    If you already populated **`/opt/nvidia-debs`**, rename or merge before building:  
    **`sudo mkdir -p /opt/nvidia-pool && sudo rsync -a /opt/nvidia-debs/ /opt/nvidia-pool/`** (then drop the old path when satisfied).
@@ -43,8 +41,9 @@ strategy is:
 # 1. Drop the picker assets into system paths, enable the unit
 sudo bash tools/live-usb/nvidia-multi-driver/install-on-build-host.sh
 
-# 2. Populate offline deb cache with the *additional* branches you need
-sudo NVIDIA_BRANCHES="470 580" bash tools/live-usb/nvidia-multi-driver/fetch-debs.sh
+# 2. Populate offline deb cache (default: 535 580 595); skips branches already present in /opt/nvidia-pool
+sudo bash tools/live-usb/nvidia-multi-driver/fetch-debs.sh
+# Legacy GPUs only:   sudo NVIDIA_BRANCHES="470 535 580 595" bash ...
 
 # 3. Merge the eggs exclude fragment (does not exclude /opt/nvidia-pool)
 sudo bash tools/live-usb/merge-penguins-eggs-exclude-highascg.sh

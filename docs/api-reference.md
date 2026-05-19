@@ -65,7 +65,7 @@ Mixer commands can be accessed via `POST` (to mutate) or `GET` (to query propert
 ### `POST /api/mixer/:command`
 Changes mixer configurations for a layer.
 - **Path parameters:** `command` can be `keyer`, `blend`, `chroma`, `invert`, `straight_alpha`, `opacity`, `brightness`, `saturation`, `contrast`, `levels`, `fill`, `clip`, `anchor`, `crop`, `rotation`, `volume`, `mastervolume`, `grid`, `commit`, `clear`.
-- **`keyer`:** per-layer blend mode in Caspar’s mixer — not the same as DeckLink “external keyer” in hardware logs. See `docs/amcp-mapping.md` (Mixer) for detail.
+- **`keyer`:** per-layer blend mode in Caspar’s mixer — not the same as DeckLink “external keyer” in hardware logs. See [reference/amcp-mapping.md](reference/amcp-mapping.md) (Mixer) for detail.
 - **Body Defaults:** `{ "channel": 1, "layer": 10 }`
 - **Example (`opacity`):**
   ```json

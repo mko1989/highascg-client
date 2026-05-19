@@ -72,7 +72,7 @@ module.exports = {
 		/**
 		 * `stock` — vanilla CasparCG 2.5 XML (no PortAudio / enhanced screen tags).
 		 * `custom_live` — custom server build with PRs #1718–#1720: emit `<portaudio>`, optional `<aspect-ratio>` / `<enable-mipmaps>` inside `<screen>`.
-		 * @see docs/CASPAR_CUSTOM_BUILD.md
+		 * @see docs/internal/CASPAR_CUSTOM_BUILD.md
 		 */
 		caspar_build_profile: 'custom_live',
 		/** custom_live: root `<log-level>` (empty string = omit in generator) */

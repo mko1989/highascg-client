@@ -44,6 +44,8 @@ If the UI is loaded as `http://host:port/instance/myid/`, API paths are **`/inst
 
 ## Related files
 
+**See also:** [WebSocket slim bootstrap & catalog loading](./companion-websocket-catalog-bootstrap.md) — first `state` may omit `media` / `templates` when slim bootstrap is enabled.
+
 | Area | File |
 |------|------|
 | Client payload | `web/lib/selection-sync.js` |

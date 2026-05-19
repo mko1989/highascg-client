@@ -22,4 +22,8 @@ hostnamectl set-hostname "${BASENAME}" 2>/dev/null || hostname "${BASENAME}"
 echo "==> eggs produce --clone --max --excludes static --basename ${BASENAME}"
 eggs produce --nointeractive --clone --max --excludes static --basename "${BASENAME}"
 
+if [[ "${SKIP_STRIP_HOST_SWAP:-0}" != "1" ]]; then
+	bash "${REPO_ROOT}/tools/live-usb/strip-host-swap-for-live-iso.sh" restore
+fi
+
 echo "Done. ISO under /home/eggs/ (${BASENAME}_*.iso)."

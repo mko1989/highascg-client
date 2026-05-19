@@ -1,5 +1,7 @@
 # HighAsCG live USB — build and flash
 
+**What is inside the ISO?** Stack from Ubuntu → nodm/Openbox → NVIDIA → DeckLink → CasparCG → HighAsCG (and WO‑47 exFAT split): **[`docs/ISO_CONTENTS.md`](../../docs/ISO_CONTENTS.md)**.
+
 **All-in-one (build + choose USB + `dd` + `/ union` persistence):**
 
 ```bash
@@ -21,13 +23,13 @@ Runs **`build-highascg-egg.sh`** (WO‑47 **`/etc`** prep, Eggs **`--clone --max
 
 ### Desktop helper — Stick Studio (`tools/stick-tools`)
 
-On a workstation with a display (and **`python3-tk`**): flash ISO + optional exFAT + seed operator dirs + optional copy to `sim/highascg`, plus **Start simulation** — `npm run stick-studio` from the repo root. Destructive steps use **pkexec**. Details: **`tools/stick-tools/README.md`**. See **[`docs/CASPAR_IMAGE_VS_HIGHASCG_OVERLAY.md`](../docs/CASPAR_IMAGE_VS_HIGHASCG_OVERLAY.md)** for how a **Caspar-only** squashfs coexists with **HighAsCG synced from exFAT**.
+On a workstation with a display (and **`python3-tk`**): flash ISO + optional exFAT + seed operator dirs + optional copy to `sim/highascg`, plus **Start simulation** — `npm run stick-studio` from the repo root. Destructive steps use **pkexec**. Details: **`tools/stick-tools/README.md`**. See **[`docs/CASPAR_IMAGE_VS_HIGHASCG_OVERLAY.md`](../../docs/CASPAR_IMAGE_VS_HIGHASCG_OVERLAY.md)** for how a **Caspar-only** squashfs coexists with **HighAsCG synced from exFAT**.
 
 ### Automated dev prerelease on GitHub (ISO + ZIP)
 
 To publish **`highascg_*.iso`** (Eggs WO‑47 excludes) and **`highascg_<UTC>.tar.gz`** (full tree, **`node_modules` included by default**) as GitHub prerelease assets from a machine already set up as a build/run host:
 
-[`docs/DEV_RELEASE_GITHUB.md`](../docs/DEV_RELEASE_GITHUB.md) · `npm run release:dev-github` (`release:dev-github:dry` preview).
+[`docs/DEV_RELEASE_GITHUB.md`](../../docs/DEV_RELEASE_GITHUB.md) · `npm run release:dev-github` (`release:dev-github:dry` preview).
 
 ## Build host (Ubuntu Noble recommended)
 
@@ -46,7 +48,7 @@ To publish **`highascg_*.iso`** (Eggs WO‑47 excludes) and **`highascg_<UTC>.ta
    Optional:
 
    ```bash
-   sudo NVIDIA_BRANCHES="470 580" BASENAME=highascg bash tools/live-usb/build-highascg-egg.sh
+   sudo NVIDIA_BRANCHES="535 580 595" BASENAME=highascg bash tools/live-usb/build-highascg-egg.sh
    ```
 
 3. **Output**: ISO under `/home/eggs/` — name starts with `BASENAME` (default `highascg`), e.g.  
@@ -58,7 +60,7 @@ To publish **`highascg_*.iso`** (Eggs WO‑47 excludes) and **`highascg_<UTC>.ta
    sudo chmod 600 /etc/netplan/01-live-networkd.yaml
    ```
 
-5. **Excludes** (large dirs omitted from squashfs): fragment merged via **`prepare-eggs-clone-with-exfat.sh`** (or **`merge-penguins-eggs-exclude-highascg.sh`**) — includes **`home/casparcg/highascg/media`** and **`home/casparcg/exfat/*`** so the ISO carries an empty WO-47 stub, not developer scratch files.
+5. **Excludes** (large dirs omitted from squashfs): fragment merged via **`prepare-eggs-clone-with-exfat.sh`** (or **`merge-penguins-eggs-exclude-highascg.sh`**) — includes **`home/casparcg/highascg/media`** and **`home/casparcg/exfat/*`** so the ISO carries an empty WO-47 stub, not developer scratch files. **`swap.img`** is excluded and **`strip-host-swap-for-live-iso.sh`** drops file-swap from **`/etc/fstab`** during produce (restored on the build host after **`build-highascg-egg.sh`**).
 
 6. **Tailscale / tailnet identity**: A cloned ISO is **not** automatically “logged out.” If `tailscaled` state existed on the build host when `eggs produce` ran, that **machine key** is copied into the squashfs unless every storage path is excluded. The laptop then joins the tailnet **as the same node** as the builder (same key → same identity; it effectively replaces that machine until you fix it).  
    - `.deb` installs often use **`/var/lib/tailscale/`**, but **snap** layouts use **`/var/snap/tailscale/…`** — so “no `/var/lib/tailscale`” does **not** prove there is no shipped identity.  

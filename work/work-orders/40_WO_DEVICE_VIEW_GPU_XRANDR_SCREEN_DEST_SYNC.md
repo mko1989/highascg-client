@@ -7,7 +7,7 @@
 > 3. Leave clear **Instructions for Next Agent** at the end of their log entry.  
 > 4. Do **not** delete previous agents’ log entries.
 
-**Parent / context:** [WO-33 Device View index](./33_WO_DEVICE_VIEW_INDEX.md); design reference [GPU / screen consumer interaction](./docs/GPU_SCREEN_CONSUMER_AND_XRANDR.md)  
+**Parent / context:** [WO-33 Device View index](./33_WO_DEVICE_VIEW_INDEX.md); design reference [GPU / screen consumer interaction](../../docs/reference/GPU_SCREEN_CONSUMER_AND_XRANDR.md)  
 **Sub work orders:** [WO-40a — Pixel map → GPU, xrandr, Caspar alignment](./40a_WO_PIXEL_MAP_GPU_XRANDR_CASPAR_ALIGNMENT.md) (mapping-fed `gpu_out`, mixed heads, inherited canvas modes)  
 **Status:** Draft  
 **Prerequisites:** [33a](./33a_WO_DEVICE_VIEW_DATA_MODEL_AND_API.md) (graph + settings); [35](./35_WO_GPU_PHYSICAL_CONNECTOR_STABILITY.md) (stable `gpu_out` IDs)
@@ -47,7 +47,7 @@ Implement the **intended workflow** for Device View so that:
 
 ### 2.4 UI / UX
 
-- [ ] **T40.8** Short copy in inspector: **Override** = “OS monitor mode differs from channel; Caspar consumer mode unchanged unless you change Video mode.” (Link to [design doc](./docs/GPU_SCREEN_CONSUMER_AND_XRANDR.md).)
+- [ ] **T40.8** Short copy in inspector: **Override** = “OS monitor mode differs from channel; Caspar consumer mode unchanged unless you change Video mode.” (Link to [design doc](../../docs/reference/GPU_SCREEN_CONSUMER_AND_XRANDR.md).)
 - [ ] **T40.9** When Override off, optionally **dim or label** EDID row as “hint / apply to OS only” vs primary driver (destination) — avoid implying two masters without explanation.
 
 ### 2.5 Tests
@@ -89,9 +89,9 @@ The following are **not** deferred features and **must not** be implemented unde
 
 | Date | Agent / role | Summary |
 |------|----------------|--------|
-| 2026-05-15 | — | WO created from product workflow description; linked design doc added under `work/docs/`. |
+| 2026-05-15 | — | WO created from product workflow description; linked design doc added under `docs/`. |
 | 2026-05-15 | Agent | Graph `gpu_out` ← `dst_in_*`: `casparMode` for OS layout prefers bound destination `videoMode` unless `screen_N_force_os_resolution` (Override) is on; stream edges no longer infer a PGM screen binding. Topology-derived WxH skipped when Override is on; inferred refresh used when `os_rate` unset. Added `npm run test:os-layout-w40` (`tools/smoke-os-layout-w40.js`). |
-| 2026-05-15 | Agent | Documented implementation method in repo `docs/xrandr-gpu-screen-mapping.md` (screen `N` resolution, apply-os + persistence, override + explicit `screen_N_os_mode`); linked from `work/docs/GPU_SCREEN_CONSUMER_AND_XRANDR.md`. |
+| 2026-05-15 | Agent | Documented implementation method in repo `docs/reference/xrandr-gpu-screen-mapping.md` (screen `N` resolution, apply-os + persistence, override + explicit `screen_N_os_mode`); linked from `docs/reference/GPU_SCREEN_CONSUMER_AND_XRANDR.md`. |
 
 ### Instructions for next agent
 

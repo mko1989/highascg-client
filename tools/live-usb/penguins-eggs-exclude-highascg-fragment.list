@@ -3,6 +3,10 @@
 # Entries are relative to filesystem root (no leading slash).
 # See docs/WO47_ISO_VS_EXFAT.md — minimal ISO shells vs payload on exFAT sim/highascg.
 #
+# --- Swap (not on operator USB; strip-host-swap-for-live-iso.sh also removes before produce) ---
+swap.img
+swapfile
+
 # --- Node / workspace tree (populate from labelled HIGHASCGEXF at boot via highascg-exfat-bootstrap) ---
 home/casparcg/highascg/examples
 home/casparcg/highascg/examples/*
@@ -30,29 +34,68 @@ home/casparcg/highascg/npm-shrinkwrap.json
 home/casparcg/highascg/index.js
 
 # --- HighAsCG runtime/working artifacts (regenerated on boot or from stick) ---
-home/casparcg/highascg/media
+
 home/casparcg/highascg/media/*
 home/casparcg/highascg/_media/
 home/casparcg/highascg/cef-cache/
 home/casparcg/highascg/log/
-home/casparcg/highascg/data/
+home/casparcg/highascg/data/*
 home/casparcg/highascg/refs/
+home/casparcg/highascg/dist
+home/casparcg/highascg/.git_nested_backup
+home/casparcg/highascg/.git_nested_backup/*
+home/casparcg/highascg/.github
+home/casparcg/highascg/.github/*
+home/casparcg/highascg/.reference
+home/casparcg/highascg/.reference/*
 
 # --- WO-47 exFAT mount stub (empty mountpoint in ISO — no builder scratch on media) ---
 # Runtime: systemd mounts LABEL=HIGHASCGEXF at `/home/casparcg/exfat`. Exclude any stray files created on the dev host.
 home/casparcg/exfat/*
 
-# --- IDE / dev-tool caches ---
+# --- /home/casparcg dot files (dev/build host; NOT .xsession; .config/* stays except IDE below) ---
+home/casparcg/.Xauthority
+home/casparcg/.bash_history
+home/casparcg/.bash_logout
+home/casparcg/.bashrc
+home/casparcg/.gitconfig
+home/casparcg/.lesshst
+home/casparcg/.nvidia-settings-rc
+home/casparcg/.profile
+home/casparcg/.python_history
+home/casparcg/.sudo_as_admin_successful
+home/casparcg/.viminfo
+home/casparcg/.wget-hsts
+home/casparcg/.xsession-errors
 home/casparcg/.cache
+home/casparcg/.cache/*
 home/casparcg/.cursor-server
+home/casparcg/.cursor-server/*
 home/casparcg/.antigravity-server
+home/casparcg/.antigravity-server/*
 home/casparcg/.cursor
+home/casparcg/.cursor/*
 home/casparcg/.gemini
+home/casparcg/.gemini/*
 home/casparcg/.npm
+home/casparcg/.npm/*
+home/casparcg/.nvm
+home/casparcg/.nvm/*
 home/casparcg/.vscode-server
+home/casparcg/.vscode-server/*
+home/casparcg/.local
+home/casparcg/.local/*
+home/casparcg/.pki
+home/casparcg/.pki/*
+home/casparcg/.ssh
+home/casparcg/.ssh/*
+# IDE only under .config (openbox, pulse, DeckLink, etc. stay on ISO)
 home/casparcg/.config/Code
+home/casparcg/.config/Code/*
 home/casparcg/.config/Cursor
+home/casparcg/.config/Cursor/*
 home/casparcg/.config/cursor
+home/casparcg/.config/cursor/*
 
 # --- Tailscale (omit node identity from cloned ISO) ---
 # eggs `--clone` snapshots the build host. Whatever paths hold tailscaled state will make the
@@ -67,11 +110,3 @@ var/lib/tailscale
 var/lib/tailscale/*
 var/snap/tailscale
 var/snap/tailscale/*
-
-# --- shell / editor history ---
-home/casparcg/.bash_history
-home/casparcg/.lesshst
-home/casparcg/.viminfo
-home/casparcg/.python_history
-home/casparcg/.local/share/Trash/*
-home/casparcg/.local/share/recently-used.xbel

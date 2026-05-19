@@ -1,7 +1,7 @@
 # PF-01 — Big snapshots & serialization (`getState`, WS `state`)
 
 **Linked bulletin:** PERF-K2, PERF-I1, PERF-C1, PERF-C2  
-**Status:** **Partly implemented** — phased checklist under [Implementation path](#implementation-path-phased); summary in [`README.md`](./README.md).
+**Status:** **Partly implemented** — phased checklist under [Implementation path](#implementation-path-phased); summary in [`README.md`](./README.md). **Companion:** [slim WS / catalog guide](../../../docs/companion-websocket-catalog-bootstrap.md).
 
 ---
 

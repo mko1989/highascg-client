@@ -3,7 +3,7 @@
 #
 # Usage (run in Terminal):
 #   chmod +x tools/live-usb/macos/make-highascg-stick.sh
-#   sudo ./tools/live-usb/macos/make-highascg-stick.sh /path/to/live.iso
+#   sudo ./tools/live-usb/macos/make-highascg-stick.sh [--tar-gz PATH] [--app-dir PATH] /path/to/live.iso
 #
 # You will be shown `diskutil list external physical` targets, pick the whole
 # disk identifier (e.g. disk4 — never disk4s1). The script requires typing YES
@@ -18,17 +18,29 @@ set -euo pipefail
 EXFAT_LABEL="HIGHASCGEXF"
 
 usage() {
-	echo "Usage: sudo $0 [--skip-exfat] [--dry-run] /path/to/image.iso" >&2
+	echo "Usage: sudo $0 [--skip-exfat] [--dry-run] [--tar-gz PATH] [--app-dir PATH] /path/to/image.iso" >&2
+	echo "  --tar-gz   extract release .tar.gz into sim/highascg after exFAT is ready" >&2
+	echo "  --app-dir  copy an unpacked HighAsCG tree (must contain package.json) into sim/highascg" >&2
 	exit 1
 }
 
 SKIP_EXFAT=false
 DRY_RUN=false
+TAR_GZ=""
+APP_DIR=""
 ISO=""
 while [[ $# -gt 0 ]]; do
 	case "$1" in
 	--skip-exfat) SKIP_EXFAT=true; shift ;;
 	--dry-run) DRY_RUN=true; shift ;;
+	--tar-gz)
+		TAR_GZ="${2:?}"
+		shift 2
+		;;
+	--app-dir)
+		APP_DIR="${2:?}"
+		shift 2
+		;;
 	-*) usage ;;
 	*)
 		ISO=$1
@@ -43,6 +55,30 @@ done
 }
 
 [[ -n "$ISO" && -f "$ISO" ]] || usage
+
+if [[ -n "$TAR_GZ" && -n "$APP_DIR" ]]; then
+	echo "Use only one of --tar-gz or --app-dir." >&2
+	exit 1
+fi
+if [[ -n "$TAR_GZ" && ! -f "$TAR_GZ" ]]; then
+	echo "Tarball not found: $TAR_GZ" >&2
+	exit 1
+fi
+if [[ -n "$APP_DIR" ]]; then
+	[[ -d "$APP_DIR" ]] || {
+		echo "Not a directory: $APP_DIR" >&2
+		exit 1
+	}
+	[[ -f "$APP_DIR/package.json" ]] || {
+		echo "No package.json in $APP_DIR" >&2
+		exit 1
+	}
+fi
+
+if [[ "$SKIP_EXFAT" == true ]] && { [[ -n "$TAR_GZ" ]] || [[ -n "$APP_DIR" ]]; }; then
+	echo "Do not combine --skip-exfat with --tar-gz / --app-dir (exFAT volume is the copy target)." >&2
+	exit 1
+fi
 
 list_external_disks() {
 	echo ""
@@ -89,7 +125,7 @@ read -r -p "LAST CHANCE — is ${DISK} your USB stick, not Macintosh HD/external
 	exit 1
 }
 
-if "$DRY_RUN"; then
+if [[ "$DRY_RUN" == true ]]; then
 	echo "[dry-run] No writes."
 	exit 0
 fi
@@ -104,7 +140,7 @@ echo "==> Waiting for I/O settle …"
 sleep 3
 diskutil list "/dev/$DISK" || true
 
-if "$SKIP_EXFAT"; then
+if [[ "$SKIP_EXFAT" == true ]]; then
 	echo "(--skip-exfat) Stopping here."
 	exit 0
 fi
@@ -151,7 +187,7 @@ mkdir -p "$VOL/sim/highascg" "$VOL/drop-config" "$VOL/media" "$VOL/templates" "$
 cat >"$VOL/README-HIGHASCG-EXFAT.txt" <<EOF
 HighAsCG operator data (exFAT volume label: $EXFAT_LABEL)
 
-sim/highascg — Unzip a GitHub release or sync sources here (Linux WO-47 mtime sync → ~/highascg).
+sim/highascg — Extract release tarball or sync sources here (Linux WO-47 mtime sync → ~/highascg).
 drop-config — Optional monolithic highascg.config.json.
 media — Carry media; binds to ~/highascg/media/exfat on tuned Linux images.
 templates — Extra templates.
@@ -160,6 +196,17 @@ snapshots/rear-panels — Device / rear-panel snapshots.
 
 Linux: mounts at /home/casparcg/exfat (LABEL=$EXFAT_LABEL).
 EOF
+
+if [[ -n "${TAR_GZ}" ]]; then
+	echo "==> Extracting HighAsCG tarball into $VOL/sim/highascg …"
+	find "$VOL/sim/highascg" -mindepth 1 -delete 2>/dev/null || true
+	tar -xzf "$TAR_GZ" -C "$VOL/sim/highascg"
+fi
+if [[ -n "${APP_DIR}" ]]; then
+	echo "==> Copying app tree into $VOL/sim/highascg …"
+	find "$VOL/sim/highascg" -mindepth 1 -delete 2>/dev/null || true
+	ditto "${APP_DIR}/." "$VOL/sim/highascg"
+fi
 
 echo ""
 echo "Done. Eject safely: diskutil eject /dev/$DISK"

@@ -1,17 +1,14 @@
 'use strict'
 
 /**
- * Health, HTTP API, and AMCP behaviour tests (no Caspar required for core tests).
+ * HighAsCG tests: offline router + AMCP dispatch (no TCP to Caspar).
  *
- * Core tests use {@link AmcpClient} in `offline_mode`: commands go through the real
- * routing stack and are captured at the simulated transport.
+ * For **live** Caspar AMCP on localhost, run `npm run test:highascg:live`.
+ * For **live** HighAsCG HTTP → Caspar, run `HIGHASCG_HTTP_PORT=8080 npm run test:highascg:live:http`.
  *
- * Optional live checks (started HighAsCG, e.g. `node index.js --port 8099`):
+ * Optional: probe a running server from this file only:
  *   HIGHASCG_INTEGRATION_PORT=8099 node --test tools/highascg-health-api-amcp.test.js
- *
- * When Caspar AMCP is connected to that server, also set:
- *   HIGHASCG_EXPECT_CASPAR=1
- * so `/api/state` and AMCP-backed routes are required to return 200.
+ *   HIGHASCG_EXPECT_CASPAR=1  — require 200 on /api/state and /api/ping
  */
 
 const test = require('node:test')

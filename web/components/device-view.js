@@ -51,15 +51,16 @@ let mounted = false; export function initDeviceView(root) {
 	const destTitle = Object.assign(document.createElement('span'), { className: 'device-view__note', textContent: 'Screen destinations' })
 	const destAdd = Object.assign(document.createElement('button'), { className: 'header-btn', textContent: '+' }); const destType = document.createElement('select'); destType.innerHTML = '<option value="pgm_prv">PGM/PRV</option><option value="pgm_only">PGM only</option><option value="multiview">Multiview</option>'
 	destHead.append(destTitle, destType, destAdd); const destBody = document.createElement('div'); destBody.className = 'device-view__destinations-body'; destPanel.append(destHead, destBody)
-	const bands = document.createElement('div'); bands.className = 'device-view__bands'
+	const mappingPanel = document.createElement('div'); mappingPanel.className = 'device-view__mappings-column'
+	const rearPanel = document.createElement('div'); rearPanel.className = 'device-view__rear-column'
 	const cableOverlay = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); cableOverlay.classList.add('device-view__cable-overlay'); cableOverlay.innerHTML = '<g data-cable-lines></g>'
 	const edgesHost = document.createElement('div'); edgesHost.className = 'device-view__edges-host'
 	const inspector = document.createElement('div'); inspector.className = 'device-view__inspector'
 	const statusEl = document.createElement('div'); statusEl.className = 'device-view__status'
 	const layout = document.createElement('div'); layout.className = 'device-view__layout'
-	const main = document.createElement('div'); main.className = 'device-view__main'; main.append(bands, edgesHost)
 	const side = document.createElement('aside'); side.className = 'device-view__side'; side.append(inspector)
-	layout.append(main, side); wrap.append(cableOverlay, header, cableRow, Object.assign(document.createElement('p'), { className: 'device-view__note', textContent: 'Cable mode: connect channels to outputs. Apply Caspar config restarts CasparCG.' }), destPanel, layout, statusEl); root.append(wrap)
+	rearPanel.append(edgesHost)
+	layout.append(destPanel, mappingPanel, rearPanel, side); wrap.append(cableOverlay, header, cableRow, Object.assign(document.createElement('p'), { className: 'device-view__note', textContent: 'Cable mode: connect channels to outputs. Apply Caspar config restarts CasparCG.' }), layout, statusEl); root.append(wrap)
 
 	let lastPayload = null; let selectedKey = null; let selectedConnectorId = null; let selectedEdgeId = null; let selectedDestinationId = null; let selectedDeviceId = null; let cableSourceId = null; let hoveredEdgeId = null; let casparRestartDirty = false
 	let cablePointer = null; let suppressDocCableClickUntil = 0; let currentSettings = null; let streamingStatus = null
@@ -83,7 +84,7 @@ let mounted = false; export function initDeviceView(root) {
 		} catch (e) { setStatus(statusEl, e.message, false) }
 	}
 	const gHost = document.getElementById('panel-inspector-scroll') || document.getElementById('panel-inspector-body'); if (gHost) wrap.classList.add('device-view--external-inspector')
-	const getCOCtx = () => ({ cableOverlay, bands, surfaceEl: wrap, lastPayload, hoveredEdgeId, selectedEdgeId, selectedConnectorId, selectEdgeById, cableSourceId, cablePointer, messiness: messinessSlider.value })
+	const getCOCtx = () => ({ cableOverlay, bands: rearPanel, surfaceEl: wrap, lastPayload, hoveredEdgeId, selectedEdgeId, selectedConnectorId, selectEdgeById, cableSourceId, cablePointer, messiness: messinessSlider.value })
 	const rIntoInsp = (fn) => { const h = gHost || inspector; h.innerHTML = ''; fn(h); if (h !== inspector) inspector.innerHTML = '<p class="device-view__status">Details in right panel.</p>' }
 
 	function setCasparRestartDirty(dirty = true) {
@@ -209,7 +210,7 @@ let mounted = false; export function initDeviceView(root) {
 
 	function updateUI() {
 		for (const el of wrap.querySelectorAll('.device-view__port--selected, .device-view__port--cable-armed, .device-view__connector-target--valid, .device-view__connector-target--invalid')) el.classList.remove('device-view__port--selected', 'device-view__port--cable-armed', 'device-view__connector-target--valid', 'device-view__connector-target--invalid')
-		if (selectedKey) bands.querySelector(`[data-port-key="${selectedKey}"]`)?.classList.add('device-view__port--selected')
+		if (selectedKey) wrap.querySelector(`[data-port-key="${selectedKey}"]`)?.classList.add('device-view__port--selected')
 		if (selectedConnectorId) wrap.querySelector(`[data-connector-id="${selectedConnectorId}"]`)?.classList.add('device-view__port--selected')
 		if (cableSourceId) {
 			wrap.querySelector(`[data-connector-id="${cableSourceId}"]`)?.classList.add('device-view__port--cable-armed')
@@ -361,7 +362,7 @@ let mounted = false; export function initDeviceView(root) {
 			const [payload, settings, stream] = await Promise.all([Actions.loadDeviceView(), Actions.loadSettings(), Actions.getStreamingChannelStatus().catch(() => null)])
 			lastPayload = payload; currentSettings = settings; streamingStatus = stream; streamLiveBadge.style.display = streamingStatus?.rtmp?.active ? '' : 'none'
 			renderDestinations({ destBody, lastPayload, highlightDestinationIntent: () => {}, clearChipHighlights: () => {}, renderIntoInspector: rIntoInsp, selectDestinationById, patchDestination: (id, p) => Actions.patchDestination(id, p).then(() => { setCasparRestartDirty(true); return load() }), removeDestination: (id) => Actions.removeDestination(id).then(() => { selectedDestinationId = null; setCasparRestartDirty(true); return load() }), applyPlan: () => Actions.applyDeviceViewPlan({ applyCaspar: true }).then(() => { setCasparRestartDirty(false); return load() }), resolveDestinationSinkConnectorId: (d) => resolveDestinationSinkConnectorId(lastPayload, d), cableSourceId, onDestinationPortClick: (connectorId) => beginOrCompleteCable('dest:' + connectorId, connectorId, {}), onDecklinkDropToDestinationOutput: (connectorId, d, intent) => setDecklinkAsDestinationOutput(connectorId, d, intent), updateDestinationOutputLayer, persistDestinationLayout, resetDestinationLayout, requestCableOverlayRender: () => renderCableOverlay(getCOCtx()) })
-			renderBands(bands, { live: lastPayload.live, lastPayload, resolveConnectorId: (t, d) => resolveConnectorId(lastPayload, t, d), isConnectorVisible: (id) => isConnectorVisible(lastPayload, id), selectedKey, cableSourceId, onPortClick: selectKey, onPortStartCable: beginOrCompleteCable, selectDevice, selectedConnectorId }, { currentSettings, statusEl, load, setCasparRestartDirty })
+			renderBands(mappingPanel, rearPanel, { live: lastPayload.live, lastPayload, resolveConnectorId: (t, d) => resolveConnectorId(lastPayload, t, d), isConnectorVisible: (id) => isConnectorVisible(lastPayload, id), selectedKey, cableSourceId, onPortClick: selectKey, onPortStartCable: beginOrCompleteCable, selectDevice, selectedConnectorId }, { currentSettings, statusEl, load, setCasparRestartDirty }); rearPanel.append(edgesHost)
 			edgesHost.innerHTML = ''; const edges = lastPayload?.graph?.edges || []; if (edges.length) { const b = Object.assign(document.createElement('div'), { className: 'device-view__band' }); b.append(Object.assign(document.createElement('h3'), { textContent: 'Cables' })); const ul = Object.assign(document.createElement('ul'), { className: 'device-view__edge-list' }); edges.forEach(e => { const li = Object.assign(document.createElement('li'), { className: `device-view__edge-item ${selectedEdgeId === e.id ? 'device-view__edge-item--selected' : ''}` }); li.onmouseenter = () => { hoveredEdgeId = e.id; renderCableOverlay(getCOCtx()) }; li.onmouseleave = () => { hoveredEdgeId = null; renderCableOverlay(getCOCtx()) }; li.onclick = () => selectEdgeById(e.id); li.append(Object.assign(document.createElement('span'), { textContent: `${friendlyConnectorLabel(lastPayload, e.sourceId)} → ${friendlyConnectorLabel(lastPayload, e.sinkId)} ` })); ul.append(li) }); b.append(ul); edgesHost.append(b) }
 			if (selectedEdgeId) { if (edges.some((e) => String(e?.id || '') === String(selectedEdgeId))) selectEdgeById(selectedEdgeId); else selectedEdgeId = null }
 			if (!selectedEdgeId && selectedConnectorId) { const conn = connectorById(lastPayload, selectedConnectorId); if (conn) selectKey(selectedKey || `conn:${selectedConnectorId}`, { connectorId: selectedConnectorId, connector: conn, type: conn.kind || 'connector' }); else { selectedConnectorId = null; selectedKey = null } }

@@ -4,7 +4,7 @@
 # Strategy:
 #   - The image ships baked with one driver branch (default: 535) for the
 #     common case, plus an offline deb cache at /opt/nvidia-pool containing
-#     additional branches (e.g. 470 legacy, 580 latest).
+#     additional branches (e.g. 580 / 595 alongside default 535 clone).
 #   - On first boot, ubuntu-drivers detects the GPU and recommends a branch.
 #   - If the recommended branch already matches what's loaded -> stamp marker, exit.
 #   - Otherwise: purge the stale branch, install the recommended one from

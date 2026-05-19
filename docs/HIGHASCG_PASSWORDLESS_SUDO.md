@@ -21,7 +21,7 @@ Source templates in the repo:
 - `scripts/sudoers.d/highascg-nvidia-apply-from-pool`
 - `scripts/install-phase4.sh` (installs helpers + sudoers fragments)
 
-**WO-38 operations:** If you remount **`/home/casparcg/highascg/media/drive`** while CasparCG is up, **restart Caspar** afterward; **umount** needs open files closed (see **`work/docs/MANUAL_INSTALL.md`** §7, **`work/docs/LIVE_USB_IMAGE.md`** §7.2).
+**WO-38 operations:** If you remount **`/home/casparcg/highascg/media/drive`** while CasparCG is up, **restart Caspar** afterward; **umount** needs open files closed (see **`docs/MANUAL_INSTALL.md`** §7, **`docs/LIVE_USB_IMAGE.md`** §7.2).
 
 
 ### Optional ALSA — **`highascg-asound`** (off by default)
@@ -97,4 +97,4 @@ sudo -n -u casparcg /usr/local/lib/highascg/nvidia-apply-from-pool.sh || true
 
 - `tools/live-usb/build-flash-and-persist.sh` — build + flash USB (run as **root**, not via Web UI)
 - `scripts/README.md` — install overview
-- `docs/SUDO_UBUNTU_SETUP.md` — historical / audio-related sudo notes if present in tree
+- [reference/SUDO_UBUNTU_SETUP.md](reference/SUDO_UBUNTU_SETUP.md) — historical / audio-related sudo notes

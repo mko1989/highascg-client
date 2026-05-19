@@ -1,14 +1,20 @@
 #!/usr/bin/env bash
-# Populate /opt/nvidia-pool with NVIDIA driver branches that aren't already
-# installed on the build host. The currently-installed branch (typically 535)
-# is *already* baked into the live image via the normal eggs clone, so we
-# only cache the *additional* branches the picker may need to install on
-# different hardware.
+# Populate /opt/nvidia-pool with full apt closures for NVIDIA_BRANCHES (for
+# offline picker / apply-from-pool). The branch installed on the build host
+# is also cloned into the live image by eggs; the pool is for switching
+# branches without network.
+#
+# If /opt/nvidia-pool already contains nvidia-driver-${branch} and
+# nvidia-dkms-${branch} .deb metapackages for a branch, that branch is skipped
+# unless NVIDIA_POOL_FORCE_REFRESH=1 (re-download closure).
 #
 # Usage:
 #   sudo bash tools/live-usb/nvidia-multi-driver/fetch-debs.sh
 # Override branches:
-#   NVIDIA_BRANCHES="470 580" sudo bash tools/live-usb/nvidia-multi-driver/fetch-debs.sh
+#   NVIDIA_BRANCHES="535 580 595" sudo bash ...
+# Env:
+#   NVIDIA_POOL_SKIP_EXISTING=0  — fetch every branch even if metapackage .debs exist
+#   NVIDIA_POOL_FORCE_REFRESH=1  — refill closures for branches that would otherwise skip
 set -euo pipefail
 
 if [[ "$(id -u)" -ne 0 ]]; then
@@ -17,10 +23,39 @@ if [[ "$(id -u)" -ne 0 ]]; then
 fi
 
 CACHE_DIR="${CACHE_DIR:-/opt/nvidia-pool}"
-NVIDIA_BRANCHES="${NVIDIA_BRANCHES:-470 580}"
+NVIDIA_BRANCHES="${NVIDIA_BRANCHES:-535 580 595}"
+NVIDIA_POOL_FORCE_REFRESH="${NVIDIA_POOL_FORCE_REFRESH:-0}"
+NVIDIA_POOL_SKIP_EXISTING="${NVIDIA_POOL_SKIP_EXISTING:-1}"
 
 mkdir -p "$CACHE_DIR"
 cd "$CACHE_DIR"
+
+pool_has_driver_dkms_debs() {
+	local b="$1"
+	local g1 g2
+	g1="$(compgen -G "./nvidia-driver-${b}_*.deb" || true)"
+	g2="$(compgen -G "./nvidia-dkms-${b}_*.deb" || true)"
+	[[ -n "$g1" && -n "$g2" ]]
+}
+
+branches_to_fetch=()
+for branch in $NVIDIA_BRANCHES; do
+	if [[ "$NVIDIA_POOL_SKIP_EXISTING" -eq 1 && "$NVIDIA_POOL_FORCE_REFRESH" -eq 0 ]] && pool_has_driver_dkms_debs "$branch"; then
+		echo ">> Branch ${branch}: nvidia-driver-${branch} + nvidia-dkms-${branch} already in ${CACHE_DIR} — skip download (NVIDIA_POOL_FORCE_REFRESH=1 to refill)"
+		continue
+	fi
+	branches_to_fetch+=("$branch")
+done
+
+if [[ ${#branches_to_fetch[@]} -eq 0 ]]; then
+	echo
+	echo "==> NVIDIA pool already satisfies all branches (${NVIDIA_BRANCHES}); no apt download."
+	ls -lh "$CACHE_DIR" | head -50 || :
+	echo
+	du -sh "$CACHE_DIR"
+	echo "Done."
+	exit 0
+fi
 
 apt-get update
 
@@ -36,7 +71,7 @@ if ! grep -qiR 'graphics-drivers' /etc/apt/sources.list /etc/apt/sources.list.d 
   apt-get update
 fi
 
-for branch in $NVIDIA_BRANCHES; do
+for branch in "${branches_to_fetch[@]}"; do
   for pkg in "nvidia-driver-${branch}" "nvidia-dkms-${branch}"; do
     if ! apt-cache show "$pkg" >/dev/null 2>&1; then
       echo "WARN: $pkg not found in apt; skipping" >&2
@@ -70,7 +105,7 @@ done
 
 echo
 echo "==> Cache contents ($CACHE_DIR):"
-ls -lh "$CACHE_DIR" | head -50
+ls -lh "$CACHE_DIR" | head -50 || :
 echo
 du -sh "$CACHE_DIR"
 echo

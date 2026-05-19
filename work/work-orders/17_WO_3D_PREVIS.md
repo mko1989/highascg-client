@@ -688,7 +688,7 @@ document.addEventListener('previs:pgm-mode-changed', (ev) => {
 - **`web/components/previs-mesh-inspector.js`** — **Screen mapping** shows virtual canvas line + **UV preview** from `computeScreenUV` (full-canvas screen region vs centred video/content); distinguishes runtime UV0 from preview math.
 - **`web/styles/previs.css`** — compact number inputs for virtual canvas.
 - **`tools/smoke-previs-state.mjs`** — asserts defaults + clamp.
-- **`work/docs/MANUAL_INSTALL.md`** — §9.2.1 optional `three`, `npm run install:previs`, `HIGHASCG_PREVIS=1` / `config.features.previs3d`.
+- **`docs/MANUAL_INSTALL.md`** — §9.2.1 optional `three`, `npm run install:previs`, `HIGHASCG_PREVIS=1` / `config.features.previs3d`.
 
 **Still open:** UV drag editor (`previs-uv-editor.js`), zones (WO-31).
 

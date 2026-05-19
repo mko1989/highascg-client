@@ -76,7 +76,7 @@ CasparCG Process
   - Identify: onboard audio, NVIDIA HDMI/DP, USB audio interfaces
   - Map device names: `hw:N,M` (card N, device M)
   - Document channel capabilities per device
-  - **Doc:** [`docs/audio/alsa-device-enumeration.md`](docs/audio/alsa-device-enumeration.md)
+  - **Doc:** [`docs/reference/audio/alsa-device-enumeration.md`](docs/reference/audio/alsa-device-enumeration.md)
 
 - [x] **T1.2** Configure PipeWire for multi-channel routing
   - Install PipeWire + WirePlumber (default on Ubuntu 24.04+)
@@ -91,7 +91,7 @@ CasparCG Process
   - Create virtual sinks for CasparCG audio routing
   - Tool: `qpwgraph` for visual audio routing
   - Tool: `pw-cli`, `pw-dump`, `pw-top` for monitoring
-  - **Doc:** [`docs/audio/pipewire-multichannel-routing.md`](docs/audio/pipewire-multichannel-routing.md)
+  - **Doc:** [`docs/reference/audio/pipewire-multichannel-routing.md`](docs/reference/audio/pipewire-multichannel-routing.md)
 
 - [x] **T1.3** Configure JACK as alternative
   - JACK2 installation and setup
@@ -99,7 +99,7 @@ CasparCG Process
   - Multi-device support via `alsa_in` / `alsa_out` bridges
   - CasparCG → JACK → multiple hardware outputs
   - Tool: `qjackctl` or `Carla` for routing
-  - **Doc:** [`docs/audio/jack-audio-routing.md`](docs/audio/jack-audio-routing.md)
+  - **Doc:** [`docs/reference/audio/jack-audio-routing.md`](docs/reference/audio/jack-audio-routing.md)
 
 - [x] **T1.4** NVIDIA HDMI/DP audio setup
   - Verify NVIDIA driver loaded: `lsmod | grep snd_hda_intel`
@@ -115,7 +115,7 @@ CasparCG Process
     }
     ```
   - Note: Some NVIDIA cards expose multiple HDMI outputs as separate ALSA devices
-  - **Doc:** [`docs/audio/caspar-outputs-nvidia-stereo-usb.md`](docs/audio/caspar-outputs-nvidia-stereo-usb.md) § NVIDIA
+  - **Doc:** [`docs/reference/audio/caspar-outputs-nvidia-stereo-usb.md`](docs/reference/audio/caspar-outputs-nvidia-stereo-usb.md) § NVIDIA
 
 - [x] **T1.5** USB audio interface setup
   - Class-compliant devices work automatically via ALSA
@@ -126,7 +126,7 @@ CasparCG Process
     - **RME Digiface USB** (up to 66 channels, class-compliant on Linux)
     - **MOTU UltraLite** (10 out, USB class-compliant)
     - **Focusrite Scarlett 18i20** (20 out, needs firmware mode for UAC2)
-  - **Doc:** same as T1.4 — [`docs/audio/caspar-outputs-nvidia-stereo-usb.md`](docs/audio/caspar-outputs-nvidia-stereo-usb.md) § USB (includes **§ 3.5 mm stereo** for simple onboard output)
+  - **Doc:** same as T1.4 — [`docs/reference/audio/caspar-outputs-nvidia-stereo-usb.md`](docs/reference/audio/caspar-outputs-nvidia-stereo-usb.md) § USB (includes **§ 3.5 mm stereo** for simple onboard output)
 
 ### Phase 2: CasparCG Consumer Configuration
 
@@ -142,7 +142,7 @@ CasparCG Process
   - Maps to default PipeWire/PulseAudio/ALSA sink
   - Limitation: only one `<system-audio>` per channel
   - For specific device: set `PULSE_SINK` or default PipeWire sink
-  - **Doc:** [`docs/audio/caspar-audio-consumers.md`](docs/audio/caspar-audio-consumers.md) § T2.1
+  - **Doc:** [`docs/reference/audio/caspar-audio-consumers.md`](docs/reference/audio/caspar-audio-consumers.md) § T2.1
 
 - [x] **T2.2** FFmpeg consumer for audio-only output
   - Audio-only FFmpeg consumer to specific ALSA device:
@@ -160,7 +160,7 @@ CasparCG Process
     </ffmpeg>
     ```
   - Can output to multiple sinks from same channel (multiple FFmpeg consumers)
-  - **Doc:** [`docs/audio/caspar-audio-consumers.md`](docs/audio/caspar-audio-consumers.md) § T2.2
+  - **Doc:** [`docs/reference/audio/caspar-audio-consumers.md`](docs/reference/audio/caspar-audio-consumers.md) § T2.2
 
 - [x] **T2.3** NDI consumer for network audio
   - CasparCG NDI consumer already includes embedded audio:
@@ -172,7 +172,7 @@ CasparCG Process
   - NDI receivers on network can extract audio
   - Can be received by DAW, audio mixer, or NDI-to-analog converter
   - Audio channel count matches CasparCG channel layout
-  - **Doc:** [`docs/audio/caspar-audio-consumers.md`](docs/audio/caspar-audio-consumers.md) § T2.3
+  - **Doc:** [`docs/reference/audio/caspar-audio-consumers.md`](docs/reference/audio/caspar-audio-consumers.md) § T2.3
 
 - [x] **T2.4** Dedicated audio-only CasparCG channels
   - Extra channels in CasparCG config for audio bus mixing:
@@ -191,7 +191,7 @@ CasparCG Process
     ```
   - Route audio from program channels to audio bus via `PLAY` with `route://` source
   - MIXER VOLUME per routed layer for sub-mix control
-  - **Doc:** [`docs/audio/caspar-audio-consumers.md`](docs/audio/caspar-audio-consumers.md) § T2.4
+  - **Doc:** [`docs/reference/audio/caspar-audio-consumers.md`](docs/reference/audio/caspar-audio-consumers.md) § T2.4
 
 - [x] **T2.5** Multi-channel audio layout configuration
   - CasparCG channel layouts for different channel counts:
@@ -212,7 +212,7 @@ CasparCG Process
       </channel-layouts>
     </audio>
     ```
-  - **Doc:** [`docs/audio/caspar-audio-consumers.md`](docs/audio/caspar-audio-consumers.md) § T2.5
+  - **Doc:** [`docs/reference/audio/caspar-audio-consumers.md`](docs/reference/audio/caspar-audio-consumers.md) § T2.5
 
 ### Phase 3: Network Audio Protocols
 
@@ -228,7 +228,7 @@ CasparCG Process
     - Device: RME Digiface Dante (USB class-compliant → Dante)
     - Appears as multi-channel ALSA device on Linux
     - Dante routing managed from Dante Controller on another machine
-  - **Doc:** [`docs/audio/network-audio-protocols.md`](docs/audio/network-audio-protocols.md) § T3.1
+  - **Doc:** [`docs/reference/audio/network-audio-protocols.md`](docs/reference/audio/network-audio-protocols.md) § T3.1
 
 - [x] **T3.2** NDI audio extraction
   - NDI output from CasparCG → received by external NDI device/app
@@ -239,7 +239,7 @@ CasparCG Process
       ffmpeg -f libndi_newtek -i "CASPAR (Channel 1)" -f alsa hw:0
       ```
   - Can also use go2rtc pipeline for audio extraction (WO-05 overlap)
-  - **Doc:** [`docs/audio/network-audio-protocols.md`](docs/audio/network-audio-protocols.md) § T3.2
+  - **Doc:** [`docs/reference/audio/network-audio-protocols.md`](docs/reference/audio/network-audio-protocols.md) § T3.2
 
 - [x] **T3.3** JACK Network Audio (NetJACK)
   - Native Linux network audio:
@@ -248,7 +248,7 @@ CasparCG Process
   - Low latency LAN audio distribution
   - Up to 32+ channels
   - Free, open source
-  - **Doc:** [`docs/audio/network-audio-protocols.md`](docs/audio/network-audio-protocols.md) § T3.3
+  - **Doc:** [`docs/reference/audio/network-audio-protocols.md`](docs/reference/audio/network-audio-protocols.md) § T3.3
 
 - [x] **T3.4** PipeWire ROC (Real-time Open Codec)
   - Modern Linux network audio streaming:
@@ -256,7 +256,7 @@ CasparCG Process
     - Receiver: `roc-recv` on destination
   - Supports multi-channel, low latency
   - Part of PipeWire ecosystem
-  - **Doc:** [`docs/audio/network-audio-protocols.md`](docs/audio/network-audio-protocols.md) § T3.4
+  - **Doc:** [`docs/reference/audio/network-audio-protocols.md`](docs/reference/audio/network-audio-protocols.md) § T3.4
 
 ### Phase 4: HighAsCG Integration
 
@@ -322,14 +322,14 @@ CasparCG Process
     4. NDI audio routing
     5. PipeWire multi-channel routing
   - Troubleshooting: common issues, diagnostic commands
-  - **Doc:** [`docs/audio/audio-setup-guide.md`](docs/audio/audio-setup-guide.md) (consolidated index + links to Phase 1–3 deep dives)
+  - **Doc:** [`docs/guides/audio/audio-setup-guide.md`](docs/guides/audio/audio-setup-guide.md) (consolidated index + links to Phase 1–3 deep dives)
 
 - [x] **T5.2** Create audio routing reference
   - CasparCG MIXER audio commands cheat sheet
   - Channel layout definitions
   - Multi-bus routing diagrams
   - FFmpeg audio filter examples for channel mapping
-  - **Doc:** [`docs/audio/audio-routing-reference.md`](docs/audio/audio-routing-reference.md) (MIXER table, layouts, mermaid bus diagram, AF examples)
+  - **Doc:** [`docs/reference/audio/audio-routing-reference.md`](docs/reference/audio/audio-routing-reference.md) (MIXER table, layouts, mermaid bus diagram, AF examples)
 
 ---
 
@@ -426,8 +426,8 @@ CasparCG Process
 
 ### 2026-04-04 — Agent (Phase 5 T5.1–T5.2 documentation guides)
 **Work Done:**
-- [`docs/audio/audio-setup-guide.md`](docs/audio/audio-setup-guide.md): single entry point for all five output paths (NVIDIA, USB, AES67/Dante, NDI, PipeWire), “before you start”, troubleshooting table, diagnostic commands, HighAsCG `audioRouting` pointer.
-- [`docs/audio/audio-routing-reference.md`](docs/audio/audio-routing-reference.md): MIXER `VOLUME` / `MASTERVOLUME` cheat sheet, HighAsCG `POST /api/audio/volume`, layout summary table, mermaid PGM→bus→consumer diagram, FFmpeg `AF` / `pan` examples.
+- [`docs/guides/audio/audio-setup-guide.md`](docs/guides/audio/audio-setup-guide.md): single entry point for all five output paths (NVIDIA, USB, AES67/Dante, NDI, PipeWire), “before you start”, troubleshooting table, diagnostic commands, HighAsCG `audioRouting` pointer.
+- [`docs/reference/audio/audio-routing-reference.md`](docs/reference/audio/audio-routing-reference.md): MIXER `VOLUME` / `MASTERVOLUME` cheat sheet, HighAsCG `POST /api/audio/volume`, layout summary table, mermaid PGM→bus→consumer diagram, FFmpeg `AF` / `pan` examples.
 
 **Status:**
 - **T5.1**–**T5.2** complete (documentation).
@@ -451,7 +451,7 @@ CasparCG Process
 
 ### 2026-04-04 — Agent (Phase 3 T3.1–T3.4 network audio doc)
 **Work Done:**
-- [`docs/audio/network-audio-protocols.md`](docs/audio/network-audio-protocols.md): AES67 / Dante vs Linux (no DVS, bridges, ALSA), NDI audio monitoring + FFmpeg/go2rtc notes, NetJACK server/client + firewall note, ROC `roc-send`/`roc-recv`, cross-links to JACK and consumer docs.
+- [`docs/reference/audio/network-audio-protocols.md`](docs/reference/audio/network-audio-protocols.md): AES67 / Dante vs Linux (no DVS, bridges, ALSA), NDI audio monitoring + FFmpeg/go2rtc notes, NetJACK server/client + firewall note, ROC `roc-send`/`roc-recv`, cross-links to JACK and consumer docs.
 
 **Status:**
 - **T3.1**–**T3.4** complete (documentation).
@@ -461,7 +461,7 @@ CasparCG Process
 
 ### 2026-04-04 — Agent (Phase 2 T2.1–T2.5 Caspar consumers doc)
 **Work Done:**
-- [`docs/audio/caspar-audio-consumers.md`](docs/audio/caspar-audio-consumers.md): `<system-audio>` + `PULSE_SINK`; FFmpeg **`<ffmpeg-consumer>`** / ALSA & Pulse; NDI embedded audio; audio-only channels + `route://`; `<audio><channel-layouts>` table; note on HighAsCG `buildAudioLayoutsXml` / generator. Cross-link from [caspar-outputs-nvidia-stereo-usb.md](docs/audio/caspar-outputs-nvidia-stereo-usb.md).
+- [`docs/reference/audio/caspar-audio-consumers.md`](docs/reference/audio/caspar-audio-consumers.md): `<system-audio>` + `PULSE_SINK`; FFmpeg **`<ffmpeg-consumer>`** / ALSA & Pulse; NDI embedded audio; audio-only channels + `route://`; `<audio><channel-layouts>` table; note on HighAsCG `buildAudioLayoutsXml` / generator. Cross-link from [caspar-outputs-nvidia-stereo-usb.md](docs/reference/audio/caspar-outputs-nvidia-stereo-usb.md).
 
 **Status:**
 - **T2.1**–**T2.5** complete (documentation).
@@ -471,7 +471,7 @@ CasparCG Process
 
 ### 2026-04-04 — Agent (T1.3 JACK routing doc)
 **Work Done:**
-- [`docs/audio/jack-audio-routing.md`](docs/audio/jack-audio-routing.md): `jackd2`/`qjackctl` install, ALSA backend `jackd -R -d alsa -d hw:N -r 48000 -p 256 -n 2`, `alsa_in`/`alsa_out` multi-device notes, exclusive `hw` vs Caspar, PipeWire JACK compatibility, troubleshooting.
+- [`docs/reference/audio/jack-audio-routing.md`](docs/reference/audio/jack-audio-routing.md): `jackd2`/`qjackctl` install, ALSA backend `jackd -R -d alsa -d hw:N -r 48000 -p 256 -n 2`, `alsa_in`/`alsa_out` multi-device notes, exclusive `hw` vs Caspar, PipeWire JACK compatibility, troubleshooting.
 
 **Status:**
 - **T1.3** complete. **Phase 1** (T1.1–T1.5) documentation complete.
@@ -481,7 +481,7 @@ CasparCG Process
 
 ### 2026-04-04 — Agent (T1.4 / T1.5 NVIDIA · stereo · USB)
 **Work Done:**
-- [`docs/audio/caspar-outputs-nvidia-stereo-usb.md`](docs/audio/caspar-outputs-nvidia-stereo-usb.md): focused guide — **NVIDIA HDMI/DP** (`snd_hda_intel`, `aplay`, `hw:N,M`, `asound` alias, multi-channel, multi-display), **3.5 mm onboard stereo** (analog identification, stereo Caspar + FFmpeg / system-audio vs default sink), **USB interfaces** (class-compliant, rate/channel match, `speaker-test`, recommended gear, FFmpeg XML example). Cross-link from [alsa-device-enumeration.md](docs/audio/alsa-device-enumeration.md).
+- [`docs/reference/audio/caspar-outputs-nvidia-stereo-usb.md`](docs/reference/audio/caspar-outputs-nvidia-stereo-usb.md): focused guide — **NVIDIA HDMI/DP** (`snd_hda_intel`, `aplay`, `hw:N,M`, `asound` alias, multi-channel, multi-display), **3.5 mm onboard stereo** (analog identification, stereo Caspar + FFmpeg / system-audio vs default sink), **USB interfaces** (class-compliant, rate/channel match, `speaker-test`, recommended gear, FFmpeg XML example). Cross-link from [alsa-device-enumeration.md](docs/reference/audio/alsa-device-enumeration.md).
 
 **Status:**
 - **T1.4** and **T1.5** complete (shared doc; 3.5 mm covered explicitly).
@@ -491,7 +491,7 @@ CasparCG Process
 
 ### 2026-04-04 — Agent (T1.2 PipeWire routing doc)
 **Work Done:**
-- [`docs/audio/pipewire-multichannel-routing.md`](docs/audio/pipewire-multichannel-routing.md): packages, `pipewire.conf.d` clock/quantum drop-in, virtual sinks via `pactl`/null-sink for Caspar buses, `qpwgraph` / `pw-cli` / `pw-dump` / `pw-top`, ALSA vs Pulse paths for Caspar FFmpeg, troubleshooting.
+- [`docs/reference/audio/pipewire-multichannel-routing.md`](docs/reference/audio/pipewire-multichannel-routing.md): packages, `pipewire.conf.d` clock/quantum drop-in, virtual sinks via `pactl`/null-sink for Caspar buses, `qpwgraph` / `pw-cli` / `pw-dump` / `pw-top`, ALSA vs Pulse paths for Caspar FFmpeg, troubleshooting.
 
 **Status:**
 - **T1.2** complete.
@@ -501,7 +501,7 @@ CasparCG Process
 
 ### 2026-04-04 — Agent (T1.1 ALSA enumeration doc)
 **Work Done:**
-- [`docs/audio/alsa-device-enumeration.md`](docs/audio/alsa-device-enumeration.md): `aplay -l` / `aplay -L`, interpreting card/device, `hw:N,M`, identifying onboard vs NVIDIA HDMI vs USB, channel probing (`speaker-test`, `/proc/asound/cards`), mapping checklist for Caspar FFmpeg consumers.
+- [`docs/reference/audio/alsa-device-enumeration.md`](docs/reference/audio/alsa-device-enumeration.md): `aplay -l` / `aplay -L`, interpreting card/device, `hw:N,M`, identifying onboard vs NVIDIA HDMI vs USB, channel probing (`speaker-test`, `/proc/asound/cards`), mapping checklist for Caspar FFmpeg consumers.
 
 **Status:**
 - **T1.1** complete.

@@ -27,11 +27,15 @@
   Show chosen disk and actions only; do not write.
 
 .EXAMPLE
-  powershell -ExecutionPolicy Bypass -File .\make-highascg-stick.ps1 -IsoPath C:\path\highascg_amd64.iso
+  powershell -ExecutionPolicy Bypass -File .\make-highascg-stick.ps1 -IsoPath C:\path\highascg_amd64.iso `
+    -TarGzPath C:\path\highascg_2026-01-01T120000Z.tar.gz
 #>
 param(
     [Parameter(Mandatory = $true)]
     [string] $IsoPath,
+
+    [string] $TarGzPath = '',
+    [string] $AppSourceDirectory = '',
 
     [switch] $SkipExfat,
     [switch] $DryRun
@@ -193,7 +197,47 @@ Boot the stick with your HighAsCG live image; exFAT mounts at /home/casparcg/exf
     Write-Host "Seeded folders under ${root}" -ForegroundColor Green
 }
 
+function Install-AppPayload {
+	param(
+		[Parameter(Mandatory = $true)][char] $DriveLetter,
+		[string] $TarPath = '',
+		[string] $AppDir = ''
+	)
+	$dest = "$($DriveLetter):\sim\highascg"
+    if ($TarPath -and $AppDir) { throw 'Internal: supply only one of TarPath or AppDir' }
+    if ($TarPath) {
+        if (-not (Test-Path -LiteralPath $TarPath)) {
+            throw "Tarball not found: $TarPath"
+        }
+        $tarCmd = Get-Command tar.exe -ErrorAction SilentlyContinue
+        if (-not $tarCmd) {
+            throw 'tar.exe not on PATH (bundled with Windows 10+ — enable or install tar).'
+        }
+        Get-ChildItem -LiteralPath $dest -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+        New-Item -ItemType Directory -Force -Path $dest | Out-Null
+        Write-Host "Extracting tarball → $dest …" -ForegroundColor Yellow
+        & tar.exe -xzf $TarPath -C $dest
+        if ($LASTEXITCODE -ne 0) { throw "tar extract failed (exit $LASTEXITCODE)" }
+    }
+    elseif ($AppDir) {
+        if (-not (Test-Path -LiteralPath $AppDir)) {
+            throw "App directory not found: $AppDir"
+        }
+        $pkg = Join-Path $AppDir 'package.json'
+        if (-not (Test-Path -LiteralPath $pkg)) {
+            throw "No package.json under $AppDir"
+        }
+        Get-ChildItem -LiteralPath $dest -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+        New-Item -ItemType Directory -Force -Path $dest | Out-Null
+        Write-Host "Copying app tree → $dest …" -ForegroundColor Yellow
+        Copy-Item -Path (Join-Path $AppDir '*') -Destination $dest -Recurse -Force
+    }
+}
+
 # --- main ---
+if ($SkipExfat -and ($TarGzPath -or $AppSourceDirectory)) {
+	throw 'Do not use -SkipExfat together with -TarGzPath / -AppSourceDirectory (exFAT is required for the copy target).'
+}
 if (-not (Test-Path -LiteralPath $IsoPath)) {
     throw "ISO not found: $IsoPath"
 }
@@ -259,6 +303,13 @@ if (-not $letter) {
     throw 'exFAT volume has no drive letter — assign one in Disk Management and run folder creation manually.'
 }
 Expand-SeedLayout -DriveLetter $letter
+
+if ($TarGzPath) {
+    Install-AppPayload -DriveLetter $letter -TarPath $TarGzPath
+}
+elseif ($AppSourceDirectory) {
+    Install-AppPayload -DriveLetter $letter -AppDir $AppSourceDirectory
+}
 
 Write-Host ''
 Write-Host 'Done. The exFAT volume may have a temporary drive letter in Explorer (diskpart ASSIGN).' -ForegroundColor Cyan

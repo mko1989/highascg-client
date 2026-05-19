@@ -85,7 +85,13 @@ async function serveWebApp(requestPath, dirs) {
 		try {
 			const body = await fs.promises.readFile(tplPath, 'utf8')
 			const ext = path.extname(tplPath)
-			return { status: 200, headers: { 'Content-Type': MIME[ext] || 'text/html' }, body }
+			const headers = { 'Content-Type': MIME[ext] || 'text/html' }
+			if (ext === '.html' || ext === '.js' || ext === '.css' || ext === '.mjs') {
+				headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+				headers['Pragma'] = 'no-cache'
+				headers['Expires'] = '0'
+			}
+			return { status: 200, headers, body }
 		} catch {
 			return { status: 404, headers: { 'Content-Type': 'text/plain' }, body: 'Not found' }
 		}
@@ -109,7 +115,13 @@ async function serveWebApp(requestPath, dirs) {
 					return { status: 200, headers: { 'Content-Type': contentType }, body }
 				}
 				const body = await fs.promises.readFile(resolved, 'utf8')
-				return { status: 200, headers: { 'Content-Type': contentType }, body }
+				const headers = { 'Content-Type': contentType }
+				if (ext === '.html' || ext === '.js' || ext === '.css' || ext === '.mjs') {
+					headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+					headers['Pragma'] = 'no-cache'
+					headers['Expires'] = '0'
+				}
+				return { status: 200, headers, body }
 			} catch {
 				return { status: 404, headers: { 'Content-Type': 'text/plain' }, body: 'Not found' }
 			}
@@ -131,12 +143,27 @@ async function serveWebApp(requestPath, dirs) {
 			return { status: 200, headers: { 'Content-Type': contentType }, body }
 		}
 		const body = await fs.promises.readFile(fullPath, 'utf8')
-		return { status: 200, headers: { 'Content-Type': contentType }, body }
+		const headers = { 'Content-Type': contentType }
+		if (ext === '.html' || ext === '.js' || ext === '.css' || ext === '.mjs') {
+			headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+			headers['Pragma'] = 'no-cache'
+			headers['Expires'] = '0'
+		}
+		return { status: 200, headers, body }
 	} catch (e) {
 		if (e.code === 'ENOENT') {
 			try {
 				const body = await fs.promises.readFile(path.join(dirs.webDir, 'index.html'), 'utf8')
-				return { status: 200, headers: { 'Content-Type': 'text/html' }, body }
+				return {
+					status: 200,
+					headers: {
+						'Content-Type': 'text/html',
+						'Cache-Control': 'no-cache, no-store, must-revalidate',
+						'Pragma': 'no-cache',
+						'Expires': '0'
+					},
+					body
+				}
 			} catch {
 				return { status: 404, headers: { 'Content-Type': 'text/plain' }, body: 'Not found' }
 			}

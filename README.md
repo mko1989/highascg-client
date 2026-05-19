@@ -111,4 +111,4 @@ The web client **refreshes** cached settings and streaming status on WebSocket r
 
 **Browser monitoring** (Settings → Audio / OSC → *Browser monitoring preference*) applies to WebRTC preview audio: **PGM** unmutes and listens to the PGM stream; **Off** mutes monitoring. The header shows **Live**/**HTTP** plus **Caspar** / **Caspar offline** / **no AMCP** (`--no-caspar`). **`GET /api/streams`** uses the same **`getApiBase()`** prefix as other API calls when the app is served under **`/instance/…`**.
 
-For deeper integration checks against a live CasparCG, use **`npm run smoke`** / **`npm run smoke:caspar`** and the notes in **`docs/`**.
+For deeper integration checks against a live CasparCG, use **`npm run smoke`** / **`npm run smoke:caspar`** and the notes in **[`docs/README.md`](docs/README.md)**.

@@ -30,9 +30,24 @@ if [[ ! -f "$TARGET" ]]; then
   exit 1
 fi
 if grep -qF "$MARKER" "$TARGET" 2>/dev/null; then
-  echo "Marker already present in $TARGET — nothing to do." >&2
-  echo "If you edited penguins-eggs-exclude-highascg-fragment.list, delete this marker block from" >&2
-  echo "  $TARGET then re-run: sudo bash $0" >&2
+  added=0
+  while IFS= read -r line || [[ -n "${line:-}" ]]; do
+    line="${line%%#*}"
+    line="${line#"${line%%[![:space:]]*}"}"
+    line="${line%"${line##*[![:space:]]}"}"
+    [[ -z "$line" ]] && continue
+    if grep -qxF "$line" "$TARGET" 2>/dev/null; then
+      continue
+    fi
+    echo "$line" >>"$TARGET"
+    added=$((added + 1))
+  done < <(sed -e 's/^[[:space:]]*#.*$//' -e '/^[[:space:]]*$/d' "$FRAG")
+  if [[ "$added" -gt 0 ]]; then
+    echo "Appended $added missing HighAsCG exclude line(s) to: $TARGET" >&2
+  else
+    echo "Marker already present; all fragment lines are in $TARGET." >&2
+    echo "To replace the whole block, delete from the marker through EOF in $TARGET, then re-run." >&2
+  fi
   exit 0
 fi
 {

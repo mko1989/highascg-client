@@ -42,6 +42,12 @@ fi
 SKIP_APT="${SKIP_APT:-0}"
 SKIP_MERGE_EGGS_EXCLUDES="${SKIP_MERGE_EGGS_EXCLUDES:-0}"
 SKIP_HIGHASCG_SYSTEMD_RESTART="${SKIP_HIGHASCG_SYSTEMD_RESTART:-0}"
+SKIP_STRIP_HOST_SWAP="${SKIP_STRIP_HOST_SWAP:-0}"
+
+if [[ "$SKIP_STRIP_HOST_SWAP" != "1" ]]; then
+	echo "==> strip host swap from live USB payload (prepare; restore after eggs produce)"
+	bash "${HERE}/strip-host-swap-for-live-iso.sh" prepare
+fi
 
 if [[ "$SKIP_APT" != "1" ]]; then
 	echo "==> apt: packages for WO-47 + stick tooling (offline-safe on target)"

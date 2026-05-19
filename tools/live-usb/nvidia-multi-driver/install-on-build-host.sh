@@ -62,7 +62,9 @@ cat <<EOF
 
 OK. Build-host prep complete. Next:
   1. (If not already done) populate the offline driver cache:
-       sudo NVIDIA_BRANCHES="470 580" bash $HERE/fetch-debs.sh
+       sudo bash $HERE/fetch-debs.sh
+     (defaults: branches 535 580 595; skips branches already in /opt/nvidia-pool)
+     Legacy GPUs: NVIDIA_BRANCHES="470 ..." NVIDIA_POOL_FORCE_REFRESH=1 ...
   2. Make sure your eggs exclude fragment does NOT exclude /opt/nvidia-pool.
   3. Build the live ISO:
        sudo eggs produce --nointeractive --clone --max --basename highascg-live

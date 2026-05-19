@@ -1,6 +1,6 @@
 # Audio routing reference (CasparCG + HighAsCG)
 
-Quick reference for **layer/channel audio levels**, **layouts**, **routing between channels**, and **FFmpeg audio filters**. For Linux device setup, see [Audio setup guide](./audio-setup-guide.md).
+Quick reference for **layer/channel audio levels**, **layouts**, **routing between channels**, and **FFmpeg audio filters**. For Linux device setup, see [Audio setup guide](../../guides/audio/audio-setup-guide.md).
 
 **Related:** WO-06 Audio playout · Phase 5 (T5.2) · [Caspar audio consumers](./caspar-audio-consumers.md)
 

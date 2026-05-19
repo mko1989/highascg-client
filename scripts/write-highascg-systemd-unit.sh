@@ -31,17 +31,16 @@ fi
 if [[ -f /etc/systemd/system/home-casparcg-exfat.mount ]] &&
 	[[ -f /etc/systemd/system/highascg-exfat-sync.service ]]; then
 	AF_LIST="network.target home-casparcg-exfat.mount"
-	WA_LIST="home-casparcg-exfat.mount"
+	WA_LIST=""
 	if [[ -f /etc/systemd/system/home-casparcg-highascg-media-exfat.mount ]]; then
 		AF_LIST="$AF_LIST home-casparcg-highascg-media-exfat.mount"
-		WA_LIST="$WA_LIST home-casparcg-highascg-media-exfat.mount"
 	fi
 	if [[ -f /etc/systemd/system/highascg-exfat-bootstrap.service ]]; then
 		AF_LIST="$AF_LIST highascg-exfat-bootstrap.service"
 		WA_LIST="$WA_LIST highascg-exfat-bootstrap.service"
 	fi
 	AF_LIST="$AF_LIST highascg-exfat-sync.service"
-	WA_LIST="$WA_LIST highascg-exfat-sync.service"
+	WA_LIST="${WA_LIST:+$WA_LIST }highascg-exfat-sync.service"
 	read -r -d '' HIGHASCG_UNIT_DEPS <<EUD || true
 After=${AF_LIST}
 Wants=${WA_LIST}

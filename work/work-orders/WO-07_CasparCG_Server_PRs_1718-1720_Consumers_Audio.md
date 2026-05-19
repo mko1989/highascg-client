@@ -65,7 +65,7 @@ Deliver a **CasparCG Server** build (Linux + Windows as applicable) that include
 | **T-D.1** | If HighAsCG references **minimum Caspar version** or AMCP assumptions, update `README` / `install-config` / smoke scripts only if behavior changes. |
 | **T-D.2** | Optional: Settings UI or docs link to **“recommended Caspar build”** for multi-channel audio. |
 
-**Done in-repo (baseline):** `casparServer.caspar_build_profile` (`stock` \| `custom_live`), Settings → Screens, and XML generation for `<portaudio>` + screen extras — see **`docs/CASPAR_CUSTOM_BUILD.md`** and `src/config/config-generator*.js`.
+**Done in-repo (baseline):** `casparServer.caspar_build_profile` (`stock` \| `custom_live`), Settings → Screens, and XML generation for `<portaudio>` + screen extras — see **`docs/internal/CASPAR_CUSTOM_BUILD.md`** and `src/config/config-generator*.js`.
 
 ---
 

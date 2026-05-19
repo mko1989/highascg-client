@@ -163,14 +163,17 @@
 	font-size: 12px !important;
 }
 .device-view--external-inspector .device-view__layout {
-	grid-template-columns: 1fr;
+	grid-template-columns: 240px 180px 1fr;
 }
 .device-view--external-inspector .device-view__side {
 	display: none;
 }
-@media (max-width: 1160px) {
+@media (max-width: 768px) {
 	.device-view__layout {
-		grid-template-columns: 1fr;
+		grid-template-columns: 1fr !important;
+	}
+	.device-view--external-inspector .device-view__layout {
+		grid-template-columns: 1fr !important;
 	}
 	.device-view__panel-row {
 		grid-template-columns: 1fr;

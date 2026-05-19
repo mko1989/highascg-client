@@ -1,6 +1,6 @@
 # Manual USB stick — Windows & macOS (Etcher + system partitioning)
 
-Use this guide when you **prefer GUI tools** instead of **`make-highascg-stick`** scripts. Goal: bootable HighAsCG live ISO, plus an **exFAT** volume labelled **`HIGHASCGEXF`** (WO‑47) where you drop an **unzipped GitHub release** and carry media/templates/config/snapshots.
+Use this guide when you **prefer GUI tools** instead of **`make-highascg-stick`** scripts. Goal: bootable HighAsCG live ISO, plus an **exFAT** volume labelled **`HIGHASCGEXF`** (WO‑47) where you drop an **extracted GitHub release** (`.tar.gz` or unzip a `.zip` if you ship one) and carry media/templates/config/snapshots.
 
 ---
 
@@ -18,7 +18,7 @@ Suggested folders on the **`HIGHASCGEXF`** volume (create them in Explorer / Fin
 
 | Folder | Use |
 |--------|-----|
-| **`sim/highascg/`** | Put the **unzipped** release here (root of the zip should sit *inside* `sim/highascg` so you see `package.json` at `sim/highascg/package.json`). Boot-time sync (WO‑47) copies **newer** files from here ↔ **`~/highascg`** (with safe excludes like `node_modules`, `.git`, `media`). |
+| **`sim/highascg/`** | Put the **extracted** release here (repository root sits *inside* `sim/highascg` — **`package.json`** at `sim/highascg/package.json`). **Typical GitHub prerelease:** `tar -xzf highascg_*.tar.gz` with `-C` set to **`sim/highascg`** (see checklist). Boot-time sync (WO‑47) copies **newer** files from here ↔ **`~/highascg`** (with safe excludes like `node_modules`, `.git`, `media`). |
 | **`drop-config/`** | Optional: `highascg.config.json` if you use the monolithic config sync pair. |
 | **`media/`** | Large media; on tuned images this tree is **bound** to **`~/highascg/media/exfat`**. |
 | **`templates/`** | Templates you carry between PCs. |
@@ -102,9 +102,18 @@ If the stick is only slightly larger than the ISO, you may have **no usable free
    `configs`  
    `snapshots/rear-panels`
 
-8. Unzip the release so **`package.json`** is at:
+8. Extract the release tarball so **`package.json`** is at:
 
    `/Volumes/HIGHASCGEXF/sim/highascg/package.json`
+
+   Example (adjust filename):
+
+   ```bash
+   mkdir -p "/Volumes/HIGHASCGEXF/sim/highascg"
+   tar -xzf ~/Downloads/highascg_YYYY-MM-DDTHHMMSSZ.tar.gz -C "/Volumes/HIGHASCGEXF/sim/highascg"
+   ```
+
+   If the archive has a single top-level folder containing the repo, move **that folder’s contents** into **`sim/highascg`** so **`package.json`** is direct children of **`sim/highascg`** (same as unzip flow).
 
 **Troubleshooting**
 
@@ -125,8 +134,9 @@ If the stick is only slightly larger than the ISO, you may have **no usable free
 
 | Script | When |
 |--------|------|
-| **[`windows/make-highascg-stick.ps1`](windows/make-highascg-stick.ps1)** | Windows: raw ISO write + `diskpart` exFAT + seed folders. |
-| **[`macos/make-highascg-stick.sh`](macos/make-highascg-stick.sh)** | macOS: `dd` + `diskutil addPartition` + seed folders. |
+| **`operator-desktop/highascg-operator.js`** | Mac/Win CLI: **`prepare-stick`** → platform script; **`sim`** → **`portable-desktop`** launcher (see **`tools/operator-desktop/README.md`**). |
+| **[`windows/make-highascg-stick.ps1`](windows/make-highascg-stick.ps1)** | Windows: raw ISO write + `diskpart` exFAT + folders; optional tarball / tree into **`sim\highascg`**. |
+| **[`macos/make-highascg-stick.sh`](macos/make-highascg-stick.sh)** | macOS: **`dd`** + exFAT remainder + folders; optional **`--tar-gz`** / **`--app-dir`**. |
 | **[`EXFAT_DATA_ZERO_TOUCH.md`](EXFAT_DATA_ZERO_TOUCH.md)** | Full WO‑47 workflow, boot order, troubleshooting. |
 
 ---
@@ -136,5 +146,5 @@ If the stick is only slightly larger than the ISO, you may have **no usable free
 1. Etcher flash **`.iso`** to the correct USB (**verify size/name**).
 2. **Unallocated tail** → new volume **ExFAT**, label **`HIGHASCGEXF`**.
 3. Create **`sim/highascg`** (and sibling folders above).
-4. Unzip release into **`sim/highascg`** so **`package.json`** is present.
+4. Extract release tarball (or unzip) into **`sim/highascg`** so **`package.json`** is present.
 5. Boot live + persistence; reboot after updates so sync runs **before** **`highascg.service`** (or sync + **`npm ci`** + service restart).

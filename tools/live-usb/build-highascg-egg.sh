@@ -7,7 +7,7 @@ set -euo pipefail
 #   sudo bash tools/live-usb/build-highascg-egg.sh
 #
 # Optional env:
-#   NVIDIA_BRANCHES="470 580"
+#   NVIDIA_BRANCHES="535 580 595"   (default; align with Settings allow-list / WO-39)
 #   BASENAME="highascg"
 
 if [[ "$(id -u)" -ne 0 ]]; then
@@ -18,7 +18,7 @@ fi
 HERE="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "${HERE}/../.." && pwd)"
 BASENAME="${BASENAME:-highascg}"
-NVIDIA_BRANCHES="${NVIDIA_BRANCHES:-470 580}"
+NVIDIA_BRANCHES="${NVIDIA_BRANCHES:-535 580 595}"
 
 echo "==> WO-47 exFAT + empty mount stubs + eggs exclude merge (operator-stick truth baked into clone snapshot)"
 SKIP_HIGHASCG_SYSTEMD_RESTART=1 bash "${HERE}/prepare-eggs-clone-with-exfat.sh"
@@ -64,6 +64,10 @@ hostnamectl set-hostname "${BASENAME}" 2>/dev/null || hostname "${BASENAME}"
 
 echo "==> Build ISO basename=${BASENAME}"
 eggs produce --nointeractive --clone --max --excludes static --basename "${BASENAME}"
+
+if [[ "${SKIP_STRIP_HOST_SWAP:-0}" != "1" ]]; then
+	bash "${HERE}/strip-host-swap-for-live-iso.sh" restore
+fi
 
 echo
 echo "Done. ISO is under /home/eggs/ and should start with ${BASENAME}_"
