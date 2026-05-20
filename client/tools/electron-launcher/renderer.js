@@ -124,7 +124,7 @@ async function pollUsbStatus() {
 pollUsbStatus()
 setInterval(pollUsbStatus, 3000)
 
-// Simulation controls
+// Simulation controls & Global Header bindings
 const serverIpInput = document.getElementById('server-ip')
 const simPortInput = document.getElementById('sim-port')
 const simOfflineToggle = document.getElementById('sim-offline')
@@ -135,9 +135,16 @@ const terminalOutput = document.getElementById('terminal-output-text')
 const terminalBody = document.getElementById('terminal-body-box')
 const btnClearTerminal = document.getElementById('btn-clear-terminal')
 
+// New Global Header elements
+const headerIpInput = document.getElementById('header-server-ip')
+const headerPortInput = document.getElementById('header-server-port')
+const headerBtnOpenWebui = document.getElementById('header-btn-open-webui')
+const headerStatusDot = document.getElementById('header-status-dot')
+const headerStatusText = document.getElementById('header-status-text')
+
 function getTargetUrl() {
-  const ip = (serverIpInput.value || 'localhost').trim()
-  const port = simPortInput.value || 4200
+  const ip = (headerIpInput.value || 'localhost').trim()
+  const port = headerPortInput.value || 4200
   return `http://${ip}:${port}/`
 }
 
@@ -147,11 +154,59 @@ function updateWebuiButton() {
   }
 }
 
-// Bind live text change listeners to update Open Web UI button label
-serverIpInput.addEventListener('input', updateWebuiButton)
-simPortInput.addEventListener('input', updateWebuiButton)
-serverIpInput.addEventListener('change', updateWebuiButton)
-simPortInput.addEventListener('change', updateWebuiButton)
+// Bidirectional Input Sync
+function syncInputs(source, target) {
+  if (source && target) {
+    const handleInput = () => {
+      if (target.value !== source.value) {
+        target.value = source.value
+        updateWebuiButton()
+      }
+    }
+    source.addEventListener('input', handleInput)
+    source.addEventListener('change', handleInput)
+  }
+}
+
+syncInputs(headerIpInput, serverIpInput)
+syncInputs(serverIpInput, headerIpInput)
+syncInputs(headerPortInput, simPortInput)
+syncInputs(simPortInput, headerPortInput)
+
+// Live Connection Polling
+async function checkServerConnection() {
+  const ip = (headerIpInput.value || 'localhost').trim()
+  const port = headerPortInput.value || 4200
+  const url = `http://${ip}:${port}/api/settings`
+  
+  try {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 1000)
+    
+    const response = await fetch(url, { 
+      method: 'GET',
+      signal: controller.signal,
+      headers: { 'Accept': 'application/json' }
+    })
+    
+    clearTimeout(timeoutId)
+    
+    if (response.ok) {
+      headerStatusDot.className = 'status-dot connected'
+      headerStatusText.textContent = 'Connected'
+    } else {
+      headerStatusDot.className = 'status-dot disconnected'
+      headerStatusText.textContent = 'Disconnected'
+    }
+  } catch (err) {
+    headerStatusDot.className = 'status-dot disconnected'
+    headerStatusText.textContent = 'Disconnected'
+  }
+}
+
+// Start polling
+checkServerConnection()
+setInterval(checkServerConnection, 3000)
 
 // Initial update to reflect default inputs
 updateWebuiButton()
@@ -182,6 +237,8 @@ btnStartSim.addEventListener('click', () => {
   btnStartSim.disabled = true
   serverIpInput.disabled = true
   simPortInput.disabled = true
+  headerIpInput.disabled = true
+  headerPortInput.disabled = true
   simOfflineToggle.disabled = true
 
   ipcRenderer.send('start-sim', { port, offlineMode })
@@ -205,11 +262,15 @@ ipcRenderer.on('sim-status', (event, status) => {
   if (isSimRunning) {
     btnStartSim.disabled = true
     btnStopSim.disabled = false
+    headerIpInput.disabled = true
+    headerPortInput.disabled = true
   } else {
     btnStartSim.disabled = false
     btnStopSim.disabled = true
     serverIpInput.disabled = false
     simPortInput.disabled = false
+    headerIpInput.disabled = false
+    headerPortInput.disabled = false
     simOfflineToggle.disabled = false
     updateWebuiButton()
 
@@ -220,9 +281,16 @@ ipcRenderer.on('sim-status', (event, status) => {
 })
 
 // Web UI opener trigger
-btnOpenWebui.addEventListener('click', () => {
-  ipcRenderer.send('open-external-url', getTargetUrl())
-})
+if (btnOpenWebui) {
+  btnOpenWebui.addEventListener('click', () => {
+    ipcRenderer.send('open-external-url', getTargetUrl())
+  })
+}
+if (headerBtnOpenWebui) {
+  headerBtnOpenWebui.addEventListener('click', () => {
+    ipcRenderer.send('open-external-url', getTargetUrl())
+  })
+}
 
 // Quick Simulation Button on Dashboard
 document.getElementById('btn-quick-sim').addEventListener('click', () => {
@@ -248,3 +316,33 @@ document.getElementById('btn-open-logs').addEventListener('click', () => {
   // Open commits of the repo
   ipcRenderer.send('open-external-url', 'https://github.com/mko1989/highascg/commits')
 })
+
+// Partition guide: copy-to-clipboard for runnable Terminal commands only
+function initGuideCopyButtons() {
+  document.querySelectorAll('.cmd-copy').forEach(block => {
+    const pre = block.querySelector('.cmd-copy-pre')
+    const btn = block.querySelector('.cmd-copy-btn')
+    if (!pre || !btn || btn.dataset.bound === '1') return
+    btn.dataset.bound = '1'
+    const text = pre.textContent.trim()
+    btn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(text)
+        btn.textContent = 'Copied'
+        btn.classList.add('copied')
+        setTimeout(() => {
+          btn.textContent = 'Copy'
+          btn.classList.remove('copied')
+        }, 2000)
+      } catch (err) {
+        btn.textContent = 'Failed'
+        console.error('Copy failed:', err)
+        setTimeout(() => {
+          btn.textContent = 'Copy'
+        }, 2000)
+      }
+    })
+  })
+}
+
+initGuideCopyButtons()

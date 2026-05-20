@@ -153,10 +153,11 @@ elif diskutil addPartition "/dev/$DISK" Exfat "$EXFAT_LABEL" 100%; then
 	:
 else
 	echo ""
-	echo "diskutil addPartition failed (common after some hybrid ISO layouts)."
-	echo "On a Linux workstation run:"
+	echo "diskutil addPartition failed (hybrid ISO sticks use MBR — Disk Utility Partition is often greyed out)."
+	echo "On this Mac: use the launcher Partitioning tab (macOS fdisk steps — brew install parted is not available)."
+	echo "    bash client/tools/live-usb/macos/calc-exfat-mbr-sectors.sh ${DISK}"
+	echo "On Linux:"
 	echo "    sudo bash tools/eggs/live-usb/add-exfat-data-partition.sh /dev/sdX"
-	echo "…or Disk Utility manually: Partition → Add exFAT, label HIGHASCGEXF (11 chars)."
 	exit 4
 fi
 
