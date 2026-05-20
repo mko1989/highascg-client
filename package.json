@@ -53,6 +53,8 @@
 		"release:github-client:dry": "bash client/tools/release/make-github-release-client.sh --dry-run",
 		"release:github-app": "bash deprecated/tools/release/make-dev-github-release.sh --app-only",
 		"release:github-app:dry": "bash deprecated/tools/release/make-dev-github-release.sh --app-only --dry-run",
+		"build:launcher": "npx @electron/packager client/tools/electron-launcher HighAsCG-Launcher --platform=linux,win32,darwin --arch=x64 --out=dist/launcher --overwrite",
+		"build:launcher:dry": "npx @electron/packager client/tools/electron-launcher HighAsCG-Launcher --platform=linux --arch=x64 --out=dist/launcher --overwrite --dry-run",
 		"eggs:prepare": "sudo bash tools/eggs/live-usb/prepare-eggs-clone-with-exfat.sh",
 		"eggs:build": "sudo bash tools/eggs/live-usb/build-highascg-egg.sh"
 	},
