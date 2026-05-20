@@ -120,7 +120,7 @@ From `.reference/casparcg-wiki/Protocols/OSC-Protocol.md`:
 
 ### Phase 2: VU Meters (Web GUI)
 
-- [x] **T2.1** Create `web/components/vu-meter.js` (≤300 lines)
+- [x] **T2.1** Create `client/components/vu-meter.js` (≤300 lines)
   - Canvas-based vertical VU meter bars
   - Per audio channel (L, R, or multi-channel: 1-16)
   - Visual elements:
@@ -143,7 +143,7 @@ From `.reference/casparcg-wiki/Protocols/OSC-Protocol.md`:
   - Configurable: height, width, orientation (vertical default)
   - Export: `createVuMeter(container, opts)` → `{ update(levels), destroy() }`
 
-- [x] **T2.2** Create `web/components/vu-meter-strip.js` (≤200 lines)
+- [x] **T2.2** Create `client/components/vu-meter-strip.js` (≤200 lines)
   - Group of VU meters for one CasparCG channel
   - Layout: horizontal row of vertical bars (stereo = 2 bars, 8ch = 8 bars)
   - Channel header: "Ch 1: 1080p5000"
@@ -157,7 +157,7 @@ From `.reference/casparcg-wiki/Protocols/OSC-Protocol.md`:
   - **Header bar**: Mini meter indicator next to audio source selector (WO-05)
   - All meters update in real-time via WebSocket OSC data
 
-- [x] **T2.4** Create `web/lib/osc-client.js` (≤100 lines)
+- [x] **T2.4** Create `client/lib/osc-client.js` (≤100 lines)
   - Subscribe to OSC WebSocket messages
   - Parse and distribute audio levels to VU meter components
   - Buffer/throttle updates to match display refresh rate
@@ -169,7 +169,7 @@ Not planned under WO-08. Media/templates/fonts/data are covered by **Sources**, 
 
 ### Phase 5: Layer Status Display
 
-- [x] **T5.1** Create `web/components/layer-status.js` (≤200 lines)
+- [x] **T5.1** Create `client/components/layer-status.js` (≤200 lines)
   - Real-time layer status from OSC data
   - Per channel: show active layers with:
     - Layer number
@@ -181,7 +181,7 @@ Not planned under WO-08. Media/templates/fonts/data are covered by **Sources**, 
   - Update at 20fps from OSC WebSocket data
   - Place in: header bar (compact), or dedicated status panel
 
-- [x] **T5.2** Create `web/components/channel-status.js` (≤150 lines)
+- [x] **T5.2** Create `client/components/channel-status.js` (≤150 lines)
   - Per channel overview:
     - Video format
     - Frame render time (from OSC profiler)

@@ -4,7 +4,7 @@
 
 ### 1.1 Data model (today)
 
-- All looks are stored in a **single flat array**: `SceneState.scenes` (`web/lib/scene-state.js`).
+- All looks are stored in a **single flat array**: `SceneState.scenes` (`client/lib/scene-state.js`).
 - A “look” is a `Scene` object: `id`, `name`, `layers[]`, `defaultTransition`, etc. There is **no** `screenIndex`, `mainId`, or `global` field on a scene.
 - `activeScreenIndex` only selects:
   - which **Caspar program/preview channel pair** is used for take/preview/compose;
@@ -16,7 +16,7 @@
 | Path | What is stored | Notes |
 |------|----------------|--------|
 | **Browser `localStorage`** key `casparcg_scenes_v1` | `scenes`, `liveSceneId`, `previewSceneId`, `activeScreenIndex`, `globalDefaultTransition` | Hot reload; no per-main partitioning. |
-| **Project export/import** (`web/lib/project-state.js`) | `sceneState.getExportData()` embedded under `scenes` in project JSON v1 | Same flat `scenes` array; `loadFromData` replaces entire `scenes`. |
+| **Project export/import** (`client/lib/project-state.js`) | `sceneState.getExportData()` embedded under `scenes` in project JSON v1 | Same flat `scenes` array; `loadFromData` replaces entire `scenes`. |
 | **Server persistence** (`index.js` + `persistence.get('scene_deck')`) | **Only** look `id` + `name` list (+ optional `previewSceneId`, `sceneSnapshots` via WS) | For Companion; full layer data can be pushed in snapshots but is not the primary long-term file format. |
 | **WS** `scene_deck_sync` | Pushes look list + full `sceneSnapshots` for take-before-save | All looks in one payload. |
 
@@ -73,7 +73,7 @@ Recommendation: use **`mainScope: 'all' | string digit`** for a stable JSON shap
 - **Option B (continuity):** if `screenCount` (from state) is **1**, keep behavior; if `screenCount > 1` on first load after upgrade, set all existing looks to `mainScope: 'all'` so nothing disappears from any main until the user tightens scope.  
 - **Recommendation:** document both; pick **B** if the goal is zero surprise on upgrade, **A** if the goal is strict separation immediately.
 
-`migrateScene` in `web/lib/scene-state-helpers.js` must set default `mainScope` when missing.
+`migrateScene` in `client/lib/scene-state-helpers.js` must set default `mainScope` when missing.
 
 ### 3.4 Export / project / server
 
@@ -160,11 +160,11 @@ Recommendation: use **`mainScope: 'all' | string digit`** for a stable JSON shap
 
 ## 8. References (code)
 
-- `web/lib/scene-state.js` — `scenes`, persist, `getExportData` / `loadFromData`  
-- `web/lib/scene-state-helpers.js` — `migrateScene`  
-- `web/lib/project-state.js` — project envelope  
-- `web/components/scene-list.js` / `scenes-editor.js` — deck and tabs  
-- `web/app.js` — `buildSceneDeckPayload`, `scene_deck_sync`  
+- `client/lib/scene-state.js` — `scenes`, persist, `getExportData` / `loadFromData`  
+- `client/lib/scene-state-helpers.js` — `migrateScene`  
+- `client/lib/project-state.js` — project envelope  
+- `client/components/scene-list.js` / `scenes-editor.js` — deck and tabs  
+- `client/app.js` — `buildSceneDeckPayload`, `scene_deck_sync`  
 - `src/config/routing.js` + `channel-map-from-ctx.js` — `screenCount`, `virtualMainChannels` for labels  
 
 ---

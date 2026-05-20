@@ -71,7 +71,7 @@ Replace the current SRT-only pipeline with a priority-based capture system that 
 
 ### [Component] Settings UI
 
-#### [MODIFY] [settings-modal.js](file:///Users/marcin/companion-module-dev/HighAsCG/web/components/settings-modal.js)
+#### [MODIFY] [settings-modal.js](file:///Users/marcin/companion-module-dev/HighAsCG/client/components/settings-modal.js)
 - **Capture tier** dropdown: `Auto`, `Local (kmsgrab/x11grab)`, `NDI`, `SRT`.
 - **NDI source names**: `Auto` (FFmpeg discovery + CasparCG default pattern), `Pattern only`, `Custom` (PGM / Preview / Multiview strings).
 - **Discover NDI sources** button — calls `GET /api/streaming/ndi-sources`.

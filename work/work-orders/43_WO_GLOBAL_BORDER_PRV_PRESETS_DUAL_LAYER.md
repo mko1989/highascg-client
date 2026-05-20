@@ -3,7 +3,7 @@
 **Status:** In progress — Phase A implemented (builders + API, state, preview, inspector, take path). Caspar hardware QA recommended.
 
 **Scope:** Web UI (`inspector-panel-views.js`), client preview AMCP (`scenes-preview-runtime.js`), scene persistence (`scene-state.js`), Caspar command builders (`src/engine/global-border.js`), scene take (`src/engine/scene-take-lbg.js`), HTTP API (`src/api/routes-scene.js`).  
-**Related:** WO-09 (global border), multiview preset slot pattern (`web/lib/multiview-state.js`).
+**Related:** WO-09 (global border), multiview preset slot pattern (`client/lib/multiview-state.js`).
 
 ---
 
@@ -83,8 +83,8 @@ Server builds lines via `buildGlobalBorderPresetCrossfadeLines` in `global-borde
 |------|------|
 | `src/engine/global-border.js` | `buildGlobalBorderPresetCrossfadeLines`, layer constants |
 | `src/api/routes-scene.js` | `POST /api/scene/border-preset-crossfade` |
-| `web/lib/scene-state.js` | `activePgmLayer`, `pgmAirSnapshot`, `borderPresets`, preset CRUD, PRV-off PGM resync |
-| `web/components/scenes-preview-runtime.js` | PRV-only slots when flag on; clear 998+996; `recallGlobalBorderPreset`; PGM snapshot hooks |
-| `web/lib/amcp-preview-batch.js` | Shared batch sender |
+| `client/lib/scene-state.js` | `activePgmLayer`, `pgmAirSnapshot`, `borderPresets`, preset CRUD, PRV-off PGM resync |
+| `client/components/scenes-preview-runtime.js` | PRV-only slots when flag on; clear 998+996; `recallGlobalBorderPreset`; PGM snapshot hooks |
+| `client/lib/amcp-preview-batch.js` | Shared batch sender |
 | `src/engine/scene-take-lbg.js` | Incoming/current border layer resolution + dual clear on teardown |
 | Inspector / scene-list / migrate | UI + look migration for `activePgmLayer` |

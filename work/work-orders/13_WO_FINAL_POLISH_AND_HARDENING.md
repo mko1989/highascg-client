@@ -27,7 +27,7 @@ Finalize the CasparCG production environment with a focus on **Security Hardenin
   - Optimized for initial sync.
   - Category filtering.
 - [x] **T2.2** Enhanced Searchable UI for Variables.
-  - "Copy Companion Key" helper in `web/components/variables-panel.js`.
+  - "Copy Companion Key" helper in `client/components/variables-panel.js`.
 
 ### Phase 3: Companion Module Enhancements
 

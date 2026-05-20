@@ -269,7 +269,7 @@ if [ -f /home/casparcg/highascg/package.json ]; then
     if [ -f "$EXFAT_MAP_SRC" ] && [ ! -f /etc/highascg/exfat-sync.json ]; then
         install -d /etc/highascg
         install -m 0644 -o root -g root "$EXFAT_MAP_SRC" /etc/highascg/exfat-sync.json
-        echo -e "  ${GREEN}✓${NC} installed /etc/highascg/exfat-sync.json (WO-47; systemd mounts LABEL=HIGHASCGEXF — see tools/live-usb/EXFAT_DATA_ZERO_TOUCH.md)"
+        echo -e "  ${GREEN}✓${NC} installed /etc/highascg/exfat-sync.json (WO-47; systemd mounts LABEL=HIGHASCGEXF — see tools/eggs/live-usb/EXFAT_DATA_ZERO_TOUCH.md)"
     fi
     chown -R "$USER_CASPAR:$USER_CASPAR" /home/casparcg/highascg/media /home/casparcg/highascg/log \
         /home/casparcg/highascg/template /home/casparcg/highascg/data /home/casparcg/highascg/cef-cache \

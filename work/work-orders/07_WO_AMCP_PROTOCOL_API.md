@@ -447,7 +447,7 @@ All files in `src/api/`. Each ≤ 500 lines.
   // Response (both raw and structured):
   { type: 'amcp_result', id: 'req-123', data: { ok: true, data: '202 PLAY OK', playbackMatrix?: … } }
   ```
-  Browser helper: `WsClient#sendAmcpStructured(payload)` in `web/lib/ws-client.js`.
+  Browser helper: `WsClient#sendAmcpStructured(payload)` in `client/lib/ws-client.js`.
 
 - [x] **T5.2** Implement structured WS commands
   - `src/server/ws-amcp-dispatch.js` — maps structured `type` (+ `mixer` / `cg` `command`) to existing `routes-amcp.js`, `routes-mixer.js`, `routes-cg.js` handlers
@@ -524,7 +524,7 @@ All files in `src/api/`. Each ≤ 500 lines.
 
 ### 2026-04-22 — Agent
 **Work Done:**
-- **WO-07 T5.1 / T5.2:** Structured WebSocket AMCP — `src/server/ws-amcp-dispatch.js` (`dispatchStructuredAmcp`, `isStructuredAmcpMessage`), wired in `src/server/ws-server.js` after raw `amcp` handling. Covers basic REST-equivalent types, `amcp_batch` / `amcp_raw_batch` / `raw`, nested **`mixer`** + **`cg`** commands. `web/lib/ws-client.js`: **`sendAmcpStructured(payload)`**.
+- **WO-07 T5.1 / T5.2:** Structured WebSocket AMCP — `src/server/ws-amcp-dispatch.js` (`dispatchStructuredAmcp`, `isStructuredAmcpMessage`), wired in `src/server/ws-server.js` after raw `amcp` handling. Covers basic REST-equivalent types, `amcp_batch` / `amcp_raw_batch` / `raw`, nested **`mixer`** + **`cg`** commands. `client/lib/ws-client.js`: **`sendAmcpStructured(payload)`**.
 
 **Instructions for Next Agent:**
 - **Phase 6** (validation helpers + unit/integration tests) still open if you want hardening.
@@ -532,7 +532,7 @@ All files in `src/api/`. Each ≤ 500 lines.
 ### 2026-04-16 — Agent
 **Work Done:**
 - **`validateBatchLine` (`src/caspar/amcp-batch.js`)**: Allow **`CG …`** inside AMCP `BEGIN`…`COMMIT` batches (per protocol “Batching Commands”). Explicitly **reject** **`MIXER <channel> COMMIT`** for those batches — that channel-level mixer commit must be sent **outside** the AMCP batch (matches existing comment about missing `202 COMMIT OK` when mixed with layer MIXER lines).
-- **PRV preview (`web/components/scenes-preview-runtime.js`)**: Build one **command queue** for the whole look (clear + every layer’s PLAY/MIXER/CG), then **one** `MIXER <previewCh> COMMIT` at the end so Caspar does not apply mixer state layer-by-layer. Sends queue via **`/api/amcp/batch`** in chunks of 16 (uses `batchSend` → `BEGIN`…`COMMIT` when `config.amcp_batch === true`), with mixer channel commit(s) via **`/api/raw`**. Falls back to **`/api/amcp/raw-batch`** then per-line **`/api/raw`** on failure.
+- **PRV preview (`client/components/scenes-preview-runtime.js`)**: Build one **command queue** for the whole look (clear + every layer’s PLAY/MIXER/CG), then **one** `MIXER <previewCh> COMMIT` at the end so Caspar does not apply mixer state layer-by-layer. Sends queue via **`/api/amcp/batch`** in chunks of 16 (uses `batchSend` → `BEGIN`…`COMMIT` when `config.amcp_batch === true`), with mixer channel commit(s) via **`/api/raw`**. Falls back to **`/api/amcp/raw-batch`** then per-line **`/api/raw`** on failure.
 - **Follow-up (same day)**: `batchSend` required **`clean.length > 1`** to use `BEGIN`…`COMMIT`, so **every 1-line chunk** (common for remainder after splitting by 16) still went **sequential TCP**. Fixed: use batch when **`clean.length >= 1`** and **`isAmcpBatchEnabled`** (truthy `amcp_batch`, not only `=== true`). **`/api/amcp/batch`** now copies **`ctx.config.amcp_batch`** into **`amcp._context.config`** each request so toggles in **`highascg.config.json`** apply without restarting the TCP connection.
 
 **Instructions for Next Agent:**

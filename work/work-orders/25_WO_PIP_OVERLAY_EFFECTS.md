@@ -183,14 +183,14 @@ pipOverlay: {
 | `templates/pip_shadow.html` | **NEW** — HTML template |
 | `templates/pip_edge_strip.html` | **NEW** — HTML template |
 | `templates/pip_glow.html` | **NEW** — HTML template |
-| `web/lib/pip-overlay-registry.js` | **NEW** — Type definitions, schemas, defaults |
-| `web/components/inspector-pip-overlay.js` | **NEW** — Inspector UI section |
+| `client/lib/pip-overlay-registry.js` | **NEW** — Type definitions, schemas, defaults |
+| `client/components/inspector-pip-overlay.js` | **NEW** — Inspector UI section |
 | `src/engine/pip-overlay.js` | **NEW** — Server-side overlay AMCP builder |
 | `src/api/routes-pip-overlay.js` | **NEW** — API routes |
 | `src/config/routing.js` | **EDIT** — Auto-deploy PIP templates |
 | `src/engine/scene-take-lbg.js` | **EDIT** — Wire overlay CG layer on take |
-| `web/lib/scene-state.js` | **EDIT** — Add `pipOverlay` to layer config |
-| `web/components/inspector-panel.js` | **EDIT** — Include PIP overlay section |
+| `client/lib/scene-state.js` | **EDIT** — Add `pipOverlay` to layer config |
+| `client/components/inspector-panel.js` | **EDIT** — Include PIP overlay section |
 
 ---
 

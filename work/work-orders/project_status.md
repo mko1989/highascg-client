@@ -22,14 +22,14 @@
   - layer ops (`select`, `source`, `zorder`, `window`, `umd`, `layer-preset apply`)
   - read endpoints (`layer-presets`, `source-backup`)
   - firmware fallback for layer select (`/layers/select` -> `/screen/select`)
-- Added frontend PixelHue service layer in `web/lib/pixelhue-api.js`.
-- Added modular Device View PixelHue controls in `web/components/device-view-pixelhue-controls.js`:
+- Added frontend PixelHue service layer in `client/lib/pixelhue-api.js`.
+- Added modular Device View PixelHue controls in `client/components/device-view-pixelhue-controls.js`:
   - global and per-screen controls
   - show preset apply to preview/program
   - layer select/source/z-order/window/UMD/style apply
   - source-backup read/write panel
 - Added backend payload validation hardening for PixelHue write routes (`take`, `cut`, `preset-apply`, `source-backup`, plus existing layer array checks).
-- Added smoke script `tools/smoke-pixelhue-validation.js` and npm script `smoke:pixelhue-validation`.
+- Added smoke script `tools/smoke/smoke-pixelhue-validation.js` and npm script `smoke:pixelhue-validation`.
 - Device View follow-up updates:
   - destination inspector now supports editable labels (names)
   - destination video mode now supports standard Caspar presets plus `custom` width/height/fps editing

@@ -10,7 +10,7 @@
 #
 # Usage:
 #   cd /home/casparcg/highascg
-#   sudo bash tools/live-usb/build-operator-stick.sh
+#   sudo bash tools/eggs/live-usb/build-operator-stick.sh
 #
 # Options:
 #   --skip-build         Use newest ISO under /home/eggs/ (already built).
@@ -24,7 +24,7 @@
 #   --no-decklink-check  Silence DeckLink notices.
 #
 # Environment (often set instead of repeating flags):
-#   BASENAME, NVIDIA_BRANCHES  — forwarded to tools/live-usb/build-highascg-egg.sh
+#   BASENAME, NVIDIA_BRANCHES  — forwarded to tools/eggs/live-usb/build-highascg-egg.sh
 #   EXFAT_AFTER_ISO_MARGIN_MIB — added on top of ceil(ISO file size MiB); default ~1.12 GiB (1152 MiB) so ~4.9 GiB
 #                                ISO leaves data near ~6+ GiB. Increase if hybrids grow.
 #   EXFAT_ISO_PATH           — forwarded to add-exfat-data-partition.sh (default: ISO used for dd).
@@ -216,5 +216,5 @@ echo
 echo "✓ Operator stick workflow complete."
 echo "  Boot: GRUB → **Live with persistence** (full / overlay)."
 echo "  Data: exFAT **HIGHASCGEXF** → /home/casparcg/exfat (WO-47); sync + bind mount wired if image had prepare-eggs-clone."
-echo "  Docs : tools/live-usb/FLASH_AND_PERSIST.md  ·  EXFAT_DATA_ZERO_TOUCH.md"
+echo "  Docs : tools/eggs/live-usb/FLASH_AND_PERSIST.md  ·  EXFAT_DATA_ZERO_TOUCH.md"
 echo ""

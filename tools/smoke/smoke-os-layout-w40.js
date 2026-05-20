@@ -2,7 +2,7 @@
 
 const test = require('node:test')
 const assert = require('node:assert/strict')
-const { calculateLayoutPositions } = require('../src/utils/os-layout-calculator')
+const { calculateLayoutPositions } = require('../../src/utils/os-layout-calculator')
 
 const HOST = 'caspar_host'
 const DEST_DEV = 'destinations_1'

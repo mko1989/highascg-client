@@ -34,7 +34,7 @@ src/state/
 ### `multiview-editor-canvas` (browser multiview layout editor)
 
 ```text
-web/components/
+client/components/
 ├── multiview-editor-canvas.js           24   barrel; same exports as before (`multiview-editor.js`, `inspector-fill.js`)
 ├── multiview-editor-canvas-layout.js   230   overlay typing, contained video rect, aspect / dimension solves
 ├── multiview-editor-canvas-interaction.js   86   canvas fit, hit-testing, resize handles
@@ -56,7 +56,7 @@ src/api/
 ### `settings-modal` (browser settings overlay)
 
 ```text
-web/components/
+client/components/
 ├── settings-modal.js                   308   entry; `showSettingsModal`, optional tabs, tab activation, nuclear + NVIDIA apply / GUI launch, plugins pane, autosave / hydrate
 └── settings-modal-mount-hardware.js    275   media mount + exFAT sync table + USB tab listeners; NVIDIA pool summary / branch select; DeckLink summary; destructive mount confirm overlay
 ```
@@ -66,7 +66,7 @@ web/components/
 ### `scene-state` (browser look / layer store)
 
 ```text
-web/lib/
+client/lib/
 ├── scene-state.js                   446   entry; `SceneState` + `sceneState` singleton + re-exports from `scene-state-helpers.js` (public API unchanged)
 ├── scene-state-global-border.js     163   per-screen global border read/write + preset slots (`sceneState*` helpers)
 └── scene-state-preset-actions.js    142   layer clipboard, layer/look presets, server preset import helpers
@@ -86,7 +86,7 @@ template/
 ### `device-view-caspar-render` (Device View — Caspar rear panel)
 
 ```text
-web/components/
+client/components/
 ├── device-view-caspar-render.js                      338   entry; `renderCasparBand` (unchanged export for `device-view-bands-render.js`)
 ├── device-view-caspar-render-helpers.js               78   RandR / GPU canonical id, kind title + icon, `createCasparRearMarkerStatusResolver`
 ├── device-view-caspar-render-gpu-doc-listeners.js     83   document `gpu-layout-changed` / `gpu-layout-save` / `gpu-layout-export`
@@ -96,7 +96,7 @@ web/components/
 ### `device-view-inspector-gpu` (Device View — GPU output inspector)
 
 ```text
-web/components/
+client/components/
 ├── device-view-inspector-gpu.js                  342   entry; `renderGpuOutControls` (unchanged export for `device-view-inspectors.js`)
 ├── device-view-inspector-gpu-resolve.js           34   `resolveGpuScreenNumber(conn, lastPayload)` — screen index from binding / graph / suggested order
 ├── device-view-inspector-gpu-layout-editor.js    193   edit-mode GPU layout drag/drop, localStorage, export/load, xrandr reset
@@ -118,11 +118,11 @@ src/engine/
 ### `scenes-preview-runtime` (browser PRV preview)
 
 ```text
-web/components/scenes-preview-runtime.js   300
-web/lib/scenes-preview-push-scene.js       365
-web/lib/scenes-preview-global-border.js    263
-web/lib/scenes-preview-look-stack.js        83
-web/lib/scenes-preview-snapshot.js          73
+client/components/scenes-preview-runtime.js   300
+client/lib/scenes-preview-push-scene.js       365
+client/lib/scenes-preview-global-border.js    263
+client/lib/scenes-preview-look-stack.js        83
+client/lib/scenes-preview-snapshot.js          73
 ```
 
 ### `inspector-panel-views` (shorthand)
@@ -137,31 +137,31 @@ web/lib/scenes-preview-snapshot.js          73
 |--------|------:|
 | **Files matching** | **0** *(same exclusion rules as below — **`> 500`** threshold cleared on **`multiview-editor-canvas`** + **`playback-tracker`** splits, 2026-05-18)* |
 | **Largest (listed)** | — *(none above 500)* |
-| **Largest under `src/` or `web/` or `template/`** | — *(none above 500)* |
+| **Largest under `src/` or `client/` or `template/`** | — *(none above 500)* |
 | **Last verified** | **2026-05-18** — `find` + `wc -l`; **0** paths **`> 500`** *(prunes: `node_modules/`, `.git/`, `dist/`, `build/`, `coverage/`, `cef-cache/`, `work/`)* |
 
 ---
 
 ## Approaching the threshold *(optional watchlist)*
 
-Largest files under **`src/`**, **`web/`**, **`template/`** at **≥ 430** lines (**2026-05-18**) — rerun counts before refactoring; **`09a-device-view-layout-destinations.css`** / **`scenes-editor.js`** / **`routes-mixer.js`** are nearest **500**.
+Largest files under **`src/`**, **`client/`**, **`template/`** at **≥ 430** lines (**2026-05-18**) — rerun counts before refactoring; **`09a-device-view-layout-destinations.css`** / **`scenes-editor.js`** / **`routes-mixer.js`** are nearest **500**.
 
 | Lines | Path |
 |------:|------|
-| 496 | `web/styles/09a-device-view-layout-destinations.css` |
-| 496 | `web/components/scenes-editor.js` |
+| 496 | `client/styles/09a-device-view-layout-destinations.css` |
+| 496 | `client/components/scenes-editor.js` |
 | 496 | `src/api/routes-mixer.js` |
 | 491 | `src/media/local-media.js` |
-| 488 | `web/components/inspector-panel-timeline.js` |
+| 488 | `client/components/inspector-panel-timeline.js` |
 | 485 | `src/config/defaults.js` |
 | 481 | `template/led_grid_test.js` |
 | 481 | `src/system/exfat-sync.js` |
 | 480 | `src/utils/os-layout-calculator.js` |
-| 477 | `web/components/timeline-canvas.js` |
-| 475 | `web/lib/timeline-state.js` |
-| 473 | `web/components/preview-canvas-draw-stacks.js` |
-| 465 | `web/components/scene-list.js` |
-| 463 | `web/components/usb-import-modal.js` |
+| 477 | `client/components/timeline-canvas.js` |
+| 475 | `client/lib/timeline-state.js` |
+| 473 | `client/components/preview-canvas-draw-stacks.js` |
+| 465 | `client/components/scene-list.js` |
+| 463 | `client/components/usb-import-modal.js` |
 
 ---
 
@@ -193,13 +193,13 @@ Anything under **`work/`** is excluded from this sweep table.
 
 | New file | Lines (`wc -l`) | Role |
 |----------|----------------:|------|
-| `web/components/inspector-panel-views.js` | 44 | Multiview + look title shells; **re-exports** `renderSceneLayerInspector`, `getResolutionForScreen`, `renderGlobalBorderInspector`. |
-| `web/components/inspector-channel-resolution.js` | 12 | `getResolutionForScreen(stateStore)` for active main program resolution. |
-| `web/components/inspector-scene-layer.js` | 229 | Look **layer** inspector: style clipboard, fill/mixer/template/effects/PIP, take override, delegates playlist UI. |
-| `web/components/inspector-layer-playlist.js` | 305 | **Playlist / list mode** UI (single vs list, dropzone, reorder, transitions). |
-| `web/components/inspector-global-border.js` | 399 | **Global border** inspector (type, fade, mirror PRV, params, presets, slices, Art-Net table). |
+| `client/components/inspector-panel-views.js` | 44 | Multiview + look title shells; **re-exports** `renderSceneLayerInspector`, `getResolutionForScreen`, `renderGlobalBorderInspector`. |
+| `client/components/inspector-channel-resolution.js` | 12 | `getResolutionForScreen(stateStore)` for active main program resolution. |
+| `client/components/inspector-scene-layer.js` | 229 | Look **layer** inspector: style clipboard, fill/mixer/template/effects/PIP, take override, delegates playlist UI. |
+| `client/components/inspector-layer-playlist.js` | 305 | **Playlist / list mode** UI (single vs list, dropzone, reorder, transitions). |
+| `client/components/inspector-global-border.js` | 399 | **Global border** inspector (type, fade, mirror PRV, params, presets, slices, Art-Net table). |
 
-**Imports:** `web/components/inspector-panel.js` unchanged — it still imports the same four symbols from `inspector-panel-views.js` (re-exported).
+**Imports:** `client/components/inspector-panel.js` unchanged — it still imports the same four symbols from `inspector-panel-views.js` (re-exported).
 
 **Follow-up (optional):** `inspector-global-border.js` (399) and `inspector-layer-playlist.js` (305) remain largest inspector chunks; no mandatory **`> 500`** sweep targets until something grows past the threshold again.
 
@@ -229,9 +229,9 @@ Anything under **`work/`** is excluded from this sweep table.
 
 | File | Lines (`wc -l`) | Role |
 |------|----------------:|------|
-| `web/lib/scene-state.js` | 446 | `SceneState` class: persistence wiring, screens, scenes, layers, live/preview IDs, exports + `sceneState` singleton. |
-| `web/lib/scene-state-global-border.js` | 163 | `sceneStateGetGlobalBorderForScreen`, `sceneStateSetGlobalBorderForScreen`, PRV snapshot + preset slot helpers, per-look `setGlobalBorder`. |
-| `web/lib/scene-state-preset-actions.js` | 142 | Layer style clipboard, layer/look preset CRUD + patch, server preset imports. |
+| `client/lib/scene-state.js` | 446 | `SceneState` class: persistence wiring, screens, scenes, layers, live/preview IDs, exports + `sceneState` singleton. |
+| `client/lib/scene-state-global-border.js` | 163 | `sceneStateGetGlobalBorderForScreen`, `sceneStateSetGlobalBorderForScreen`, PRV snapshot + preset slot helpers, per-look `setGlobalBorder`. |
+| `client/lib/scene-state-preset-actions.js` | 142 | Layer style clipboard, layer/look preset CRUD + patch, server preset imports. |
 
 **Imports:** All existing `import { sceneState } from '…/scene-state.js'` paths unchanged — only `scene-state.js` is the entry module.
 
@@ -247,8 +247,8 @@ Anything under **`work/`** is excluded from this sweep table.
 
 | File | Lines (`wc -l`) | Role |
 |------|----------------:|------|
-| `web/components/settings-modal.js` | 308 | `showSettingsModal`: optional tabs injection, tab activation + lazy optional panes, nuclear actions, NVIDIA branch apply + `guiLaunch`, DeckLink GUI buttons, plugins list/add/toggles/restart, autosave + `Logic.buildSettingsPayload` / hydrate. |
-| `web/components/settings-modal-mount-hardware.js` | 275 | `refreshMediaMountPanel`, `refreshExfatSyncPanel`, `refreshSystemHardwarePanel`, `refreshDecklinkPanel`, `openMediaMountDestructiveConfirm`, `wireMediaUsbMountListeners` (refresh / dry-run / apply with `settingsState.load`). |
+| `client/components/settings-modal.js` | 308 | `showSettingsModal`: optional tabs injection, tab activation + lazy optional panes, nuclear actions, NVIDIA branch apply + `guiLaunch`, DeckLink GUI buttons, plugins list/add/toggles/restart, autosave + `Logic.buildSettingsPayload` / hydrate. |
+| `client/components/settings-modal-mount-hardware.js` | 275 | `refreshMediaMountPanel`, `refreshExfatSyncPanel`, `refreshSystemHardwarePanel`, `refreshDecklinkPanel`, `openMediaMountDestructiveConfirm`, `wireMediaUsbMountListeners` (refresh / dry-run / apply with `settingsState.load`). |
 
 **Imports:** Public API unchanged — only `./settings-modal.js` exports `showSettingsModal`.
 
@@ -264,12 +264,12 @@ Anything under **`work/`** is excluded from this sweep table.
 
 | File | Lines (`wc -l`) | Role |
 |------|----------------:|------|
-| `web/components/device-view-caspar-render.js` | 338 | `renderCasparBand`: band shell, connector lists, slot column DOM, edit toggles, apply GPU, builds marker list and delegates marker append. |
-| `web/components/device-view-caspar-render-helpers.js` | 78 | `normRandrCaspar`, `resolveCanonicalGpuConnectorId`, `casparRearKindTitle`, `casparRearKindToIcon`, `createCasparRearMarkerStatusResolver`. |
-| `web/components/device-view-caspar-render-gpu-doc-listeners.js` | 83 | Binds `gpu-layout-changed` / `gpu-layout-save` / `gpu-layout-export` on `document` (updates overlay markers + localStorage / download). |
-| `web/components/device-view-caspar-render-markers.js` | 294 | `buildCasparRearMarkerLayoutItems`, `appendCasparRearPanelMarkers` (DeckLink/GPU drag reorder, REF row, selection / armed styling). |
+| `client/components/device-view-caspar-render.js` | 338 | `renderCasparBand`: band shell, connector lists, slot column DOM, edit toggles, apply GPU, builds marker list and delegates marker append. |
+| `client/components/device-view-caspar-render-helpers.js` | 78 | `normRandrCaspar`, `resolveCanonicalGpuConnectorId`, `casparRearKindTitle`, `casparRearKindToIcon`, `createCasparRearMarkerStatusResolver`. |
+| `client/components/device-view-caspar-render-gpu-doc-listeners.js` | 83 | Binds `gpu-layout-changed` / `gpu-layout-save` / `gpu-layout-export` on `document` (updates overlay markers + localStorage / download). |
+| `client/components/device-view-caspar-render-markers.js` | 294 | `buildCasparRearMarkerLayoutItems`, `appendCasparRearPanelMarkers` (DeckLink/GPU drag reorder, REF row, selection / armed styling). |
 
-**Imports:** `web/components/device-view-bands-render.js` still imports `renderCasparBand` from `./device-view-caspar-render.js` only (public API unchanged).
+**Imports:** `client/components/device-view-bands-render.js` still imports `renderCasparBand` from `./device-view-caspar-render.js` only (public API unchanged).
 
 **Follow-up (optional):** Watch **`device-view-inspector-gpu-video-modeline.js`** (411) if it grows past **500** lines.
 
@@ -283,12 +283,12 @@ Anything under **`work/`** is excluded from this sweep table.
 
 | File | Lines (`wc -l`) | Role |
 |------|----------------:|------|
-| `web/components/device-view-inspector-gpu.js` | 342 | `renderGpuOutControls`: consumer toggles, save/apply/reset, advanced panel wiring; delegates layout + video/modeline modules. |
-| `web/components/device-view-inspector-gpu-resolve.js` | 34 | `resolveGpuScreenNumber(conn, lastPayload)` — same rules as graph layout screen index. |
-| `web/components/device-view-inspector-gpu-layout-editor.js` | 193 | Edit-mode GPU layout editor (drag reorder, port selects, save/export/load, `resetGpuLayout`). |
-| `web/components/device-view-inspector-gpu-video-modeline.js` | 411 | Video mode + inherited producer, xrandr/NVIDIA backend select, EDID mode list, override + timing preview, `buildOutputPatchFromSelection` / `buildOsOutputPatchForApply`, “use detected display mode”. |
+| `client/components/device-view-inspector-gpu.js` | 342 | `renderGpuOutControls`: consumer toggles, save/apply/reset, advanced panel wiring; delegates layout + video/modeline modules. |
+| `client/components/device-view-inspector-gpu-resolve.js` | 34 | `resolveGpuScreenNumber(conn, lastPayload)` — same rules as graph layout screen index. |
+| `client/components/device-view-inspector-gpu-layout-editor.js` | 193 | Edit-mode GPU layout editor (drag reorder, port selects, save/export/load, `resetGpuLayout`). |
+| `client/components/device-view-inspector-gpu-video-modeline.js` | 411 | Video mode + inherited producer, xrandr/NVIDIA backend select, EDID mode list, override + timing preview, `buildOutputPatchFromSelection` / `buildOsOutputPatchForApply`, “use detected display mode”. |
 
-**Imports:** `web/components/device-view-inspectors.js` still imports `renderGpuOutControls` from `./device-view-inspector-gpu.js` only (public API unchanged).
+**Imports:** `client/components/device-view-inspectors.js` still imports `renderGpuOutControls` from `./device-view-inspector-gpu.js` only (public API unchanged).
 
 **Follow-up (optional):** Optional further split of `device-view-inspector-gpu-video-modeline.js` (411) if it grows past **500** lines.
 
@@ -302,13 +302,13 @@ Anything under **`work/`** is excluded from this sweep table.
 
 | File | Lines (`wc -l`) | Role |
 |------|----------------:|------|
-| `web/components/scenes-preview-runtime.js` | 300 | Factory: debounced queue, `pushSceneToPreview` wrapper, clear PRV bus, snapshot prime, border debounce; wires `createScenesPreviewGlobalBorder`. |
-| `web/lib/scenes-preview-look-stack.js` | 83 | `PREVIEW_SCENE_LAYER_MIN`, timeline constants, matrix / occupied-layer sets, `resolvePreviewAmcpChannel`. |
-| `web/lib/scenes-preview-snapshot.js` | 73 | `buildPreviewContentSnapshot`, `layerContentMetaForSnapshot`, `isGeometryOnlyPreview`. |
-| `web/lib/scenes-preview-push-scene.js` | 365 | `pushSceneToPreviewImpl` — AMCP batching for look layers, PIP overlays, border slots via injected `border.*` callbacks. |
-| `web/lib/scenes-preview-global-border.js` | 263 | `createScenesPreviewGlobalBorder`: PGM/PRV border slots, preset recall, `pushBorderOnlyNow`, meta map updates. |
+| `client/components/scenes-preview-runtime.js` | 300 | Factory: debounced queue, `pushSceneToPreview` wrapper, clear PRV bus, snapshot prime, border debounce; wires `createScenesPreviewGlobalBorder`. |
+| `client/lib/scenes-preview-look-stack.js` | 83 | `PREVIEW_SCENE_LAYER_MIN`, timeline constants, matrix / occupied-layer sets, `resolvePreviewAmcpChannel`. |
+| `client/lib/scenes-preview-snapshot.js` | 73 | `buildPreviewContentSnapshot`, `layerContentMetaForSnapshot`, `isGeometryOnlyPreview`. |
+| `client/lib/scenes-preview-push-scene.js` | 365 | `pushSceneToPreviewImpl` — AMCP batching for look layers, PIP overlays, border slots via injected `border.*` callbacks. |
+| `client/lib/scenes-preview-global-border.js` | 263 | `createScenesPreviewGlobalBorder`: PGM/PRV border slots, preset recall, `pushBorderOnlyNow`, meta map updates. |
 
-**Imports:** Only consumer remains `web/components/scenes-editor.js` → `createScenesPreviewRuntime` (public API unchanged).
+**Imports:** Only consumer remains `client/components/scenes-editor.js` → `createScenesPreviewRuntime` (public API unchanged).
 
 ---
 
@@ -336,7 +336,7 @@ Anything under **`work/`** is excluded from this sweep table.
 
 **`src/engine/scene-take-lbg.js` (~295 lines; helpers in `scene-take-lbg-*.js`)** — **server-side program take** (`runSceneTakeLbg`): Caspar **LOADBG + MIXER + PLAY** pipeline for look-to-look transitions on **PGM** (and similar). Heavy AMCP sequencing lives in **`scene-take-lbg-amcp-pipeline.js`**; merge-only mixer extras in **`scene-take-lbg-merge.js`**; post-take cleanup in **`scene-take-lbg-teardown.js`**; list-mode playlist / OSC in **`scene-take-lbg-playlist.js`**. **`scene-take-lbg-jobs.js`** still builds `takeJobs`. **PRV behaviour is orchestrated in** `src/api/routes-scene.js` around `runSceneTakeLbg`.
 
-**`web/components/scenes-preview-runtime.js` (~300 lines; helpers in `web/lib/scenes-preview-*.js`)** — **browser-side PRV preview**: debounced queue, `pushSceneToPreview` AMCP batches (see `scenes-preview-push-scene.js`), **same layer numbers as PGM**, global border on PRV mirror layer, PIP overlay AMCP, incremental vs full pushes. Logic was large for parity with PGM; it now lives mostly in **`pushSceneToPreviewImpl`** plus border / look-stack modules.
+**`client/components/scenes-preview-runtime.js` (~300 lines; helpers in `client/lib/scenes-preview-*.js`)** — **browser-side PRV preview**: debounced queue, `pushSceneToPreview` AMCP batches (see `scenes-preview-push-scene.js`), **same layer numbers as PGM**, global border on PRV mirror layer, PIP overlay AMCP, incremental vs full pushes. Logic was large for parity with PGM; it now lives mostly in **`pushSceneToPreviewImpl`** plus border / look-stack modules.
 
 **Performance:** Both paths are already **batched AMCP** (`batchSend` / `postAmcpPreviewPipeline`) and avoid unnecessary PLAY when geometry-only changes (preview). The heavy cost is **intrinsic** (many layers × commands). Further wins are structural (smaller modules, fewer redundant INFO round-trips on the client), not a single “faster API” switch.
 
@@ -352,12 +352,12 @@ Anything under **`work/`** is excluded from this sweep table.
 
 | File | Lines (`wc -l`) | Role |
 |------|----------------:|------|
-| `web/styles/09b-device-view-connectors-inspector.css` | 4 | Backward-compatibility forwarder sheet importing sub-sheets. |
-| `web/styles/09b1-device-view-connectors-overlay.css` | 188 | Cable overlay lines, rear panel marker dots, active/target glow states, and affordances. |
-| `web/styles/09b2-device-view-backpanel-hardware.css` | 134 | Hardware backpanel, band grids, metal slot titles, and connector layout rows. |
-| `web/styles/09b3-device-view-inspector-sidebar.css` | 179 | Sidebar inspector panel, KV details, status indicators, stream badges, and media queries. |
+| `client/styles/09b-device-view-connectors-inspector.css` | 4 | Backward-compatibility forwarder sheet importing sub-sheets. |
+| `client/styles/09b1-device-view-connectors-overlay.css` | 188 | Cable overlay lines, rear panel marker dots, active/target glow states, and affordances. |
+| `client/styles/09b2-device-view-backpanel-hardware.css` | 134 | Hardware backpanel, band grids, metal slot titles, and connector layout rows. |
+| `client/styles/09b3-device-view-inspector-sidebar.css` | 179 | Sidebar inspector panel, KV details, status indicators, stream badges, and media queries. |
 
-**Imports:** Updated `web/styles/09-device-view.css` directly to import `09b1`, `09b2`, and `09b3` for clean, modular rendering.
+**Imports:** Updated `client/styles/09-device-view.css` directly to import `09b1`, `09b2`, and `09b3` for clean, modular rendering.
 
 ---
 
@@ -387,11 +387,11 @@ Anything under **`work/`** is excluded from this sweep table.
 
 | File | Lines (`wc -l`) | Role |
 |------|----------------:|------|
-| `web/components/multiview-editor-canvas.js` | 24 | Re-export barrel only |
-| `web/components/multiview-editor-canvas-layout.js` | 230 | PGM/PRV overlay typing, contained rects, resolution suffix, aspect / resize solves |
-| `web/components/multiview-editor-canvas-interaction.js` | 86 | `fitInContainer`, coordinate transforms, outer rect / hit-test / resize handles |
-| `web/components/multiview-editor-canvas-draw.js` | 177 | `drawMultiviewEditor` |
-| `web/components/multiview-editor-canvas-apply.js` | 93 | `applyMultiviewLayout`, `applyMultiviewAudioFocus` |
+| `client/components/multiview-editor-canvas.js` | 24 | Re-export barrel only |
+| `client/components/multiview-editor-canvas-layout.js` | 230 | PGM/PRV overlay typing, contained rects, resolution suffix, aspect / resize solves |
+| `client/components/multiview-editor-canvas-interaction.js` | 86 | `fitInContainer`, coordinate transforms, outer rect / hit-test / resize handles |
+| `client/components/multiview-editor-canvas-draw.js` | 177 | `drawMultiviewEditor` |
+| `client/components/multiview-editor-canvas-apply.js` | 93 | `applyMultiviewLayout`, `applyMultiviewAudioFocus` |
 
 **Imports:** Call sites keep **`from './multiview-editor-canvas.js'`** — API unchanged.
 

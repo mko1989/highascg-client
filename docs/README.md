@@ -43,4 +43,4 @@ Operator and integrator docs live at the **top level** of this folder. Deeper ma
 | [internal/](internal/) | Custom Caspar builds, image consolidation, architecture notes |
 | [../work/work-orders/](../work/work-orders/) | Engineering work orders (WO-*) |
 
-Stick / release tooling: [`tools/stick-tools/README.md`](../tools/stick-tools/README.md), [`tools/operator-desktop/README.md`](../tools/operator-desktop/README.md), [`tools/live-usb/BUILD_AND_FLASH.md`](../tools/live-usb/BUILD_AND_FLASH.md).
+Stick / release tooling: [`client/tools/stick-tools/README.md`](../client/tools/stick-tools/README.md), [`client/tools/operator-desktop/README.md`](../client/tools/operator-desktop/README.md), [`tools/eggs/live-usb/BUILD_AND_FLASH.md`](../tools/eggs/live-usb/BUILD_AND_FLASH.md).

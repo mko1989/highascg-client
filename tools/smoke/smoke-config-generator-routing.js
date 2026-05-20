@@ -1,10 +1,10 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
 
-const defaults = require('../src/config/defaults')
-const { buildConfigXml } = require('../src/config/config-generator')
-const { buildCasparGeneratorFlatConfig } = require('../src/config/build-caspar-generator-config')
-const { getChannelMap } = require('../src/config/routing')
+const defaults = require('../../src/config/defaults')
+const { buildConfigXml } = require('../../src/config/config-generator')
+const { buildCasparGeneratorFlatConfig } = require('../../src/config/build-caspar-generator-config')
+const { getChannelMap } = require('../../src/config/routing')
 
 /**
  * @param {any} cfg
@@ -291,7 +291,7 @@ test('pgm_only destination omits preview channel for that main', () => {
 })
 
 test('channel plan decklink count tracks routing casparServer fallback (prevents hole placeholders)', () => {
-	const { buildChannelPlan } = require('../src/config/config-generator-channel-plan')
+	const { buildChannelPlan } = require('../../src/config/config-generator-channel-plan')
 	const app = clone(defaults)
 	addMockGraph(app)
 	app.screenDestinations = {

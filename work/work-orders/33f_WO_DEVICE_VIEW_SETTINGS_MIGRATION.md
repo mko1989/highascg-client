@@ -52,7 +52,7 @@ Reduce **duplication and confusion** between the **old** settings panels and the
 
 ## 5. Tasks (checklist)
 
-- [ ] Fill **matrix** with actual files/components (`web/components/...`) and owner sign-off.
+- [ ] Fill **matrix** with actual files/components (`client/components/...`) and owner sign-off.
 - [ ] Implement **deep link** from device inspector to settings tab (from 33c).
 - [ ] Implement **banner** on `tandem-device-panel` (or merge panel into device view and leave stub).
 - [ ] Update `README` or single **operator** paragraph: where to configure what (optional, short).

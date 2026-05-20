@@ -45,11 +45,11 @@ Default values from `Client-master/src/Common/Global.h` `Mixer::` namespace.
 
 ## Current State (Baseline)
 
-- Sources panel (`web/components/sources-panel.js`): 4 tabs — Media, Templates, Live, Timelines. Templates = server TLS list.
-- Inspector (`web/components/inspector-panel.js`): Renders clip/layer properties per selection type.
-- Inspector mixer (`web/components/inspector-mixer.js`): Already has Opacity, Volume, Blend Mode (dropdown), Rotation, Straight Alpha (keyer) for scene layers. Dashboard layers have Opacity, Volume, Blend, Stretch.
-- Scenes editor (`web/components/scenes-editor.js`): Layers accept `media`, `route`, `timeline` drag sources.
-- Timeline canvas (`web/components/timeline-canvas.js`): Clips accept only `media`/`route`/`timeline` drag sources.
+- Sources panel (`client/components/sources-panel.js`): 4 tabs — Media, Templates, Live, Timelines. Templates = server TLS list.
+- Inspector (`client/components/inspector-panel.js`): Renders clip/layer properties per selection type.
+- Inspector mixer (`client/components/inspector-mixer.js`): Already has Opacity, Volume, Blend Mode (dropdown), Rotation, Straight Alpha (keyer) for scene layers. Dashboard layers have Opacity, Volume, Blend, Stretch.
+- Scenes editor (`client/components/scenes-editor.js`): Layers accept `media`, `route`, `timeline` drag sources.
+- Timeline canvas (`client/components/timeline-canvas.js`): Clips accept only `media`/`route`/`timeline` drag sources.
 - AMCP API: `POST /api/mixer/fill`, `/api/mixer/opacity`, `/api/mixer/blend`, `/api/mixer/commit` already exist.
 
 ---
@@ -70,7 +70,7 @@ clip.effects = [
 
 ### Effect Registry
 
-A new module `web/lib/effect-registry.js` defines the catalog:
+A new module `client/lib/effect-registry.js` defines the catalog:
 
 ```javascript
 export const MIXER_EFFECTS = [
@@ -92,14 +92,14 @@ Extend the existing `applyLayerSettings` / scene-transition / timeline-engine to
 
 ### Phase 1: Effects tab in Sources panel
 
-- [x] **T1.1** Create `web/lib/effect-registry.js` — effect catalog with type, label, icon, category, defaults, parameter schema.
+- [x] **T1.1** Create `client/lib/effect-registry.js` — effect catalog with type, label, icon, category, defaults, parameter schema.
 - [x] **T1.2** In `sources-panel.js`: remove the "Templates" tab, add "Effects" tab.
 - [x] **T1.3** Render the Effects tab as a list of draggable items from the registry. Each item draggable with `{ type: 'effect', value: effectType, label }`.
 - [x] **T1.4** Style effects items distinctly (accent border/background to differentiate from media/route sources).
 
 ### Phase 2: Inspector effect editors
 
-- [x] **T2.1** Create `web/components/inspector-effects.js` — `renderEffectEditor(container, effectType, params, onChange, onRemove)`.
+- [x] **T2.1** Create `client/components/inspector-effects.js` — `renderEffectEditor(container, effectType, params, onChange, onRemove)`.
 - [x] **T2.2** Implement parameter editors per effect type:
   - Blend Mode: dropdown (9 modes from `BLEND_MODES`)
   - Brightness/Contrast/Saturation: drag input 0–2, step 0.01
@@ -182,15 +182,15 @@ Extend the existing `applyLayerSettings` / scene-transition / timeline-engine to
 **Work Done:**
 
 **New files:**
-- `web/lib/effect-registry.js` — Effect catalog (13 types), parameter schemas, AMCP command builders
-- `web/components/inspector-effects.js` — Per-effect-type parameter editors, effects group with drop zone
+- `client/lib/effect-registry.js` — Effect catalog (13 types), parameter schemas, AMCP command builders
+- `client/components/inspector-effects.js` — Per-effect-type parameter editors, effects group with drop zone
 
 **Modified files:**
-- `web/components/sources-panel.js` — Replaced Templates tab with Effects tab, added `renderEffectsTab()`
-- `web/components/inspector-panel.js` — Added `renderEffectsGroup` to dashboard, timeline clip, and scene layer inspectors
-- `web/components/timeline-editor.js` — Extended `onDropSource` for effect drops on clips
-- `web/styles/03-sources-ingest-offline-sync.css` — Effects tab styling
-- `web/styles/06-inspector-mixer-context.css` — Inspector effect card styling
+- `client/components/sources-panel.js` — Replaced Templates tab with Effects tab, added `renderEffectsTab()`
+- `client/components/inspector-panel.js` — Added `renderEffectsGroup` to dashboard, timeline clip, and scene layer inspectors
+- `client/components/timeline-editor.js` — Extended `onDropSource` for effect drops on clips
+- `client/styles/03-sources-ingest-offline-sync.css` — Effects tab styling
+- `client/styles/06-inspector-mixer-context.css` — Inspector effect card styling
 - `src/engine/scene-take-lbg.js` — Added `buildEffectAmcpLines()`, applies effects during look-take
 - `src/engine/timeline-playback.js` — Added `buildEffectAmcpLinesPlayback()`, applies effects during playback
 

@@ -17,7 +17,7 @@ Let operators **publish a single playing layer** (e.g. channel 1, layer 10) as a
 ## UI/UX requirements
 
 1. **Layers list control (scene composer)**  
-   On each row in the scene **layer strip** (same list as layer number, copy/paste style, remove — see [`web/components/scene-layer-row.js`](../web/components/scene-layer-row.js)), add a **small icon button** (e.g. **arrow / “route out”**) with tooltip: **“Add this layer as a Live route (reuse picture without duplicating media).”**
+   On each row in the scene **layer strip** (same list as layer number, copy/paste style, remove — see [`client/components/scene-layer-row.js`](../client/components/scene-layer-row.js)), add a **small icon button** (e.g. **arrow / “route out”**) with tooltip: **“Add this layer as a Live route (reuse picture without duplicating media).”**
 
 2. **Sources → Live tab**  
    On success, the operator sees a **new draggable tile** under **Sources → Live** alongside Program / Preview / DeckLink routes. Default label: **`Route: Ch{N} L{M}`** (exact copy bikeshed OK; may include scene name if cheaply available).
@@ -36,9 +36,9 @@ Let operators **publish a single playing layer** (e.g. channel 1, layer 10) as a
 
 - [x] **F3.** **Channel resolution** must use the **actual Caspar channel** the scene will use when taken / previewed — **not** a hard-coded channel 1. Implementation must read the same channel mapping the editor / take path already uses (virtual mains, program channel index, etc.).
 
-- [x] **F4.** Optional: populate **`resolution` / `fps`** from `channelMap` for that channel when available (match shape of built-in entries in [`web/components/sources-panel-helpers.js`](../web/components/sources-panel-helpers.js) `buildLiveSources`).
+- [x] **F4.** Optional: populate **`resolution` / `fps`** from `channelMap` for that channel when available (match shape of built-in entries in [`client/components/sources-panel-helpers.js`](../client/components/sources-panel-helpers.js) `buildLiveSources`).
 
-- [x] **F5.** After add, UI updates without full reload: apply returned **`extraLiveSources`** via existing **`__highascgApplyExtraLiveSources`** pattern (see [`web/components/sources-panel.js`](../web/components/sources-panel.js), [`web/components/live-input-modal.js`](../web/components/live-input-modal.js)).
+- [x] **F5.** After add, UI updates without full reload: apply returned **`extraLiveSources`** via existing **`__highascgApplyExtraLiveSources`** pattern (see [`client/components/sources-panel.js`](../client/components/sources-panel.js), [`client/components/live-input-modal.js`](../client/components/live-input-modal.js)).
 
 ## Edge cases and product decisions
 
@@ -53,11 +53,11 @@ Let operators **publish a single playing layer** (e.g. channel 1, layer 10) as a
 
 1. **Server:** No new endpoint required if `addExtraLiveSource` accepts the payload; verify validation does not reject unknown `routeType` values.
 
-2. **Client — layer row:** [`web/components/scene-layer-row.js`](../web/components/scene-layer-row.js) — `addExtraLiveSource`, **Shift+↗** (PGM bus) / **Ctrl+↗** (PRV bus), self-route guard on strip **drop**.
+2. **Client — layer row:** [`client/components/scene-layer-row.js`](../client/components/scene-layer-row.js) — `addExtraLiveSource`, **Shift+↗** (PGM bus) / **Ctrl+↗** (PRV bus), self-route guard on strip **drop**.
 
-3. **Client — compose:** [`web/components/scenes-compose.js`](../web/components/scenes-compose.js) — same self-route guard when dropping a Live route onto a layer.
+3. **Client — compose:** [`client/components/scenes-compose.js`](../client/components/scenes-compose.js) — same self-route guard when dropping a Live route onto a layer.
 
-4. **Shared helper:** [`web/lib/look-stack-amcp-channel.js`](../web/lib/look-stack-amcp-channel.js) — `resolveLookStackChannelForBus`; [`web/components/scenes-shared.js`](../web/components/scenes-shared.js) — `parseRouteChannelLayer`.
+4. **Shared helper:** [`client/lib/look-stack-amcp-channel.js`](../client/lib/look-stack-amcp-channel.js) — `resolveLookStackChannelForBus`; [`client/components/scenes-shared.js`](../client/components/scenes-shared.js) — `parseRouteChannelLayer`.
 
 5. **Caspar:** Confirm fork/build supports **`PLAY … route://N-M`** for **program-style** layers (repo already uses channel-layer routes for inputs and audio in [`src/api/routes-audio.js`](../src/api/routes-audio.js)).
 

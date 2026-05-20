@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /**
  * WO-47: run exFAT ↔ project mtime sync from the shell (boot hook / manual).
- * Usage: node tools/exfat-sync-cli.js [--dry-run]
+ * Usage: node tools/runtime/exfat-sync-cli.js [--dry-run]
  */
 'use strict'
 
-const { runExfatSync } = require('../src/system/exfat-sync')
+const { runExfatSync } = require('../../src/system/exfat-sync')
 
 const dryRun = process.argv.includes('--dry-run')
 

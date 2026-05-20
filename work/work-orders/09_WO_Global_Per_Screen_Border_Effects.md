@@ -2,7 +2,7 @@
 
 **Status:** Draft work order  
 **Scope:** HighAsCG application (Web GUI / Server logic)  
-**Related context:** We have standard border overlays implemented for PIPs (Picture-in-Picture) in the inspector (see `web/components/inspector-pip-overlay.js` and `pip-overlay-registry.js`). The goal is to reuse these effects as global, per-screen overlays on a high CG layer (e.g., 998) and expose their parameters via Art-Net for external control.
+**Related context:** We have standard border overlays implemented for PIPs (Picture-in-Picture) in the inspector (see `client/components/inspector-pip-overlay.js` and `pip-overlay-registry.js`). The goal is to reuse these effects as global, per-screen overlays on a high CG layer (e.g., 998) and expose their parameters via Art-Net for external control.
 
 ---
 
@@ -81,7 +81,7 @@ Implement global per-screen border effects that can be enabled via a "Look" sett
 
 ## 6. References
 
-- `web/components/inspector-pip-overlay.js`
+- `client/components/inspector-pip-overlay.js`
 - `src/lib/pip-overlay-registry.js`
 - `src/sampling/dmx-output.js` (for existing `dmxnet` usage)
 

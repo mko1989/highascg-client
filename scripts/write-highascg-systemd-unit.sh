@@ -39,6 +39,10 @@ if [[ -f /etc/systemd/system/home-casparcg-exfat.mount ]] &&
 		AF_LIST="$AF_LIST highascg-exfat-bootstrap.service"
 		WA_LIST="$WA_LIST highascg-exfat-bootstrap.service"
 	fi
+	if [[ -f /etc/systemd/system/highascg-exfat-server-update.service ]]; then
+		AF_LIST="$AF_LIST highascg-exfat-server-update.service"
+		WA_LIST="${WA_LIST:+$WA_LIST }highascg-exfat-server-update.service"
+	fi
 	AF_LIST="$AF_LIST highascg-exfat-sync.service"
 	WA_LIST="${WA_LIST:+$WA_LIST }highascg-exfat-sync.service"
 	read -r -d '' HIGHASCG_UNIT_DEPS <<EUD || true

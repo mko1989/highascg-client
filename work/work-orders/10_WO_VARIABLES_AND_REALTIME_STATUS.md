@@ -41,12 +41,12 @@ Implement a robust **Variables & Status** system that gathers data from both the
 
 - [x] **T2.1** Update `ws-server.js` to handle `variable_update` messages.
   - Efficient delta updates? Only send changed keys.
-- [x] **T2.2** In the web client, create `web/lib/variable-state.js`.
+- [x] **T2.2** In the web client, create `client/lib/variable-state.js`.
   - Subscriber-based model for components to listen to specific variable keys.
 
 ### Phase 3: Variables Explorer (Web GUI)
 
-- [x] **T3.1** Create `web/components/variables-panel.js`.
+- [x] **T3.1** Create `client/components/variables-panel.js`.
   - A searchable table/list of all active variables.
   - "Copy to Clipboard" for variable keys (e.g., `$(highascg:osc_ch1_l1_clip)`).
 - [x] **T3.2** Add "Variables" tab to the Settings modal or a dedicated side-panel.
@@ -74,9 +74,9 @@ Implement a robust **Variables & Status** system that gathers data from both the
 **Work Done:**
 - **`src/api/routes-state.js`:** `GET /api/variables/custom`, **`POST /api/variables/batch`** `{ keys }`, **`POST /api/variables/custom`** `{ labels }` (merge; empty string/null removes). Persistence via **`variableCustomLabels`** in app state file.
 - **`src/api/router.js`:** Register new routes **before** Caspar gate (same as other variable routes).
-- **`web/components/variables-panel.js`:** Import **`ws` from `app.js`** (was broken `main.js`); **Custom label** column with blur-to-save; async mount.
-- **`web/components/settings-modal.js`:** Await-safe **`mountVariablesPanel`** via `void …catch`.
-- **`scripts/http-smoke.js`:** `GET /custom`, `POST /batch`.
+- **`client/components/variables-panel.js`:** Import **`ws` from `app.js`** (was broken `main.js`); **Custom label** column with blur-to-save; async mount.
+- **`client/components/settings-modal.js`:** Await-safe **`mountVariablesPanel`** via `void …catch`.
+- **`tools/smoke/http-smoke.js`:** `GET /custom`, `POST /batch`.
 - **`companion-module-highpass-highascg` `api-client.js`:** `getVariablesByKeys`, `getVariableCustomLabels`, `setVariableCustomLabels`.
 
 **Status:** **T1.3**, **T4.2** complete.
@@ -88,7 +88,7 @@ Implement a robust **Variables & Status** system that gathers data from both the
 - **Server Core:** Enhanced `StateManager.js` with `setVariable()` and 100ms throttling.
 - **Categorization:** Refactored `osc-variables.js` and `index.js` to use consistent `osc_*`, `app_*`, and `caspar_*` prefixes.
 - **WS Sync:** Implemented `variable_update` broadcast in `ws-server.js` for real-time differential updates.
-- **Web UI:** Created `web/lib/variable-state.js` (store) and `web/components/variables-panel.js` (UI).
+- **Web UI:** Created `client/lib/variable-state.js` (store) and `client/components/variables-panel.js` (UI).
 - **Integration:** Integrated the Variables Panel into the Settings Modal.
 - **API Optimization:** Updated `routes-state.js` to support prefix filtering.
 

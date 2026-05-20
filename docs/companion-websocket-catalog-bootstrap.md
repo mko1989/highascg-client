@@ -212,4 +212,4 @@ Messages are **JSON text** frames: **`{"type":"…", …}`**.
 | WS catalog dispatch | `src/server/ws-catalog-handlers.js` |
 | WS attach / `change` coalescing | `src/server/ws-server.js` |
 | Raw catalog merge | `src/api/media-catalog.js` |
-| Web UI reference client | `web/lib/deferred-catalog-ws.js`, `web/lib/app-ws-handlers.js` |
+| Web UI reference client | `client/lib/deferred-catalog-ws.js`, `client/lib/app-ws-handlers.js` |

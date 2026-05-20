@@ -15,7 +15,7 @@ Use this file to audit, diff, or refactor take/preview paths without reading the
 | **BEGIN…COMMIT batch** | `amcp.batchSend(lines)` → `BEGIN` + lines + `COMMIT` on TCP | Only when `config.amcp_batch` is true **and** chunk has **≥2** lines. Max lines: `amcp_max_batch_commands` (default **64**, max **512**). |
 | **Chunked batch** | `amcp.batchSendChunked(lines, opts)` | Splits into multiple batches/sequential blocks. |
 | **Sequential raw** | `sendAmcpLinesSequential` (= `sequentialRaw`) | One TCP round-trip per line; used for CG+mixer blocks and `MIXER ch COMMIT` sandwiches. |
-| **HTTP → server** | `POST /api/amcp/batch`, `/api/amcp/raw-batch`, `/api/raw` | Preview UI uses batch + separate COMMIT lines (`web/lib/amcp-preview-batch.js`). |
+| **HTTP → server** | `POST /api/amcp/batch`, `/api/amcp/raw-batch`, `/api/raw` | Preview UI uses batch + separate COMMIT lines (`client/lib/amcp-preview-batch.js`). |
 
 **Mixer pre-commit:** Before mixer-only batches (no `CG` lines), the server may send `MIXER {ch} COMMIT` once **unless** `skipMixerPreCommit: true` (required for LBG take DEFER chunks).
 
@@ -279,7 +279,7 @@ MIXER {ch}-996 CLEAR
 ## 3. PRV look preview (editor)
 
 **Entry:** `pushSceneToPreviewImpl` → `postAmcpPreviewPipeline`  
-**Files:** `web/lib/scenes-preview-push-scene.js`, `web/lib/amcp-preview-batch.js`
+**Files:** `client/lib/scenes-preview-push-scene.js`, `client/lib/amcp-preview-batch.js`
 
 Builds one `queue` per preview channel, then `MIXER {previewCh} COMMIT` at end. Side borders on other channels get their own mini-pipeline + COMMIT.
 

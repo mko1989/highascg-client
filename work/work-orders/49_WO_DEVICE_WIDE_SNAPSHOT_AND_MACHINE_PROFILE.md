@@ -138,10 +138,10 @@ Recommended implementation order:
 
 ## 8. Related files (expected touch points)
 
-- `web/components/device-view-caspar-render*.js` — rear panel DOM / SVG for capture  
-- `web/components/device-view-inspector-gpu*.js` — existing export / layout save events (`gpu-layout-export` etc.)  
+- `client/components/device-view-caspar-render*.js` — rear panel DOM / SVG for capture  
+- `client/components/device-view-inspector-gpu*.js` — existing export / layout save events (`gpu-layout-export` etc.)  
 - `src/api/routes-*` — device graph, settings apply (follow existing auth patterns)  
-- `web/components/settings-modal*.js` — WO-39 hardware panes; read persisted keys for bundle  
+- `client/components/settings-modal*.js` — WO-39 hardware panes; read persisted keys for bundle  
 - `src/config/` — normalization helpers; avoid duplicating tandem merge logic
 
 ---
@@ -158,8 +158,8 @@ Recommended implementation order:
 - **`src/config/device-snapshot.js`**: kind/version validation, visual size limits, `extractPayloadFromConfig`, `applySnapshotToConfigClone`, JSON Schema export.  
 - **`src/api/routes-device-snapshot.js`**: `GET /api/device-snapshot/build`, `GET /api/device-snapshot/schema`, `POST /api/device-snapshot/apply` (`full` | `graphOnly`, `dryRun`). Persist via same shape as settings save (`saveFullConfigLikeSettings`).  
 - **`src/api/router.js`**: routes wired (pre–Caspar gate, with settings).  
-- **`src/bootstrap/modules.js`** + **`web/index.html`**: vendor mount + import map for `html-to-image` (ESM).  
-- **Web**: `web/lib/device-snapshot-capture.js` (dynamic `import('html-to-image')`), `device-view-snapshot-modals.js`, **Devices** toolbar **Save snapshot** / **Load snapshot**; download-only export (no server-side drop folder).  
-- **`samples/device-snapshots/`** + `npm run test:device-snapshot` (`tools/smoke-device-snapshot.js`).  
+- **`src/bootstrap/modules.js`** + **`client/index.html`**: vendor mount + import map for `html-to-image` (ESM).  
+- **Web**: `client/lib/device-snapshot-capture.js` (dynamic `import('html-to-image')`), `device-view-snapshot-modals.js`, **Devices** toolbar **Save snapshot** / **Load snapshot**; download-only export (no server-side drop folder).  
+- **`samples/device-snapshots/`** + `npm run test:device-snapshot` (`tools/smoke/smoke-device-snapshot.js`).  
 - **Dependency**: `html-to-image` (npm).  
 - **Instructions for next agent:** QA in browser (PNG capture may depend on browser resolving extension-less ESM imports under `/vendor/html-to-image/`); optionally add **Settings → Hardware** shortcut to snapshot modals; consider shipping additional real-world generic JSON files once validated on hardware.

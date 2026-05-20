@@ -25,8 +25,8 @@ Improve the **live-USB + cross-platform data** story beyond **WO-38** (partition
 | Work | Relationship |
 |------|----------------|
 | **WO-38** (`mediaMount`, `highascg-media-mount.sh`) | Mounts one UUID at **`/home/casparcg/highascg/media/drive`** after clearing that subfolder. This WO **does not remove WO-38**; it adds **exFAT at `/home/casparcg/exfat`**, **optional bind**, and **boot sync**. |
-| **`tools/live-usb/add-union-persistence-partition.sh`** | Already avoids carving persistence into the ISO region; **same discipline** applies to any **new primary** for exFAT: start **after the last hybrid MBR partition end**, never trust **`parted … print free`** alone for start sector. |
-| **`docs/LIVE_USB_IMAGE.md`**, **`tools/live-usb/FLASH_AND_PERSIST.md`** | After implementation, add a short **operator subsection** linking here (one paragraph + link). |
+| **`tools/eggs/live-usb/add-union-persistence-partition.sh`** | Already avoids carving persistence into the ISO region; **same discipline** applies to any **new primary** for exFAT: start **after the last hybrid MBR partition end**, never trust **`parted … print free`** alone for start sector. |
+| **`docs/LIVE_USB_IMAGE.md`**, **`tools/eggs/live-usb/FLASH_AND_PERSIST.md`** | After implementation, add a short **operator subsection** linking here (one paragraph + link). |
 
 ---
 
@@ -53,7 +53,7 @@ Improve the **live-USB + cross-platform data** story beyond **WO-38** (partition
 
 ### D. Operator / cross-platform
 
-- [ ] **D1.** **`docs/LIVE_USB_IMAGE.md`** (or **`tools/live-usb/`** doc): **“Adding exFAT after Etcher”** — **Linux-first** procedure (`parted`/`gparted`, `mkfs.exfat`, `blkid`); **Windows** and **macOS** paragraphs with **honest limits** (hybrid ISO: **Disk Management** / **Disk Utility** may hide unallocated or show only one volume; **wrong shrink/create can brick the stick**).
+- [ ] **D1.** **`docs/LIVE_USB_IMAGE.md`** (or **`tools/eggs/live-usb/`** doc): **“Adding exFAT after Etcher”** — **Linux-first** procedure (`parted`/`gparted`, `mkfs.exfat`, `blkid`); **Windows** and **macOS** paragraphs with **honest limits** (hybrid ISO: **Disk Management** / **Disk Utility** may hide unallocated or show only one volume; **wrong shrink/create can brick the stick**).
 - [ ] **D2.** Optional **first-boot wizard** or **desktop notification** (“exFAT data partition not found — see …”) — **nice-to-have**; not blocking if docs are clear.
 
 ---
@@ -79,7 +79,7 @@ Typical **fourth MBR primary** (when ISO + EFI + persistence + DATA) or **logica
 - **`highascg-exfat-sync.service`** — `Type=oneshot`, `RemainAfterExit=yes`, runs sync script; **`Before=highascg.service`**.
 - Optional **`highascg-exfat-media-bind.service`** — bind mount after `.mount` is active.
 
-Ship **`.example`** units under **`tools/live-usb/systemd/`** and install hook in **`install-phase4.sh`** or live-USB doc “copy and enable.”
+Ship **`.example`** units under **`tools/eggs/live-usb/systemd/`** and install hook in **`install-phase4.sh`** or live-USB doc “copy and enable.”
 
 ### 3. Suggested default sync map (bikeshed OK)
 
@@ -96,7 +96,7 @@ Default **sync pairs** (if present on exFAT):
 
 | exFAT relative | Project absolute | Notes |
 |----------------|-------------------|--------|
-| `sim/highascg/` | `/home/casparcg/highascg/` | **Exclude** `node_modules`, `.git`, `media` if bind-mounted; **or** include only `src/`, `web/`, `package.json`, `package-lock.json` — **must** be explicit in map to avoid copying gigabytes / wrong arch binaries. |
+| `sim/highascg/` | `/home/casparcg/highascg/` | **Exclude** `node_modules`, `.git`, `media` if bind-mounted; **or** include only `src/`, `client/`, `package.json`, `package-lock.json` — **must** be explicit in map to avoid copying gigabytes / wrong arch binaries. |
 | `drop-config/highascg.config.json` | `/home/casparcg/highascg/highascg.config.json` | Optional one-file overlay |
 
 **Recommendation:** v1 map file **only** lists **small, safe** subtrees (`sim/highascg` without `node_modules`); **never** default-sync whole `media/` both ways (bandwidth + Caspar file handles); use **bind** for playout library only.
@@ -140,8 +140,8 @@ For each **file** path pair `A` (exFAT) / `B` (project):
 
 | Area | Action |
 |------|--------|
-| `tools/live-usb/systemd/` | New `*.mount.example`, `highascg-exfat-sync.service.example` |
-| `scripts/` or `tools/live-usb/` | `highascg-exfat-sync.sh` (or Node) + default map |
+| `tools/eggs/live-usb/systemd/` | New `*.mount.example`, `highascg-exfat-sync.service.example` |
+| `scripts/` or `tools/eggs/live-usb/` | `highascg-exfat-sync.sh` (or Node) + default map |
 | `docs/LIVE_USB_IMAGE.md` | Link + short operator subsection |
 | WO-38 doc | Cross-link + “when to use which” table |
 | Optional future | Settings UI to edit map (out of scope v1 — file-based only) |
@@ -163,23 +163,23 @@ For each **file** path pair `A` (exFAT) / `B` (project):
 ### 2026-05-17 — Agent (WO-47 v1: map + mtime sync + UI view)
 
 **Work done:**
-- **`config/exfat-sync.json`** — default **`pairs`**: `sim/highascg` ↔ `~/highascg` (excludes `node_modules`, `.git`, `media`, …) and optional **`drop-config/highascg.config.json`** ↔ project monolithic config.
+- **`config/exfat-sync.json`** — **`pairs`**: **`drop-config/highascg.config.json`** ↔ project monolithic config only (**`sim/highascg`** pair removed May 2026; server tree via **`update/server/`**).
 - **`src/system/exfat-sync.js`** — load map (**`HIGHASCG_EXFAT_SYNC_MAP`** → **`/etc/highascg/exfat-sync.json`** → repo config), **`getExfatSyncDashboard`**, **`runExfatSync`** (mtime-wins file sync; refuses if **`/home/casparcg/exfat`** is not a mount point).
 - **`GET /api/system/exfat-sync`**, **`POST /api/system/exfat-sync/run`** (`dryRun` or **`confirm: EXFAT_SYNC`**) — **`src/api/routes-exfat-sync.js`** + **`router.js`**.
 - **Settings → media/usb**: table of pairs + map path + mount status; **Dry-run sync** button.
-- **`tools/exfat-sync-cli.js`**, **`npm run exfat-sync`**, **`npm run smoke:exfat-sync`**, **`tools/smoke-exfat-sync.js`**.
-- **`tools/live-usb/systemd/*.example`** + README; **`install-phase4.sh`** creates **`/home/casparcg/exfat`**, seeds **`/etc/highascg/exfat-sync.json`** when missing.
+- **`tools/runtime/exfat-sync-cli.js`**, **`npm run exfat-sync`**, **`npm run smoke:exfat-sync`**, **`tools/smoke/smoke-exfat-sync.js`**.
+- **`tools/eggs/live-usb/systemd/*.example`** + README; **`install-phase4.sh`** creates **`/home/casparcg/exfat`**, seeds **`/etc/highascg/exfat-sync.json`** when missing.
 
-**Instructions for next agent:** Prefer **`tools/live-usb/EXFAT_DATA_ZERO_TOUCH.md`** + **`scripts/install-exfat-systemd-units.sh`** over hand-editing **`*.example`** units.
+**Instructions for next agent:** Prefer **`tools/eggs/live-usb/EXFAT_DATA_ZERO_TOUCH.md`** + **`scripts/install-exfat-systemd-units.sh`** over hand-editing **`*.example`** units.
 
 ### 2026-05-17 — Agent (zero-touch: label mount + partition sizing)
 
-**Work done:** **`scripts/install-exfat-systemd-units.sh`** ( **`What=/dev/disk/by-label/HIGHASCGEXF`**, uid/gid from **`casparcg`** ); **`tools/live-usb/add-exfat-data-partition.sh`** (default **`EXFAT_SIZE_MIB=4096`**, **`EXFAT_FILL_DISK=1`** for exFAT-only); **`install-phase4.sh`** conditional **`highascg.service`** deps; **`EXFAT_DATA_ZERO_TOUCH.md`**; **`FLASH_AND_PERSIST.md`** order (exFAT then persistence).
+**Work done:** **`scripts/install-exfat-systemd-units.sh`** ( **`What=/dev/disk/by-label/HIGHASCGEXF`**, uid/gid from **`casparcg`** ); **`tools/eggs/live-usb/add-exfat-data-partition.sh`** (default **`EXFAT_SIZE_MIB=4096`**, **`EXFAT_FILL_DISK=1`** for exFAT-only); **`install-phase4.sh`** conditional **`highascg.service`** deps; **`EXFAT_DATA_ZERO_TOUCH.md`**; **`FLASH_AND_PERSIST.md`** order (exFAT then persistence).
 
 **Instructions for next agent:** If **`read -d ''`** heredoc in **`install-phase4`** causes issues on non-bash, inline a two-line **`After=`** string instead.
 
 ## Instructions for Next Agent
 
-1. Read **WO-38** and **`tools/live-usb/add-union-persistence-partition.sh`** geometry rules before writing any partition logic.  
+1. Read **WO-38** and **`tools/eggs/live-usb/add-union-persistence-partition.sh`** geometry rules before writing any partition logic.  
 2. **Boot sync v1 is landed** — wire **`highascg-exfat-sync.service`** into live image builds; tune **`home-casparcg-exfat.mount`** **`uid=`/`gid=`** for **`casparcg`**.  
 3. When adding docs, keep **Windows/macOS** language **non-hand-wavy** about failure modes (hybrid ISO visibility).

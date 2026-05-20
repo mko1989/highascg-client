@@ -11,7 +11,7 @@
 
 ## Module context
 
-Part of the **Previs & Tracking optional module** — see [WO-30](./30_WO_PREVIS_TRACKING_MODULE.md) for packaging, feature flag, and directory boundary. This WO is inert unless `HIGHASCG_PREVIS=1` or `config.features.previs3d === true`. All source lives under `src/tracking/`, `web/components/tracking-*`, `web/lib/tracking-*`, and is deletable as a unit.
+Part of the **Previs & Tracking optional module** — see [WO-30](./30_WO_PREVIS_TRACKING_MODULE.md) for packaging, feature flag, and directory boundary. This WO is inert unless `HIGHASCG_PREVIS=1` or `config.features.previs3d === true`. All source lives under `src/tracking/`, `client/components/tracking-*`, `client/lib/tracking-*`, and is deletable as a unit.
 
 Sibling WOs: [WO-17](./17_WO_3D_PREVIS.md) (3D stage model — projection surface for tracking markers) and [WO-31](./31_WO_STAGE_AUTOFOLLOW_PTZ.md) (consumer of tracking data for PTZ/lighting auto-follow).
 
@@ -133,7 +133,7 @@ GPU frame-sharing (zero-copy CUDA / DMA-BUF / NVENC handles from Caspar to the t
 
 ### Phase 2: Integration with 3D Previs (WO-17)
 
-- [ ] **T2.1** Stage coordinate mapping (`web/lib/tracking-stage-map.js`, ≤200 lines)
+- [ ] **T2.1** Stage coordinate mapping (`client/lib/tracking-stage-map.js`, ≤200 lines)
   - Define stage coordinate system:
     - Camera calibration: user marks the stage floor corners in the camera view
     - 4-point perspective transform (homography matrix)
@@ -144,7 +144,7 @@ GPU frame-sharing (zero-copy CUDA / DMA-BUF / NVENC handles from Caspar to the t
     - Step 3: System computes homography
   - Save calibration per camera in `previs-state.js`
 
-- [ ] **T2.2** 3D previs person markers (`web/components/previs-tracking-overlay.js`, ≤150 lines)
+- [ ] **T2.2** 3D previs person markers (`client/components/previs-tracking-overlay.js`, ≤150 lines)
   - In the 3D previs scene, render tracked persons as:
     - Capsule meshes (height based on detected skeleton)
     - Or point-cloud skeleton visualization
@@ -210,7 +210,7 @@ WO-31 is the principal consumer of tracking data. Companion integration is there
   - Performance stats: FPS, latency, person count, GPU/CPU EP in use.
   - Throttle control: 10 / 15 / 25 Hz broadcast.
 
-- [ ] **T5.2** Create `web/components/tracking-panel.js` (≤300 lines)
+- [ ] **T5.2** Create `client/components/tracking-panel.js` (≤300 lines)
   - Lives inside the Previs module's side-pane (not a separate workspace tab).
   - Shows the selected camera feed with the overlay (bboxes, skeletons, IDs).
   - Top-down stage map showing person positions (shares the same canvas the autofollow zone editor from WO-31 uses).

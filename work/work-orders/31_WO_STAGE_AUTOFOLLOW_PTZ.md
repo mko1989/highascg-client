@@ -159,11 +159,11 @@ Keyboard: `F` to start following the selected person, `Esc` to stop, `H` to forc
 | REST routes | `src/autofollow/routes-autofollow.js` [NEW] |
 | Module registration | `src/autofollow/register.js` [NEW] |
 | WS namespace handler | `src/autofollow/ws-autofollow.js` [NEW] |
-| Panel UI | `web/components/autofollow-panel.js` [NEW] |
-| Device editor / wizard | `web/components/autofollow-device-editor.js` [NEW] |
-| Zones overlay (hooks into previs canvas) | `web/components/autofollow-zones-overlay.js` [NEW] |
-| Client state | `web/lib/autofollow-state.js` [NEW] |
-| Styles | `web/styles/autofollow.css` [NEW] |
+| Panel UI | `client/components/autofollow-panel.js` [NEW] |
+| Device editor / wizard | `client/components/autofollow-device-editor.js` [NEW] |
+| Zones overlay (hooks into previs canvas) | `client/components/autofollow-zones-overlay.js` [NEW] |
+| Client state | `client/lib/autofollow-state.js` [NEW] |
+| Styles | `client/styles/autofollow.css` [NEW] |
 | Companion module bridge | `companion-module-highpass-highascg/src/autofollow-bridge.js` [NEW, sibling repo] |
 
 ---

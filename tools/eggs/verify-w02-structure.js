@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Expected layout: server at repo root (`src/`), UI in `client/`.
- * Run: node tools/verify-w02-structure.js
+ * Run: node tools/eggs/verify-w02-structure.js
  */
 
 'use strict'
@@ -9,7 +9,7 @@
 const fs = require('fs')
 const path = require('path')
 
-const ROOT = path.resolve(__dirname, '..')
+const ROOT = path.resolve(__dirname, '../..')
 
 const EXPECTED = [
 	'package.json',

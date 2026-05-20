@@ -351,7 +351,7 @@ That uses **`scripts/install-config.sh`** (including `HIGHASCG_GIT_URL`) and **`
 
 ### 9.5 Dev deploy from your laptop
 
-**`scripts/dev-push.sh`** / `npm run deploy:dev` — rsync or scp to a remote host (see **`scripts/README.md`** and `.env.deploy`).
+**`client/scripts/dev-push.sh`** / `npm run deploy:dev` — rsync or scp to a remote host (see **`scripts/README.md`** and `.env.deploy`).
 
 ---
 

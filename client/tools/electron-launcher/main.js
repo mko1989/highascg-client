@@ -14,7 +14,7 @@ function createWindow() {
     minWidth: 800,
     minHeight: 600,
     title: 'HighAsCG Operator Panel & Launcher',
-    icon: path.join(__dirname, 'icon.png'), // Fallback if no icon
+    icon: path.join(__dirname, 'icon.svg'), // Svg icon copied from client
     frame: true,
     autoHideMenuBar: true,
     webPreferences: {

@@ -201,7 +201,7 @@ Pass criteria:
   - `src/api/settings-get.js` now returns it.
   - `src/api/settings-post.js` now validates/normalizes and persists it through `configManager`.
 - Updated rear-panel GPU rendering:
-  - `web/components/device-view-caspar-render.js` now prioritizes `live.gpu.physicalMap.ports`.
+  - `client/components/device-view-caspar-render.js` now prioritizes `live.gpu.physicalMap.ports`.
   - GPU ports are rendered in `slotOrder` (configured physical order) with `P# (DPa/DPb) -> active` style labels.
 
 **Status:** Physical topology is now configurable and used in Device View ordering; stable ID display semantics are in place.
@@ -214,12 +214,12 @@ Pass criteria:
 ### 2026-04-27 — Agent (Monitor/status labels + anchor preference)
 
 **Work Done:**
-- Improved GPU connector resolution path (`web/components/device-view-helpers.js`):
+- Improved GPU connector resolution path (`client/components/device-view-helpers.js`):
   - `resolveConnectorId('gpu', ...)` now prefers `live.gpu.physicalMap.ports` active runtime mapping first.
   - Added slot-order fallback for physical connectors.
 - Updated friendly GPU labels for stable IDs:
   - `gpu_p*` now displays as `gpu_pN (DPa/DPb)` where available.
-- Enhanced rear-panel GPU tooltips (`web/components/device-view-caspar-render.js`) with:
+- Enhanced rear-panel GPU tooltips (`client/components/device-view-caspar-render.js`) with:
   - connected/disconnected status
   - monitor name
   - resolution and refresh rate

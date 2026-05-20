@@ -56,9 +56,9 @@ Ship a **visual editor / creator** for CasparCG **HTML (and FT) graphics** — c
 |------|---------|
 | `src/cg-studio/register.js` | Hook routes, static mount, feature flag |
 | `src/cg-studio/routes-*.js` | Save template, list projects, deploy to `templates/` |
-| `web/components/cg-studio-*.js` | Editor shell, iframe bridge, deploy dialog |
-| `web/lib/cg-studio-*.js` | Export adapters, field schema |
-| `web/styles/cg-studio*.css` | Scoped styles |
+| `client/components/cg-studio-*.js` | Editor shell, iframe bridge, deploy dialog |
+| `client/lib/cg-studio-*.js` | Export adapters, field schema |
+| `client/styles/cg-studio*.css` | Scoped styles |
 | `work/references/cg-studio/` | Vendored upstream snapshot or design notes |
 
 **Invariant:** No file outside these trees may `require`/`import` module paths except through **`module-registry`**.
@@ -75,7 +75,7 @@ Ship a **visual editor / creator** for CasparCG **HTML (and FT) graphics** — c
 ### Phase 1: Module shell
 
 - [ ] **T1.1** `src/cg-studio/register.js` + feature flag + `module-registry` hook (no-op when off).
-- [ ] **T1.2** Placeholder route `GET /api/cg-studio/health` + optional static `web/assets/modules/cg-studio/entry.js` pattern (match previs).
+- [ ] **T1.2** Placeholder route `GET /api/cg-studio/health` + optional static `client/assets/modules/cg-studio/entry.js` pattern (match previs).
 - [ ] **T1.3** `optionalDependencies` + `npm run install:cg-studio` doc line in `MANUAL_INSTALL` (when touched).
 
 ### Phase 2: Editor MVP

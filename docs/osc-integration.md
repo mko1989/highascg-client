@@ -28,7 +28,7 @@ CasparCG Server
 
          │  Browser
          ▼
-    web/lib/osc-client.js       merges WS OSC payloads (full or delta)
+    client/lib/osc-client.js       merges WS OSC payloads (full or delta)
          │
          └──► footer VU, playback-timer, now-playing, profiler-display, output-status, …
 ```
@@ -182,6 +182,6 @@ Legacy / extra FFmpeg paths (still seen on some builds): `file/frame` (elapsed/t
 | `src/osc/osc-variables.js` | Variable bridge |
 | `src/api/routes-osc.js` | REST |
 | `src/config/config-generator.js` | Caspar `<osc>` XML for generated server config |
-| `web/lib/osc-client.js` | Browser merge + subscriptions |
+| `client/lib/osc-client.js` | Browser merge + subscriptions |
 
 Caspar wiki (repo): `.reference/casparcg-wiki/Protocols/OSC-Protocol.md`

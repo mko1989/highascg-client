@@ -52,7 +52,7 @@
       "location": 0
     }
   ],
-  "screen_count": 1,
+  "screen_count": 2,
   "streaming": {
     "enabled": false,
     "protocol": "UDP",

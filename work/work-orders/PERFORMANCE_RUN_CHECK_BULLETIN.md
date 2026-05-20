@@ -49,7 +49,7 @@ If two agents collide, **merge findings** in § 12 under one task ID; do not del
 | **`src/engine/`**, **`src/streaming/`**, **`src/osc/`**, **`src/artnet/`** | Vendor `node_modules` except profiling hotspots |
 | **`src/state/`**, **`src/utils/persistence.js`**, periodic timers | `cef-cache/`, large reference trees under `work/references/` |
 
-Frontend (`web/`) may be referenced **only** where it drives server load (request frequency, WS subscriptions, AMCP preview batching). A dedicated **browser** performance bulletin should be a follow-up file if needed.
+Frontend (`client/`) may be referenced **only** where it drives server load (request frequency, WS subscriptions, AMCP preview batching). A dedicated **browser** performance bulletin should be a follow-up file if needed.
 
 ### 1.4 Report template (copy into § 12 for each task)
 

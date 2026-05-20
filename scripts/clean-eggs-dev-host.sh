@@ -71,4 +71,4 @@ for stale in /home/casparcg/highascg-server /home/casparcg/highascg-frontend; do
 done
 
 echo "==> Done. Kept: src/, client/, node_modules/, config/, tools/, scripts/, highascg.config.json"
-echo "    Verify: node tools/verify-w02-structure.js"
+echo "    Verify: npm run verify:structure"

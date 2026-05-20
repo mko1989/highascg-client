@@ -11,8 +11,8 @@
  * Run: `node tools/smoke-previs-stream.mjs`
  */
 
-import { createPrevisStreamManager } from '../client/lib/previs-stream-sources.js'
-import { createPrevisSceneModel } from '../client/lib/previs-scene-model.js'
+import { createPrevisStreamManager } from '../../client/lib/previs-stream-sources.js'
+import { createPrevisSceneModel } from '../../client/lib/previs-scene-model.js'
 
 let pass = 0
 let fail = 0

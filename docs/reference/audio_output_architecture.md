@@ -41,10 +41,10 @@
 | `src/api/settings-post.js` | Added `audioOutputs` persistence |
 | `src/api/settings-get.js` | Added `audioOutputs` to GET response |
 | `src/api/routes-device-view.js` | Added `audioOutputs` to device view payload |
-| `web/components/device-view-inspectors.js` | Added `renderAudioOutControls` inspector |
-| `web/components/device-view-caspar-render.js` | Slot renders from managed list + `+` button |
-| `web/components/device-view-bands-render.js` | Added `onAddAudioOutput`/`onRemoveAudioOutput` |
-| `web/components/device-view.js` | Added `removeAudioOutputConnector` handler |
+| `client/components/device-view-inspectors.js` | Added `renderAudioOutControls` inspector |
+| `client/components/device-view-caspar-render.js` | Slot renders from managed list + `+` button |
+| `client/components/device-view-bands-render.js` | Added `onAddAudioOutput`/`onRemoveAudioOutput` |
+| `client/components/device-view.js` | Added `removeAudioOutputConnector` handler |
 
 ---
 

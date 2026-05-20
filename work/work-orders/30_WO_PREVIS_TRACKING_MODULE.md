@@ -14,7 +14,7 @@
 Package 3D Previs ([WO-17](./17_WO_3D_PREVIS.md)), Person Tracking ([WO-19](./19_WO_PERSON_TRACKING.md)), and Stage Auto-Follow ([WO-31](./31_WO_STAGE_AUTOFOLLOW_PTZ.md)) as an **isolated, detachable feature module** on top of HighAsCG's base build, so that:
 
 - The **core HighAsCG codebase has zero hard dependency** on any of the previs/tracking code.
-- Deleting the `src/previs/`, `src/tracking/`, `src/autofollow/`, `web/components/previs-*`, `web/components/tracking-*`, and `web/components/autofollow-*` trees leaves the rest of the app booting and working normally.
+- Deleting the `src/previs/`, `src/tracking/`, `src/autofollow/`, `client/components/previs-*`, `client/components/tracking-*`, and `client/components/autofollow-*` trees leaves the rest of the app booting and working normally.
 - Heavy dependencies (`three`, `onnxruntime-node`, model files) never appear in the base install.
 - A single environment/config flag toggles the whole module on or off.
 
@@ -29,7 +29,7 @@ We considered four packaging options (feature flag, build variants, workspace pa
 - One source of truth, no branch merges.
 - Zero core imports of the module's code — the module registers itself via a thin hook in `index.js`.
 - Heavy deps live in `optionalDependencies`; `npm install --omit=optional` produces the lean build.
-- `rm -rf src/previs src/tracking src/autofollow web/components/{previs,tracking,autofollow}-*.js web/lib/{previs,tracking,autofollow}-*.js web/styles/previs*.css` cleanly removes everything.
+- `rm -rf src/previs src/tracking src/autofollow client/components/{previs,tracking,autofollow}-*.js client/lib/{previs,tracking,autofollow}-*.js web/styles/previs*.css` cleanly removes everything.
 
 ---
 
@@ -40,16 +40,16 @@ We considered four packaging options (feature flag, build variants, workspace pa
 | `src/previs/` | WO-17 | Server routes for model upload/listing, server-side helpers |
 | `src/tracking/` | WO-19 | ONNX session, ByteTrack, FFmpeg raw-frame ingress worker |
 | `src/autofollow/` | WO-31 | Per-device calibration, zone-exit logic, Companion out stream |
-| `web/components/previs-*.js` | WO-17 | 2D/3D toggle in PGM cell, mesh picker, screen-mapping UI |
-| `web/components/tracking-*.js` | WO-19 | Tracking overlay canvas, calibration wizard |
-| `web/components/autofollow-*.js` | WO-31 | Device list, per-device calibration, start/stop actions |
-| `web/lib/previs-*.js` | WO-17 | Three.js scene controller, model loader, video-texture helper |
-| `web/lib/tracking-*.js` | WO-19 | Homography math, EMA/one-euro filter, stage-coord helper |
-| `web/lib/autofollow-*.js` | WO-31 | Lock state, delta computation, device driver registry |
-| `web/styles/previs*.css`, `tracking*.css`, `autofollow*.css` | per-WO | Scoped styles |
-| `web/assets/models/`, `web/assets/mediapipe/` (if any) | WO-17 | Static assets served only when module is enabled |
+| `client/components/previs-*.js` | WO-17 | 2D/3D toggle in PGM cell, mesh picker, screen-mapping UI |
+| `client/components/tracking-*.js` | WO-19 | Tracking overlay canvas, calibration wizard |
+| `client/components/autofollow-*.js` | WO-31 | Device list, per-device calibration, start/stop actions |
+| `client/lib/previs-*.js` | WO-17 | Three.js scene controller, model loader, video-texture helper |
+| `client/lib/tracking-*.js` | WO-19 | Homography math, EMA/one-euro filter, stage-coord helper |
+| `client/lib/autofollow-*.js` | WO-31 | Lock state, delta computation, device driver registry |
+| `client/styles/previs*.css`, `tracking*.css`, `autofollow*.css` | per-WO | Scoped styles |
+| `client/assets/models/`, `client/assets/mediapipe/` (if any) | WO-17 | Static assets served only when module is enabled |
 
-**Invariant:** no file under `src/` (outside the three module dirs) or `web/components/`, `web/lib/`, `web/app.js`, `web/index.html` may `import` / `require` from the module paths directly. All touchpoints go through the registration API below.
+**Invariant:** no file under `src/` (outside the three module dirs) or `client/components/`, `client/lib/`, `client/app.js`, `client/index.html` may `import` / `require` from the module paths directly. All touchpoints go through the registration API below.
 
 ---
 
@@ -102,7 +102,7 @@ If the directories are deleted, the `require()` throws, the `try/catch` swallows
 
 ### 2. Web side
 
-`web/app.js` calls a single function `initOptionalModules()` that asks the server for an enabled-module list (`GET /api/modules`) and dynamically `import()`s the corresponding JS bundles only if listed. Zero static imports from app.js → module code.
+`client/app.js` calls a single function `initOptionalModules()` that asks the server for an enabled-module list (`GET /api/modules`) and dynamically `import()`s the corresponding JS bundles only if listed. Zero static imports from app.js → module code.
 
 ### 3. Shared conventions
 
@@ -139,7 +139,7 @@ If the directories are deleted, the `require()` throws, the `try/catch` swallows
 - Without flag: `npm install --omit=optional` → base build, no 3D libs on disk.
 - With flag: `npm install` → full install, also downloads the YOLOv8n-Pose ONNX model and Three.js Draco decoder into `<data>/models/` and `<data>/draco/`.
 
-The CI produces two installer artifacts: `highascg-base.tar.gz` and `highascg-previs.tar.gz`. The second is simply the first + `src/{previs,tracking,autofollow}` + `web/{components,lib,styles}/{previs,tracking,autofollow}*` + models + optional deps vendored.
+The CI produces two installer artifacts: `highascg-base.tar.gz` and `highascg-previs.tar.gz`. The second is simply the first + `src/{previs,tracking,autofollow}` + `client/{components,lib,styles}/{previs,tracking,autofollow}*` + models + optional deps vendored.
 
 ---
 
@@ -150,7 +150,7 @@ The CI produces two installer artifacts: `highascg-base.tar.gz` and `highascg-pr
 | Module registry (core) | `src/module-registry.js` [NEW, ships always] |
 | Boot hook (core) | `index.js` (~10 lines added) |
 | Optional-module discovery (core) | `src/api/routes-modules.js` [NEW, tiny] |
-| Web loader (core) | `web/lib/optional-modules.js` [NEW], `web/app.js` (~5 lines) |
+| Web loader (core) | `client/lib/optional-modules.js` [NEW], `client/app.js` (~5 lines) |
 | Previs registration | `src/previs/register.js` [NEW] |
 | Tracking registration | `src/tracking/register.js` [NEW] |
 | Autofollow registration | `src/autofollow/register.js` [NEW] |
@@ -164,7 +164,7 @@ The CI produces two installer artifacts: `highascg-base.tar.gz` and `highascg-pr
 - [x] **T30.1** Create `src/module-registry.js` with the `register` / `applyAll` surface. _(2026-04-21 — `src/module-registry.js` ships `register`, `tryLoad`, `listNames`, `bootAll`, `shutdownAll`, `handleApi`, `describe`.)_
 - [x] **T30.2** Wire `index.js` to attempt loading `src/previs/register`, `src/tracking/register`, `src/autofollow/register` behind `HIGHASCG_PREVIS=1` or `config.features.previs3d === true`, with try/catch per module. _(2026-04-21 — `loadOptionalModules()` in `index.js` + `moduleRegistry.bootAll(appCtx)` after WS is up + `shutdownAll` in shutdown.)_
 - [x] **T30.3** Create `GET /api/modules` → `{ enabled: ['previs','tracking','autofollow'] }` (only those that successfully loaded). _(2026-04-21 — `src/api/routes-modules.js`, registered in `router.js` at top of dispatch. Returns `{ enabled, bundles, styles, wsNamespaces }`.)_
-- [x] **T30.4** Extend the web bootstrap (`web/app.js`) with `initOptionalModules()` that fetches `/api/modules` and dynamic-imports each module's entry bundle (`/assets/<name>.js`). _(2026-04-21 — `web/lib/optional-modules.js` added; `web/app.js init()` fires it in parallel with layout setup. Each module's default export receives `{ stateStore, ws, api, sceneState, settingsState, streamState }`.)_
+- [x] **T30.4** Extend the web bootstrap (`client/app.js`) with `initOptionalModules()` that fetches `/api/modules` and dynamic-imports each module's entry bundle (`/assets/<name>.js`). _(2026-04-21 — `client/lib/optional-modules.js` added; `client/app.js init()` fires it in parallel with layout setup. Each module's default export receives `{ stateStore, ws, api, sceneState, settingsState, streamState }`.)_
 - [x] **T30.5** Move `three` and `onnxruntime-node` to `optionalDependencies`. Add `npm run install:base` and `npm run install:previs` scripts. _(2026-04-21 — `three@^0.184.0`, `onnxruntime-node@^1.24.3` added; `install:base` = `npm install --omit=optional`, `install:previs` = `npm install --include=optional`.)_
 
 ### Phase 2 — Installer split
@@ -174,7 +174,7 @@ The CI produces two installer artifacts: `highascg-base.tar.gz` and `highascg-pr
 
 ### Phase 3 — Deletion test (the real acceptance criterion)
 - [ ] **T30.9** With the module installed: `HIGHASCG_PREVIS=1 npm start` → PGM 2D/3D toggle, tracking overlay, and auto-follow UI all present.
-- [ ] **T30.10** Delete `src/{previs,tracking,autofollow}` and `web/{components,lib,styles}/{previs,tracking,autofollow}*`. App boots cleanly, `GET /api/modules` returns `{ enabled: [] }`, no UI references dangle, no 500s in the log.
+- [ ] **T30.10** Delete `src/{previs,tracking,autofollow}` and `client/{components,lib,styles}/{previs,tracking,autofollow}*`. App boots cleanly, `GET /api/modules` returns `{ enabled: [] }`, no UI references dangle, no 500s in the log.
 - [ ] **T30.11** `npm install --omit=optional` produces a working lean build with no `three`/`onnxruntime-node` on disk.
 
 ### Phase 4 — Shared conventions documented
@@ -222,7 +222,7 @@ All three are gated by this module. If WO-30 feature flag is off, none of them a
 - **T30.2** — `index.js` now calls a small `loadOptionalModules(config, log)` helper after `appCtx` is built. Gate is `HIGHASCG_PREVIS=1` (env) or `config.features.previs3d === true`. It attempts `moduleRegistry.tryLoad('previs' | 'tracking' | 'autofollow')`; missing dirs log a single "skipped" warn and boot continues. `moduleRegistry.bootAll(appCtx)` runs after the WS server is attached so modules can use `appCtx._wsBroadcast`. `shutdownAll` runs inside the shutdown pipeline.
 - **T30.3** — `src/api/routes-modules.js` responds to `GET /api/modules` with `{ enabled, bundles, styles, wsNamespaces }`. Wired into `src/api/router.js` right after the `/api/selection` ping.
 - **Router module dispatch** — added once, **before** the `!ctx.amcp` 503 gate, so tracking/autofollow stay reachable when Caspar is offline. Modules that need AMCP check `ctx.amcp` themselves.
-- **T30.4** — Added `web/lib/optional-modules.js` (`initOptionalModules`, `isModuleEnabled`, `getOptionalModuleState`). Fetches `/api/modules`, injects stylesheet `<link>`s, then dynamic-imports each bundle and awaits `default(sharedCtx)`. `web/app.js init()` fires it in parallel with the rest of bootstrap. Shared context = `{ stateStore, ws, api, sceneState, settingsState, streamState }`.
+- **T30.4** — Added `client/lib/optional-modules.js` (`initOptionalModules`, `isModuleEnabled`, `getOptionalModuleState`). Fetches `/api/modules`, injects stylesheet `<link>`s, then dynamic-imports each bundle and awaits `default(sharedCtx)`. `client/app.js init()` fires it in parallel with the rest of bootstrap. Shared context = `{ stateStore, ws, api, sceneState, settingsState, streamState }`.
 - **T30.5** — `package.json`: `three@^0.184.0` and `onnxruntime-node@^1.24.3` added to `optionalDependencies`. New scripts: `install:base` = `npm install --omit=optional`, `install:previs` = `npm install --include=optional`.
 - **T30.12** — Wrote `docs/MODULES.md`: directory layout, enable flags, install scripts, registration API shape, WS namespace table, **stage coordinate system** (metres, right-handed, +X stage-right, +Y upstage, +Z up, floor = Z=0), and a deletion checklist.
 

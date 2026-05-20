@@ -7,8 +7,7 @@ RELEASE_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${RELEASE_LIB_DIR}/../../scripts/archive-common.sh"
 
 release_lib_repo_root() {
-	local script="${BASH_SOURCE[1]:-${BASH_SOURCE[0]}}"
-	(cd "$(dirname "$script")/../.." && pwd)
+	(cd "${RELEASE_LIB_DIR}/../.." && pwd)
 }
 
 release_lib_need_cmd() {

@@ -51,9 +51,9 @@ Timeline playback (_processTimelineFlags)
 |---------|----------------|
 | Flag handling + HTTP POST | `src/engine/timeline-playback.js` — `_processTimelineFlags`, `companion_press` branch |
 | Persisted settings | `src/api/routes-settings.js` — `companion` object on GET/POST settings |
-| Timeline UI (flag type + fields) | `web/components/inspector-panel.js` — `companion_press`, Page/Row/Column |
-| Flag colour in timeline | `web/components/timeline-canvas.js` |
-| Settings UI (host/port) | `web/components/settings-modal.js` — Companion tab |
+| Timeline UI (flag type + fields) | `client/components/inspector-panel.js` — `companion_press`, Page/Row/Column |
+| Flag colour in timeline | `client/components/timeline-canvas.js` |
+| Settings UI (host/port) | `client/components/settings-modal.js` — Companion tab |
 
 ---
 
@@ -82,7 +82,7 @@ Timeline playback (_processTimelineFlags)
 
 ### 2026-04-22 — Agent (T24.5 + request body)
 
-**Work Done:** `fetch()` for Companion now sends `Content-Type: application/json` and body `{}` (some API gateways expect a body). Added `tools/smoke-companion-press.mjs` and `npm run smoke:companion-press` — no Bitfocus required; simulates the same request pattern as `timeline-playback.js`.
+**Work Done:** `fetch()` for Companion now sends `Content-Type: application/json` and body `{}` (some API gateways expect a body). Added `tools/smoke/smoke-companion-press.mjs` and `npm run smoke:companion-press` — no Bitfocus required; simulates the same request pattern as `timeline-playback.js`.
 
 **Instructions for Next Agent:** On a show machine, still do one manual fire against real Companion to confirm the grid cell and release behaviour.
 

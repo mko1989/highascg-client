@@ -26,7 +26,7 @@ archive_common_server_tar_members() {
 		config
 		template
 		scripts
-		tools
+		tools/runtime
 	)
 }
 
@@ -120,7 +120,7 @@ archive_common_print_size_hints() {
 	local archive_path="${1:-}"
 	echo "    Server tarball size is usually dominated by:"
 	echo "      • node_modules/ (runtime deps; use --zip-exclude-node-modules + npm ci on target)"
-	echo "      • tools/ (live-usb, release, stick-tools, smokes — full tree shipped)"
+	echo "      • tools/runtime/ (exfat-sync-cli, staged Caspar helpers)"
 	echo "      • src/ (orchestrator + APIs at repo root)"
 	echo "    UI is a separate asset: npm run release:github-client → dist-web/"
 	if [[ -n "$archive_path" && -f "$archive_path" ]]; then

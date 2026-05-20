@@ -1,96 +1,71 @@
-# HighAsCG — paths omitted from the live USB squashfs (penguins-eggs / mksquashfs)
-#
-# Entries are relative to filesystem root (no leading slash).
-# See docs/WO47_ISO_VS_EXFAT.md — minimal ISO shells vs payload on exFAT sim/highascg.
-#
-# --- Swap (not on operator USB; strip-host-swap-for-live-iso.sh also removes before produce) ---
+# HighAsCG — omit from squashfs (liveroot-relative paths, no leading /)
+# ISO = Caspar shell; Node server from exFAT update/server/ (tools/runtime/ in tarball)
+# See docs/WO47_ISO_VS_EXFAT.md
+
 swap.img
 swapfile
 
-# --- Node / workspace tree (populate from labelled HIGHASCGEXF at boot via highascg-exfat-bootstrap) ---
-home/casparcg/highascg/examples
-home/casparcg/highascg/examples/*
-home/casparcg/highascg/node_modules
-home/casparcg/highascg/node_modules/*
-home/casparcg/highascg/samples
-home/casparcg/highascg/samples/*
-home/casparcg/highascg/scratch
-home/casparcg/highascg/scratch/*
-home/casparcg/highascg/scripts
-home/casparcg/highascg/scripts/*
+# Node app tree (exFAT update/server/)
+home/casparcg/highascg/index.js
+home/casparcg/highascg/package.json
+home/casparcg/highascg/package-lock.json
+home/casparcg/highascg/npm-shrinkwrap.json
 home/casparcg/highascg/src
 home/casparcg/highascg/src/*
+home/casparcg/highascg/scripts
+home/casparcg/highascg/scripts/*
 home/casparcg/highascg/tools
 home/casparcg/highascg/tools/*
 home/casparcg/highascg/client
 home/casparcg/highascg/client/*
 home/casparcg/highascg/dist-web
 home/casparcg/highascg/dist-web/*
+home/casparcg/highascg/node_modules
+home/casparcg/highascg/node_modules/*
+home/casparcg/highascg/deprecated
+home/casparcg/highascg/deprecated/*
 home/casparcg/highascg/work
 home/casparcg/highascg/work/*
+home/casparcg/highascg/examples
+home/casparcg/highascg/examples/*
+home/casparcg/highascg/samples
+home/casparcg/highascg/samples/*
+home/casparcg/highascg/scratch
+home/casparcg/highascg/scratch/*
 
-# Root-level Node/app metadata (prefer exFAT / bootstrap)
-home/casparcg/highascg/package.json
-home/casparcg/highascg/package-lock.json
-home/casparcg/highascg/npm-shrinkwrap.json
-
-# --- HighAsCG runtime/working artifacts (regenerated on boot or from stick) ---
-
+# Runtime under ~/highascg (stubs stay on ISO)
 home/casparcg/highascg/media/*
-home/casparcg/highascg/_media/
-home/casparcg/highascg/cef-cache/
-home/casparcg/highascg/log/
+home/casparcg/highascg/_media
+home/casparcg/highascg/log
+home/casparcg/highascg/log/*
+home/casparcg/highascg/cef-cache
+home/casparcg/highascg/cef-cache/*
+home/casparcg/highascg/data
 home/casparcg/highascg/data/*
-home/casparcg/highascg/refs/
+home/casparcg/highascg/refs
 home/casparcg/highascg/dist
-home/casparcg/highascg/.git_nested_backup
-home/casparcg/highascg/.git_nested_backup/*
 home/casparcg/highascg/.github
 home/casparcg/highascg/.github/*
-home/casparcg/highascg/.reference
-home/casparcg/highascg/.reference/*
 
-# --- WO-47 exFAT mount stub (empty mountpoint in ISO — no builder scratch on media) ---
-# Runtime: systemd mounts LABEL=HIGHASCGEXF at `/home/casparcg/exfat`. Exclude any stray files created on the dev host.
+# exFAT mountpoint (empty in ISO)
+home/casparcg/exfat
 home/casparcg/exfat/*
 
-# --- /home/casparcg dot files (dev/build host; NOT .xsession; .config/* stays except IDE below) ---
-home/casparcg/.Xauthority
-home/casparcg/.bash_history
-home/casparcg/.bash_logout
-home/casparcg/.bashrc
-home/casparcg/.gitconfig
-home/casparcg/.lesshst
-home/casparcg/.nvidia-settings-rc
-home/casparcg/.profile
-home/casparcg/.python_history
-home/casparcg/.sudo_as_admin_successful
-home/casparcg/.viminfo
-home/casparcg/.wget-hsts
-home/casparcg/.xsession-errors
+# casparcg build-host dotfiles (not .xsession)
 home/casparcg/.cache
 home/casparcg/.cache/*
 home/casparcg/.cursor-server
 home/casparcg/.cursor-server/*
-home/casparcg/.antigravity-server
-home/casparcg/.antigravity-server/*
 home/casparcg/.cursor
 home/casparcg/.cursor/*
-home/casparcg/.gemini
-home/casparcg/.gemini/*
+home/casparcg/.local
+home/casparcg/.local/*
+home/casparcg/.ssh
+home/casparcg/.ssh/*
 home/casparcg/.npm
 home/casparcg/.npm/*
 home/casparcg/.nvm
 home/casparcg/.nvm/*
-home/casparcg/.vscode-server
-home/casparcg/.vscode-server/*
-home/casparcg/.local
-home/casparcg/.local/*
-home/casparcg/.pki
-home/casparcg/.pki/*
-home/casparcg/.ssh
-home/casparcg/.ssh/*
-# IDE only under .config (openbox, pulse, DeckLink, etc. stay on ISO)
 home/casparcg/.config/Code
 home/casparcg/.config/Code/*
 home/casparcg/.config/Cursor
@@ -98,16 +73,12 @@ home/casparcg/.config/Cursor/*
 home/casparcg/.config/cursor
 home/casparcg/.config/cursor/*
 
-# --- Tailscale (omit node identity from cloned ISO) ---
-# eggs `--clone` snapshots the build host. Whatever paths hold tailscaled state will make the
-# live machine reuse the SAME tailnet node key as the builder ("steals" that node's slot).
-#
-# Default `.deb` (`tailscale.com/install.sh`): often `/var/lib/tailscale/` — but your host may
-# show NO such directory if Tailscale is installed via snap or uses a custom `--statedir=` /
-# `--state=` in `/etc/default/tailscaled` or the systemd unit drop-in.
-#
-# Snap installs keep writable state under `/var/snap/tailscale/…` (especially …/common/).
+# Tailscale node identity (deb + snap — all common layouts)
 var/lib/tailscale
 var/lib/tailscale/*
 var/snap/tailscale
 var/snap/tailscale/*
+snap/tailscale
+snap/tailscale/*
+root/snap/tailscale
+root/snap/tailscale/*

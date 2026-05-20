@@ -439,7 +439,7 @@ CasparCG Process
 **Work Done:**
 - **T4.4:** [`src/audio/audio-devices.js`](src/audio/audio-devices.js) — ALSA + PipeWire discovery, cache; [`src/api/routes-audio.js`](src/api/routes-audio.js); [`src/api/router.js`](src/api/router.js) routes before Caspar gate where appropriate.
 - **T4.2:** `POST /api/audio/volume`, `POST /api/audio/config`, `GET /api/audio/devices`, `POST /api/audio/route` (501 stub).
-- **T4.1 / persistence:** [`config/default.js`](config/default.js) `audioRouting`; [`src/api/routes-settings.js`](src/api/routes-settings.js); [`web/components/settings-modal.js`](web/components/settings-modal.js) + [`web/lib/settings-state.js`](web/lib/settings-state.js).
+- **T4.1 / persistence:** [`config/default.js`](config/default.js) `audioRouting`; [`src/api/routes-settings.js`](src/api/routes-settings.js); [`client/components/settings-modal.js`](client/components/settings-modal.js) + [`client/lib/settings-state.js`](client/lib/settings-state.js).
 - **T4.3:** [`src/config/config-generator.js`](src/config/config-generator.js) `mergeAudioRoutingIntoConfig`, `<system-audio/>`, extended `<audio>` layouts; [`src/config/config-modes.js`](src/config/config-modes.js) `4ch`/`16ch` channel counts.
 - **Fix:** [`index.js`](index.js) `buildConfig` streaming merge (`resolveStreamingConfig(cfg.streaming)`) — removed undefined `appSettings` reference.
 

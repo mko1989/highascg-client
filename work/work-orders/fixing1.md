@@ -8,7 +8,7 @@
 - **Startup Sequence**: The orchestrator (`index.js`) does not currently call `applyX11Layout` during its boot process.
 
 ### Final Agreed Plan
-1.  **UI Text Change**: Change the button label from "Save GPU consumer" to "**Apply resolution to the screen**" in `web/components/device-view-inspectors.js`.
+1.  **UI Text Change**: Change the button label from "Save GPU consumer" to "**Apply resolution to the screen**" in `client/components/device-view-inspectors.js`.
 2.  **Scope**: No OS-level automation or persistence will be added for now.
 
 ---
@@ -20,7 +20,7 @@
 - **User Requirement**: The cable should keep its generated color but gain a "glowing" effect.
 
 ### Proposed Refined Approach
-1.  **Universal Shadows**: Update `web/index.css` to add shadows to cables in both active and inactive states. 
+1.  **Universal Shadows**: Update `client/index.css` to add shadows to cables in both active and inactive states. 
 2.  **Dynamic Glow**: Use a CSS variable (`--cable-color`) so the shadow color matches the cable color.
 3.  **Gravity/Slack Fix**:
     *   Increase **slack** (multiplier from `1.04` to `1.12`) to allow cables to hang.

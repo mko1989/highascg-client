@@ -26,7 +26,7 @@ web/
     └── autofollow-*.js         ← optional (delete to remove)
 ```
 
-Core code must never `require('./previs/...')`, `require('./tracking/...')`, `require('./autofollow/...')` or statically `import` from `web/components/{previs,tracking,autofollow}-*.js`. Every entry into a module goes through the registry.
+Core code must never `require('./previs/...')`, `require('./tracking/...')`, `require('./autofollow/...')` or statically `import` from `client/components/{previs,tracking,autofollow}-*.js`. Every entry into a module goes through the registry.
 
 ## Enabling the module
 
@@ -151,7 +151,7 @@ To remove the entire optional-module stack:
 
 ```bash
 rm -rf src/previs src/tracking src/autofollow
-rm -f  web/components/previs-*.js web/components/tracking-*.js web/components/autofollow-*.js
+rm -f  client/components/previs-*.js client/components/tracking-*.js client/components/autofollow-*.js
 rm -rf web/assets/modules
 # Optional — shrink the lockfile:
 npm uninstall three onnxruntime-node

@@ -4,7 +4,7 @@ HighAsCG pushes **inspector selection** from the web UI into the same **Companio
 
 ## Behaviour (already implemented in HighAsCG)
 
-1. When the user selects something in the inspector (looks editor layer, timeline clip, multiview cell), the browser calls **`POST /api/selection`** with a JSON body (debounced ~100 ms). See `web/lib/selection-sync.js` (`buildSelectionPayload`, `scheduleSelectionSync`).
+1. When the user selects something in the inspector (looks editor layer, timeline clip, multiview cell), the browser calls **`POST /api/selection`** with a JSON body (debounced ~100 ms). See `client/lib/selection-sync.js` (`buildSelectionPayload`, `scheduleSelectionSync`).
 2. The server applies that payload with `applyUiSelectionPayloadToVariables` (`src/api/apply-ui-selection-variables.js`), which calls `state.setVariable(key, stringValue)` for each field.
 3. Variables appear in **`GET /api/variables`** (full map) and **`GET /api/variables?prefix=ui_selection_`** (subset). Updates are also emitted on the WebSocket as **`variable_update`** with a partial `{ [key]: value }` object (see `src/server/ws-server.js`).
 
@@ -48,7 +48,7 @@ If the UI is loaded as `http://host:port/instance/myid/`, API paths are **`/inst
 
 | Area | File |
 |------|------|
-| Client payload | `web/lib/selection-sync.js` |
+| Client payload | `client/lib/selection-sync.js` |
 | Server → variables | `src/api/apply-ui-selection-variables.js` |
 | HTTP route | `src/api/router.js` (`POST /api/selection`) |
 | Variable HTTP API | `src/api/routes-state.js` |

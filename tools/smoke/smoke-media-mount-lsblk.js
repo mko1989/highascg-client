@@ -4,7 +4,7 @@ const fs = require('fs')
 const path = require('path')
 const test = require('node:test')
 const assert = require('node:assert/strict')
-const { parseLsblkJsonForPartitionPicker } = require('../src/system/block-devices')
+const { parseLsblkJsonForPartitionPicker } = require('../../src/system/block-devices')
 
 const fixturePath = path.join(__dirname, 'fixtures', 'lsblk-w38-partitions.json')
 

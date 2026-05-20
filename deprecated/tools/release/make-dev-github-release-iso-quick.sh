@@ -14,7 +14,7 @@ REPO_ROOT="$(cd "${HERE}/../.." && pwd)"
 BASENAME="${BASENAME:-highascg}"
 
 echo "==> WO-47 + eggs exclude merge (quick ISO path)"
-SKIP_HIGHASCG_SYSTEMD_RESTART=1 bash "${REPO_ROOT}/tools/live-usb/prepare-eggs-clone-with-exfat.sh"
+SKIP_HIGHASCG_SYSTEMD_RESTART=1 bash "${REPO_ROOT}/tools/eggs/live-usb/prepare-eggs-clone-with-exfat.sh"
 
 echo "==> Hostname for ISO naming (${BASENAME})"
 hostnamectl set-hostname "${BASENAME}" 2>/dev/null || hostname "${BASENAME}"
@@ -23,7 +23,7 @@ echo "==> eggs produce --clone --max --excludes static --basename ${BASENAME}"
 eggs produce --nointeractive --clone --max --excludes static --basename "${BASENAME}"
 
 if [[ "${SKIP_STRIP_HOST_SWAP:-0}" != "1" ]]; then
-	bash "${REPO_ROOT}/tools/live-usb/strip-host-swap-for-live-iso.sh" restore
+	bash "${REPO_ROOT}/tools/eggs/live-usb/strip-host-swap-for-live-iso.sh" restore
 fi
 
 echo "Done. ISO under /home/eggs/ (${BASENAME}_*.iso)."

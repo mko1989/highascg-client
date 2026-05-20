@@ -12,7 +12,7 @@ The `companion-module-casparcg-server` module (~17,744 lines across 64 files) is
 2. **CasparCG TCP/AMCP client** — TCP socket, AMCP protocol parser, command queue, command abstraction layer
 3. **REST/WebSocket API server** — 50+ API endpoints for AMCP, mixer, CG, timelines, multiview, etc.
 4. **State management** — channel state, media lists, templates, playback tracking, live scene state
-5. **Web GUI (SPA)** — dashboard, scenes editor, timeline editor, multiview editor, inspector, sources panel (~8,500 lines in `src/web/`)
+5. **Web GUI (SPA)** — dashboard, scenes editor, timeline editor, multiview editor, inspector, sources panel (~8,500 lines in `src/client/`)
 6. **Production features** — scene transitions with A/B bank crossfade, timeline engine, config generator, routing/multiview, DeckLink inputs, periodic sync
 
 ### Files Over 500 Lines (need splitting during migration)

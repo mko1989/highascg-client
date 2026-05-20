@@ -4,15 +4,15 @@
 
 | Lines | File |
 |-------|------|
-| 637 | [sources-panel-helpers.js](file:///opt/highascg/web/components/sources-panel-helpers.js) |
+| 637 | [sources-panel-helpers.js](file:///opt/highascg/client/components/sources-panel-helpers.js) |
 | 578 | [pip-overlay.js](file:///opt/highascg/src/engine/pip-overlay.js) |
 | 563 | [os-config.js](file:///opt/highascg/src/utils/os-config.js) |
-| 554 | [preview-canvas-draw-stacks.js](file:///opt/highascg/web/components/preview-canvas-draw-stacks.js) |
-| 519 | [scenes-compose.js](file:///opt/highascg/web/components/scenes-compose.js) |
-| 513 | [system-settings.js](file:///opt/highascg/web/components/system-settings.js) |
-| 512 | [timeline-editor-handlers.js](file:///opt/highascg/web/components/timeline-editor-handlers.js) |
+| 554 | [preview-canvas-draw-stacks.js](file:///opt/highascg/client/components/preview-canvas-draw-stacks.js) |
+| 519 | [scenes-compose.js](file:///opt/highascg/client/components/scenes-compose.js) |
+| 513 | [system-settings.js](file:///opt/highascg/client/components/system-settings.js) |
+| 512 | [timeline-editor-handlers.js](file:///opt/highascg/client/components/timeline-editor-handlers.js) |
 | 505 | [defaults.js](file:///opt/highascg/src/config/defaults.js) |
-| 504 | [header-bar.js](file:///opt/highascg/web/components/header-bar.js) |
+| 504 | [header-bar.js](file:///opt/highascg/client/components/header-bar.js) |
 
 > [!NOTE]
 > 9 files exceed 500 lines. The worst offender is `sources-panel-helpers.js` at 637.

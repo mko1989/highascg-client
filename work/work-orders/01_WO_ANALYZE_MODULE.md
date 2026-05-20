@@ -23,7 +23,7 @@ Perform a thorough deep-dive analysis of the existing `companion-module-casparcg
 
 - **Total lines**: ~17,744 across 64 JS files
 - **Server-side modules**: 36 files in `src/`
-- **Web UI**: 10 components + 17 lib files in `src/web/`
+- **Web UI**: 10 components + 17 lib files in `src/client/`
 - **Dependencies**: `@companion-module/base`, `ws`, `xml2js`
 
 ---
@@ -228,7 +228,7 @@ Clears `commandQueue`, `mediaDetails`, and `gatheredInfo`, then enqueues:
 
 - Normalizes path (strip query): `reqPath = (request.path || '/').split('?')[0]`.
 - If path is `/api` or starts with `/api/` → **`routeRequest(method, reqPath, request.body, this)`** (`api-routes.js`).
-- Else → **`serveWebApp(reqPath)`** — static files from `src/web/`, templates, SPA fallback to `index.html`.
+- Else → **`serveWebApp(reqPath)`** — static files from `src/client/`, templates, SPA fallback to `index.html`.
 - Returns `{ status, headers, body }` for Companion to serve (Companion routes instance HTTP to this handler; comment in `_startApiServer` states API is served at `/instance/<id>/api/...` when not using optional standalone port).
 
 ### Companion-specific vs HighAsCG-reusable
@@ -472,7 +472,7 @@ If **`self._amcpBatchDrain`** is set and **`onLine`** is a function, **every** `
 
 - **`http.createServer`**: reads full body via **`for await (const chunk of req)`**; **`OPTIONS`** → **204** + CORS headers.
 - **`/api` or `/api/...`** → **`routeRequest(method, reqPath, body, self)`** (same handler as Companion path).
-- Else → **`serveWebApp(reqPath)`** — static **`src/web/`**, **`/templates/`** from **`src/templates/`**, SPA fallback to **`index.html`**, rejects **`..`**.
+- Else → **`serveWebApp(reqPath)`** — static **`src/client/`**, **`/templates/`** from **`src/templates/`**, SPA fallback to **`index.html`**, rejects **`..`**.
 - Response merges **`CORS_HEADERS`** with handler headers; **`res.end(result.body ?? '')`** (string bodies; binary thumbnails go through Companion path in practice, or would need Buffer handling if extended).
 
 ### WebSocket upgrade
@@ -746,7 +746,7 @@ Reference: one-line responsibility + migration class (**🟢** portable, **🟡*
 
 ## T2.1 Analysis: Web architecture (`index.html`, `app.js`, `styles.css`)
 
-**Source root:** `companion-module-casparcg-server/src/web/`
+**Source root:** `companion-module-casparcg-server/src/client/`
 
 ### `index.html`
 
@@ -772,11 +772,11 @@ Reference: one-line responsibility + migration class (**🟢** portable, **🟡*
 
 ### Migration note
 
-- Entire **`web/`** tree is **portable** with HighAsCG HTTP + WS; only **API base URL** / Companion path prefix behavior differs (already abstracted in **`api-client.js`** — see T2.3).
+- Entire **`client/`** tree is **portable** with HighAsCG HTTP + WS; only **API base URL** / Companion path prefix behavior differs (already abstracted in **`api-client.js`** — see T2.3).
 
 ---
 
-## T2.2 Analysis: Web components (`src/web/components/`)
+## T2.2 Analysis: Web components (`src/client/components/`)
 
 | File | Responsibility |
 |------|------------------|
@@ -798,11 +798,11 @@ Reference: one-line responsibility + migration class (**🟢** portable, **🟡*
 
 ### Migration note
 
-- All are **static ES modules** — copy with **`web/`** assets; re-bind **`dashboard.js`** if a **Dashboard** tab is productized.
+- All are **static ES modules** — copy with **`client/`** assets; re-bind **`dashboard.js`** if a **Dashboard** tab is productized.
 
 ---
 
-## T2.3 Analysis: Web libraries (`src/web/lib/`)
+## T2.3 Analysis: Web libraries (`src/client/lib/`)
 
 | File | Responsibility |
 |------|------------------|
@@ -877,7 +877,7 @@ Reference: one-line responsibility + migration class (**🟢** portable, **🟡*
 | `selection-actions.js` | 🔴 |
 | `variables.js` | 🔴 |
 
-#### Web — `src/web/**` (27 `.js` + static)
+#### Web — `src/client/**` (27 `.js` + static)
 
 | Area | |
 |------|---|
@@ -958,7 +958,7 @@ Reference: one-line responsibility + migration class (**🟢** portable, **🟡*
 
 ### 2026-04-04 — Agent (Cursor)
 **Work Done:**
-- Completed **T2.3**: table for all 17 **`web/lib`** modules (HTTP/WS client, state singletons, math/sync helpers), migration note.
+- Completed **T2.3**: table for all 17 **`client/lib`** modules (HTTP/WS client, state singletons, math/sync helpers), migration note.
 - Marked task **T2.3** complete; added **T2.3 Analysis: Web libraries** section.
 
 **Status:**
@@ -976,7 +976,7 @@ Reference: one-line responsibility + migration class (**🟢** portable, **🟡*
 - **T1.1–T1.10**, **T2.1–T2.2** complete. **T2.3**–T3.3 remain.
 
 **Instructions for Next Agent:**
-- Proceed with **T2.3** (17 **`web/lib/*.js`** files).
+- Proceed with **T2.3** (17 **`client/lib/*.js`** files).
 
 ### 2026-04-04 — Agent (Cursor)
 **Work Done:**

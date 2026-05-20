@@ -2,9 +2,9 @@
 
 const test = require('node:test')
 const assert = require('node:assert/strict')
-const { buildMappingGpuLayoutArtifacts, computePixelMappingCanvasUnion } = require('../src/utils/mapping-gpu-os-layout')
-const { calculateLayoutPositions } = require('../src/utils/os-layout-calculator')
-const { applyPixelMappingProgramScreens } = require('../src/config/pixel-mapping-config')
+const { buildMappingGpuLayoutArtifacts, computePixelMappingCanvasUnion } = require('../../src/utils/mapping-gpu-os-layout')
+const { calculateLayoutPositions } = require('../../src/utils/os-layout-calculator')
+const { applyPixelMappingProgramScreens } = require('../../src/config/pixel-mapping-config')
 
 const HOST = 'caspar_host'
 

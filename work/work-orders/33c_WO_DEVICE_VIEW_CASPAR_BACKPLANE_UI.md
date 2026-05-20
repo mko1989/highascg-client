@@ -38,7 +38,7 @@ Document **which option shipped** in PR.
 
 ### 2.4 Inspector (shell)
 
-Right panel, reuse styling from `web/components/inspector-*.js` (cards, `settings-label`, `settings-control`).
+Right panel, reuse styling from `client/components/inspector-*.js` (cards, `settings-label`, `settings-control`).
 
 **Minimum v1 fields per connector (Caspar):**
 
@@ -59,12 +59,12 @@ Right panel, reuse styling from `web/components/inspector-*.js` (cards, `setting
 
 ## 3. Web architecture
 
-- New `web/components/device-view-*.js` (split by concern):
+- New `client/components/device-view-*.js` (split by concern):
   - `device-view-page.js` — shell, fetches `GET /api/device-view`, wires refresh.
   - `device-view-caspar-backplane.js` — SVG.
   - `device-view-inspector.js` — panel; receives `selectedConnector` + `live` DTOs.
-- New CSS under `web/styles/` scoped `.device-view-*` — follow existing BEM or project patterns.
-- `web/app.js` (or router): register route / tab switch.
+- New CSS under `client/styles/` scoped `.device-view-*` — follow existing BEM or project patterns.
+- `client/app.js` (or router): register route / tab switch.
 
 ### 3.1 Initial graph bootstrap
 

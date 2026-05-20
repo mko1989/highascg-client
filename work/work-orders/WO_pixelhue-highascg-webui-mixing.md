@@ -165,7 +165,7 @@ Lock down with same **auth** as other sensitive routes if the server has admin m
 | Test | How |
 |------|-----|
 | Unit | Mock `open-detail` + JWT; assert path construction for **PF** endpoints. |
-| Integration | On bench hardware: run `tools/http-smoke`-style check for `GET /api/pixelhue/status` after config. |
+| Integration | On bench hardware: run `tools/smoke/http-smoke`-style check for `GET /api/pixelhue/status` after config. |
 | Manual | From UI: load preset to PVW, take, cut, reassign input on a layer. |
 
 ---

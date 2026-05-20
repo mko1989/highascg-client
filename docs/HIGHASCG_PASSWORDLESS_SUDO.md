@@ -95,6 +95,6 @@ sudo -n -u casparcg /usr/local/lib/highascg/nvidia-apply-from-pool.sh || true
 
 ## See also
 
-- `tools/live-usb/build-flash-and-persist.sh` — build + flash USB (run as **root**, not via Web UI)
+- `tools/eggs/live-usb/build-flash-and-persist.sh` — build + flash USB (run as **root**, not via Web UI)
 - `scripts/README.md` — install overview
 - [reference/SUDO_UBUNTU_SETUP.md](reference/SUDO_UBUNTU_SETUP.md) — historical / audio-related sudo notes

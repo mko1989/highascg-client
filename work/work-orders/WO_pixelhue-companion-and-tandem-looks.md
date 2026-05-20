@@ -93,7 +93,7 @@ tandem: {
 ## 5. References in this repo (when implementing)
 
 - `src/config/routing.js`, `channel-map-from-ctx.js` — multi-main PGM/PRV.
-- `web/lib/scene-state.js` — looks and `mainScope`.
+- `client/lib/scene-state.js` — looks and `mainScope`.
 - `work/WO_look-and-layer-presets.md` — preset panel and look/layer save-recall.
 - `src/streaming/`, `go2rtc` usage — for RTSP/WebRTC.
 

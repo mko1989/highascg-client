@@ -30,7 +30,7 @@ Add two panes under **Application Settings** for headless broadcast rigs:
 
 ## Success criteria
 
-1. New settings tabs appear next to existing tabs in `web/components/settings-modal-templates.js`, with matching handlers in `settings-modal.js` / small module.  
+1. New settings tabs appear next to existing tabs in `client/components/settings-modal-templates.js`, with matching handlers in `settings-modal.js` / small module.  
 2. All **privileged** actions go through **narrow** server endpoints + **fixed-path** helper scripts (same security model as WO-38 **`media-mount.sh`**).  
 3. **NVIDIA apply** never executes user-controlled shell; pool path and branch allow-list are server-side.  
 4. **DISPLAY :0** launches use the same **XAUTHORITY** resolution as other headless helpers to avoid “cannot open display”.  
@@ -54,7 +54,7 @@ Add two panes under **Application Settings** for headless broadcast rigs:
 - [x] **T5** Server: `GET /api/system/decklink` — card + ports summary.  
 - [x] **T6** Server: `POST /api/system/gui-launch` — allow-listed commands only: `nvidia-settings`, `desktopvideo_setup`, `{discovered-updater}` — all with `DISPLAY=:0`, `XAUTHORITY=…` (never pass client-controlled argv).  
 - [x] **T7** Web: templates + `fetch` wiring + error states.  
-- [x] **T8** Pool population: documented in `tools/live-usb/nvidia-multi-driver/README.md` (per-branch download / `fetch-debs.sh`).  
+- [x] **T8** Pool population: documented in `tools/eggs/live-usb/nvidia-multi-driver/README.md` (per-branch download / `fetch-debs.sh`).  
 - [ ] **T9** QA on live USB with persistence: switch branch, reboot, confirm `nvidia-smi`.
 
 ---
@@ -73,13 +73,13 @@ DeckLink GUI launches: **prefer no root**; if BMD tools require root in some ins
 
 ## Related files
 
-- `web/components/settings-modal-templates.js` — tab buttons + panes  
-- `web/components/settings-modal.js` — tab activation, API calls  
+- `client/components/settings-modal-templates.js` — tab buttons + panes  
+- `client/components/settings-modal.js` — tab activation, API calls  
 - `src/api/routes-system-hardware.js` — thin router; implementations: `system-hardware-nvidia.js`, `system-hardware-decklink.js`, `system-hardware-gui.js`, `system-hardware-gpu-ports.js`  
 - `src/api/routes-system-setup.js` — pattern for `sudo -n` + nuclear password  
 - `src/utils/os-config.js`, `src/utils/hardware-info.js` — DISPLAY / XAUTHORITY  
 - `scripts/sudoers.d/highascg-media-mount` — sudoers template pattern  
-- `tools/live-usb/nvidia-multi-driver/fetch-debs.sh` — offline pool  
+- `tools/eggs/live-usb/nvidia-multi-driver/fetch-debs.sh` — offline pool  
 - `docs/HIGHASCG_PASSWORDLESS_SUDO.md` — living list of NOPASSWD commands  
 
 ---
@@ -88,7 +88,7 @@ DeckLink GUI launches: **prefer no root**; if BMD tools require root in some ins
 
 ### 2026-05-15 — WO drafted; automation + sudo inventory
 
-- Added **`tools/live-usb/build-flash-and-persist.sh`**: optional eggs build, interactive USB disk selection (or `--usb`), **`dd`**, then **`add-union-persistence-partition.sh`** (`/ union`). Documented from **`tools/live-usb/BUILD_AND_FLASH.md`**.
+- Added **`tools/eggs/live-usb/build-flash-and-persist.sh`**: optional eggs build, interactive USB disk selection (or `--usb`), **`dd`**, then **`add-union-persistence-partition.sh`** (`/ union`). Documented from **`tools/eggs/live-usb/BUILD_AND_FLASH.md`**.
 - Added **`docs/HIGHASCG_PASSWORDLESS_SUDO.md`**: consolidates NOPASSWD rules (optional asound + media mount) + Node `sudo -n` call sites + WO-39 for future NVIDIA helper.
 - **Instructions for next agent:** implement T1–T9; ~~align NVIDIA pool path (`/opt/nvidia-pool` vs `/opt/nvidia-debs`)~~ **done** — use **`/opt/nvidia-pool`** everywhere (`NVIDIA_DEB_POOL` for picker overrides only).
 

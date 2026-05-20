@@ -128,7 +128,7 @@ Alternative: CasparCG outputs **NDI** → ffmpeg on HighAsCG server converts NDI
 
 ### Phase 2: WebRTC Client (Browser side)
 
-- [x] **T2.1** Create `web/lib/webrtc-client.js` (≤300 lines)
+- [x] **T2.1** Create `client/lib/webrtc-client.js` (≤300 lines)
   - Connect to go2rtc WebRTC endpoint per stream
   - go2rtc WebRTC negotiation: `POST /api/webrtc?src=STREAM_NAME` (SDP offer/answer)
   - Create `<video>` element per stream, attach `MediaStream`
@@ -137,7 +137,7 @@ Alternative: CasparCG outputs **NDI** → ffmpeg on HighAsCG server converts NDI
   - Audio control: mute/unmute per stream, select active audio source
   - Export: `createLiveView(streamName, containerEl, opts)` → returns `{ video, destroy, setAudioEnabled }`
 
-- [x] **T2.2** Create `web/lib/stream-state.js` (≤150 lines)
+- [x] **T2.2** Create `client/lib/stream-state.js` (≤150 lines)
   - Track available streams from `GET /api/streams`
   - Track which streams are active/connected
   - Track audio source selection (which stream's audio is playing)
@@ -161,7 +161,7 @@ Alternative: CasparCG outputs **NDI** → ffmpeg on HighAsCG server converts NDI
   - Keep draggable cell overlay on top of video
   - Click cell → selects audio source (see Phase 5)
 
-- [x] **T3.5** Create `web/components/live-view.js` (≤250 lines)
+- [x] **T3.5** Create `client/components/live-view.js` (≤250 lines)
   - Reusable component wrapping `<video>` + `<canvas>` overlay
   - Props: `streamName`, `showOverlay`, `overlayDrawFn`
   - Auto-connects to go2rtc WebRTC when mounted
@@ -171,7 +171,7 @@ Alternative: CasparCG outputs **NDI** → ffmpeg on HighAsCG server converts NDI
 
 ### Phase 4: Settings Modal
 
-- [x] **T4.1** Create `web/components/settings-modal.js` (≤450 lines)
+- [x] **T4.1** Create `client/components/settings-modal.js` (≤450 lines)
   - Modal overlay with close button + ESC key
   - Tabbed interface with fields for: Connection, Streaming, Screens, Advanced
 - [x] **T4.2** Create `src/api/routes-settings.js` (≤200 lines)
@@ -181,7 +181,7 @@ Alternative: CasparCG outputs **NDI** → ffmpeg on HighAsCG server converts NDI
 - [x] **T4.3** Add settings button to header bar
   - Gear button in `header-bar.js`; **`Ctrl+,` / `Cmd+,`** opens Settings (`app.js`), ignored when focus is in an input/textarea.
 
-- [x] **T4.4** Create `web/lib/settings-state.js` (≤100 lines)
+- [x] **T4.4** Create `client/lib/settings-state.js` (≤100 lines)
   - Client cache + subscribe; preview/multiview/header use **`shouldShowLiveVideo()`** + settings subscription for live vs thumbnail/header audio visibility.
 
 ### Phase 5: Audio Source Selection (Header Bar)
@@ -302,8 +302,8 @@ async function connectWebRTC(streamName) {
 
 ### 2026-04-04 — Agent (WO-05: settings-driven live preview + Settings shortcut)
 **Work Done:**
-- **`web/lib/stream-state.js`:** **`shouldShowLiveVideo()`** — respects **`settings.streaming.enabled === false`** and go2rtc **`isStreamingEnabled`**.
-- **`web/lib/settings-state.js`:** Default **`streaming.enabled: true`** until `/api/settings` loads (avoids hiding live preview on first paint when server allows it).
+- **`client/lib/stream-state.js`:** **`shouldShowLiveVideo()`** — respects **`settings.streaming.enabled === false`** and go2rtc **`isStreamingEnabled`**.
+- **`client/lib/settings-state.js`:** Default **`streaming.enabled: true`** until `/api/settings` loads (avoids hiding live preview on first paint when server allows it).
 - **`preview-canvas-panel.js`**, **`multiview-editor.js`**, **`header-bar.js`:** Use **`shouldShowLiveVideo()`**; subscribe to **`settingsState`** so toggling streaming in Settings updates without waiting for the 10s poll.
 - **`header-bar.js`:** Settings button **`aria-label`**; title mentions **Ctrl+,**.
 - **`app.js`:** **Ctrl+,** / **Cmd+,** opens **`showSettingsModal()`** (skips when typing in form fields).
@@ -325,15 +325,15 @@ async function connectWebRTC(streamName) {
 
 ### 2026-04-04 — Agent (Phase 2)
 **Work Done:**
-- Created `web/lib/webrtc-client.js`. Wrote negotiation handling sequence utilizing `RTCPeerConnection` connected to the `go2rtc` stream API across local network interfaces (referencing dynamically injected ports).
-- Added `web/lib/stream-state.js` functioning as a globally available module caching active go2rtc statuses, persisting active audio streams via `localStorage`, and notifying listeners structurally.
+- Created `client/lib/webrtc-client.js`. Wrote negotiation handling sequence utilizing `RTCPeerConnection` connected to the `go2rtc` stream API across local network interfaces (referencing dynamically injected ports).
+- Added `client/lib/stream-state.js` functioning as a globally available module caching active go2rtc statuses, persisting active audio streams via `localStorage`, and notifying listeners structurally.
 
 **Status:**
 - **T2.1 and T2.2** are complete.
 
 ### 2026-04-04 — Agent (Phase 3)
 **Work Done:**
-- Created `web/components/live-view.js` for reusable WebRTC video mounting.
+- Created `client/components/live-view.js` for reusable WebRTC video mounting.
 - Modified `preview-canvas-draw.js` to support an `isLive` mode that skips background/thumbnail drawing.
 - Updated `preview-canvas-panel.js` to inject `LiveView` behind the overlay canvas and coordinate background transparency.
 - Integrated live streams into `dashboard.js` (PGM), `scenes-editor.js` (PRV), `timeline-editor.js` (PRV), and `multiview-editor.js` (Multiview).
@@ -345,11 +345,11 @@ async function connectWebRTC(streamName) {
 ### 2026-04-04 — Agent (Phase 4)
 **Work Done:**
 - Created `src/api/routes-settings.js` (Backend API).
-- Created `web/components/settings-modal.js` (Frontend UI).
+- Created `client/components/settings-modal.js` (Frontend UI).
 - Added `reconnect(host, port)` to `ConnectionManager` to allow dynamic AMCP target updates.
-- Integrated Settings button (⚙ icon) into `web/components/header-bar.js`.
+- Integrated Settings button (⚙ icon) into `client/components/header-bar.js`.
 - Added persistence for app settings in `index.js`.
-- Styled the modal and forms in `web/styles.css`.
+- Styled the modal and forms in `client/styles.css`.
 
 **Status:**
 - **Phase 4** is complete.

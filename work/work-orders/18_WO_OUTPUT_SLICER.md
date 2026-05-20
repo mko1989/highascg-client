@@ -141,13 +141,13 @@ In the Pixel Mapping view, a special **"Mapping Sources"** tab appears in the br
 
 - [ ] **T1.1** Define `pixel_mapping` node type in `device-graph-core.js`
 - [ ] **T1.2** Implement dynamic connector generation for the mapping node based on `settings.outputs` length
-- [ ] **T1.3** Create `web/components/device-view-pixel-mapping-inspector.js`
+- [ ] **T1.3** Create `client/components/device-view-pixel-mapping-inspector.js`
   - "General" tab: Configure output list (add/remove/edit targets)
   - "Pixel Mapping" button: Switches to the full canvas editor
 
 ### Phase 2: Mapping Sources Browser
 
-- [ ] **T2.1** Create `web/components/pixel-mapping-browser.js`
+- [ ] **T2.1** Create `client/components/pixel-mapping-browser.js`
   - Specialized browser tab that only appears when the Mapping Node is selected
   - Displays list of "Output Templates" and "DMX Templates"
   - Ability to edit template properties (Res, Mode, Universe) in-situ

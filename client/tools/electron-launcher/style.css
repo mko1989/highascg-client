@@ -1,27 +1,37 @@
 /* HighAsCG Premium Desktop Launcher Theme - Sleek Dark Glassmorphism */
 
-:root {
-  --bg-app: #09090b;
-  --bg-sidebar: #0e0e11;
-  --panel-bg: rgba(22, 22, 26, 0.7);
-  --panel-border: rgba(255, 255, 255, 0.08);
-  
-  --text-primary: #f4f4f5;
-  --text-muted: #a1a1aa;
-  
-  --accent-cyan: #06b6d4;
-  --accent-cyan-glow: rgba(6, 182, 212, 0.35);
-  
-  --color-emerald: #10b981;
-  --color-emerald-glow: rgba(16, 185, 129, 0.35);
-  
-  --color-gold: #f59e0b;
-  --color-gold-glow: rgba(245, 158, 11, 0.2);
-  
-  --color-rose: #f43f5e;
-  --color-rose-glow: rgba(244, 63, 94, 0.3);
+@font-face {
+  font-family: 'Rewir';
+  src:
+    url('fonts/Rewir-Light.woff') format('woff'),
+    url('fonts/Rewir-Light.ttf') format('truetype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
 
-  --font-sans: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+:root {
+  --bg-app: #0d1117;
+  --bg-sidebar: #161b22;
+  --panel-bg: #21262d;
+  --panel-border: #30363d;
+  
+  --text-primary: #e6edf3;
+  --text-muted: #8b949e;
+  
+  --accent-cyan: #58a6ff;
+  --accent-cyan-glow: rgba(88, 166, 255, 0.35);
+  
+  --color-emerald: #3fb950;
+  --color-emerald-glow: rgba(63, 185, 80, 0.35);
+  
+  --color-gold: #d29922;
+  --color-gold-glow: rgba(210, 153, 34, 0.25);
+  
+  --color-rose: #f85149;
+  --color-rose-glow: rgba(248, 81, 73, 0.3);
+
+  --font-sans: 'Rewir', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
   
   --transition-smooth: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
@@ -726,6 +736,8 @@ body {
   align-items: center;
   gap: 12px;
   cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .toggle-switch input {

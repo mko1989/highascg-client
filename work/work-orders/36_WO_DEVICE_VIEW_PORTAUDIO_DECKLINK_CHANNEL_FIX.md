@@ -113,7 +113,7 @@ Fix the broken PortAudio pipeline, unreliable DeckLink port detection, and chann
 - Added `audio_out` and `audio_in` to `AUTO_CASPAR_KINDS` in `src/config/device-graph-constants.js`
 
 **Phase 3 — Build profile UI (T36.6-T36.8):**
-- Added `caspar_build_profile` dropdown (Stock / Custom Live) to `renderCasparSettingsInspector` in `web/components/device-view-inspectors.js`
+- Added `caspar_build_profile` dropdown (Stock / Custom Live) to `renderCasparSettingsInspector` in `client/components/device-view-inspectors.js`
 - Wired save/load through the existing settings patch flow (`casparServer.caspar_build_profile`)
 - Added dynamic warning message when profile is `stock` and PortAudio/Monitor features are enabled
 

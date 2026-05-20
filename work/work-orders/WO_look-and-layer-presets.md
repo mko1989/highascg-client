@@ -12,7 +12,7 @@ The **right-hand panel** (today: Inspector) becomes **mode-switchable**: **Inspe
 
 | Area | Today | Reuse for presets |
 |------|--------|-------------------|
-| **Looks / scenes** | `sceneState.scenes`, `mainScope`, per-main deck (`web/lib/scene-state.js`, `web/components/scene-list.js`) | Look preset is **not** always the same as a deck “look” card—it is a **named snapshot** that may be bound to one or more mains and capture **live** or **staged** state. |
+| **Looks / scenes** | `sceneState.scenes`, `mainScope`, per-main deck (`client/lib/scene-state.js`, `client/components/scene-list.js`) | Look preset is **not** always the same as a deck “look” card—it is a **named snapshot** that may be bound to one or more mains and capture **live** or **staged** state. |
 | **Layer style clipboard** | `copyLayerStyle` / `pasteLayerStyle` / `_layerStyleClipboard` in `scene-state.js` | **Layer presets** = formalize as **named, persisted** records instead of a single volatile clipboard. |
 | **Copy/paste** | Scene layer inspector, selection sync | Wiring “Save as layer preset” from the current layer selection. |
 | **Take / play** | `createTakeSceneToProgram`, AMCP to PGM/PRV, transitions | **Recall to PGM auto-take** = `LOADBG` + standard transition + `PLAY` (same as today’s look take with transition). |
@@ -28,7 +28,7 @@ The **right-hand panel** (today: Inspector) becomes **mode-switchable**: **Inspe
 - **Look presets** tab: list/grid of named presets, **Save** and **Recall** areas, filter by main where useful.
 - **Layer presets** tab: list of named layer presets, **Save from current layer**, **Apply to selected layer** (replaces ad-hoc paste-only flow over time; keep paste as shortcut if desired).
 
-**Persistence**: look preset library and layer preset library should be part of **project export** (`web/lib/project-state.js` envelope) and have sensible defaults in `localStorage` for offline, aligned with how scenes are handled.
+**Persistence**: look preset library and layer preset library should be part of **project export** (`client/lib/project-state.js` envelope) and have sensible defaults in `localStorage` for offline, aligned with how scenes are handled.
 
 ---
 

@@ -15,17 +15,17 @@ const test = require('node:test')
 const assert = require('node:assert/strict')
 const http = require('http')
 
-const defaults = require('../src/config/defaults')
-const { defaultLogger } = require('../src/utils/logger')
-const { StateManager } = require('../src/state/state-manager')
-const { AmcpClient } = require('../src/caspar/amcp-client')
-const { routeRequest } = require('../src/api/router')
+const defaults = require('../../src/config/defaults')
+const { defaultLogger } = require('../../src/utils/logger')
+const { StateManager } = require('../../src/state/state-manager')
+const { AmcpClient } = require('../../src/caspar/amcp-client')
+const { routeRequest } = require('../../src/api/router')
 const {
 	dispatchStructuredAmcp,
 	isStructuredAmcpMessage,
 	TYPE_TO_PATH,
 	_stripForBody,
-} = require('../src/server/ws-amcp-dispatch')
+} = require('../../src/server/ws-amcp-dispatch')
 
 /** @param {AmcpClient} amcp @param {string[]} bucket */
 function captureAmcp(amcp, bucket) {
@@ -38,7 +38,7 @@ function captureAmcp(amcp, bucket) {
 }
 
 function makeOfflineAmcp(overrides = {}) {
-	/** @type {import('../src/caspar/amcp-protocol').AmcpConnectionContext} */
+	/** @type {import('../../src/caspar/amcp-protocol').AmcpConnectionContext} */
 	const ctx = {
 		socket: { isConnected: false },
 		config: {

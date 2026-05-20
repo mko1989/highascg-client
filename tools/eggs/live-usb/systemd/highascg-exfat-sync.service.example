@@ -15,7 +15,7 @@ RemainAfterExit=yes
 User=casparcg
 Group=casparcg
 WorkingDirectory=/home/casparcg/highascg
-ExecStart=/usr/bin/node /home/casparcg/highascg/tools/exfat-sync-cli.js
+ExecStart=/usr/bin/node /home/casparcg/highascg/tools/runtime/exfat-sync-cli.js
 
 [Install]
 WantedBy=multi-user.target

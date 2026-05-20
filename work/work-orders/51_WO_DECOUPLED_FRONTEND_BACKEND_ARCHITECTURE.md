@@ -84,7 +84,7 @@ server {
 - [x] **T4: Frontend - Initialize Vite Configuration**
   - Set up a clean `vite.config.js` config pointing the root to `./web` and defining target outputs inside a `./dist` folder.
 - [x] **T5: Frontend - Dynamic Endpoint Client**
-  - Create a central `api-client.js` inside `web/lib/` to dynamically map endpoints to `import.meta.env.VITE_API_URL || window.location.origin` for standard calls and socket feeds.
+  - Create a central `api-client.js` inside `client/lib/` to dynamically map endpoints to `import.meta.env.VITE_API_URL || window.location.origin` for standard calls and socket feeds.
 - [x] **T6: Deployment - Environment Setup**
   - Provide an `.env.example` in both frontend and backend directories with the appropriate port configurations.
   - Document the production systemd-unit split layout.
@@ -103,7 +103,7 @@ server {
 
 - `index.js` — Core orchestrator and bootstrapping
 - `src/server/http-server.js` — Express configuration and asset routes
-- `web/` — Frontend assets directory
+- `client/` — Frontend assets directory
 - `package.json` — Workspace-level dependencies and script bindings
 
 ---

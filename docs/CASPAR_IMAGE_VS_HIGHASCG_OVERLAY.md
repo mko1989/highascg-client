@@ -12,10 +12,10 @@ Keep on disk (or empty stubs in the squashfs): **`bin/`**, **`config/`** (at lea
 
 ## Eggs excludes + bootstrap (we are not deleting anything at runtime)
 
-The **penguins-eggs** fragment **`tools/live-usb/penguins-eggs-exclude-highascg-fragment.list`** **omits** large Node trees from the **squashfs snapshot** only. On boot, when the stick carries **`sim/highascg/`**:
+The **penguins-eggs** fragment **`tools/eggs/live-usb/penguins-eggs-exclude-highascg-fragment.list`** **omits** large Node trees from the **squashfs snapshot** only. On boot, when the stick carries **`sim/highascg/`**:
 
 1. **`highascg-exfat-bootstrap.service`** — **`rsync`** seed if **`~/highascg/package.json`** is missing (protects **`config/casparcg.config`** and **`lib/`** via **`/etc/highascg/bootstrap-rsync-excludes.txt`**).
-2. **`highascg-exfat-sync.service`** — node mtime sync; **ConditionPathExists** **`tools/exfat-sync-cli.js`** so the unit **skips** cleanly if the tree was never seeded (no failed oneshot).
+2. **`highascg-exfat-sync.service`** — node mtime sync; **ConditionPathExists** **`tools/runtime/exfat-sync-cli.js`** so the unit **skips** cleanly if the tree was never seeded (no failed oneshot).
 3. **`highascg.service`** — **`ConditionPathExists=package.json`**.
 
 Safeguards: **`/etc/highascg/disable-exfat-bootstrap`**, **`/etc/highascg/force-exfat-bootstrap-once`**, **`HIGHASCG_BOOTSTRAP_DRY_RUN`**. See **`scripts/highascg-exfat-bootstrap.sh`**.

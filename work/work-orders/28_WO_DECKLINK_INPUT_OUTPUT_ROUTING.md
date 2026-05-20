@@ -88,7 +88,7 @@ Set `HIGHASCG_NO_IP_SPLASH=1` to disable the feature entirely.
 | Generated XML (extra inputs channel) | `src/config/config-generator.js` |
 | Multiview apply, layers 10+, BG, cells | `src/api/routes-multiview.js` |
 | Defaults / persisted keys | `config/default.js` |
-| Settings UI (count + per-device rows) | `web/components/settings-modal.js`, `settings-modal-caspar-ui.js` |
+| Settings UI (count + per-device rows) | `client/components/settings-modal.js`, `settings-modal-caspar-ui.js` |
 | INFO CONFIG channel parse (screen + DeckLink) | `src/config/config-compare.js` |
 | Host IP splash + WS clear | `src/bootstrap/startup-host-ip-splash.js`, `src/server/ws-server.js`, `index.js` |
 

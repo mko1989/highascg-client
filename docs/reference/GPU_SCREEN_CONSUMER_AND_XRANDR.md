@@ -62,7 +62,7 @@ Inspector Override + dropdown/custom  ──►  xrandr --mode / --rate from use
 - **Implementation method (screen index, apply-os, override):** [xrandr-gpu-screen-mapping.md](xrandr-gpu-screen-mapping.md).  
 - Layout planning: `src/utils/os-layout-calculator.js`, `src/utils/os-config.js` (`applyX11Layout`).
 - Apply pipeline: `src/api/settings-os.js` (`POST /api/settings/apply-os`).
-- UI: `web/components/device-view-inspector-gpu.js`, `device-view-bands-render.js`, `device-view-caspar-render.js`.
+- UI: `client/components/device-view-inspector-gpu.js`, `device-view-bands-render.js`, `device-view-caspar-render.js`.
 - Destination definitions: `src/config/screen-destinations.js` and persisted `screenDestinations` in config.
 
 ---

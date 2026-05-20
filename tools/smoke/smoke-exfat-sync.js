@@ -2,7 +2,7 @@
 
 const test = require('node:test')
 const assert = require('node:assert')
-const { validateMap, isExcluded, loadExfatSyncMapFromDisk } = require('../src/system/exfat-sync')
+const { validateMap, isExcluded, loadExfatSyncMapFromDisk } = require('../../src/system/exfat-sync')
 
 test('isExcluded matches path segments and prefixes', () => {
 	assert.strictEqual(isExcluded('node_modules/foo/bar.js', ['node_modules']), true)
@@ -16,10 +16,10 @@ test('validateMap accepts WO-47 shape', () => {
 		pairs: [
 			{
 				id: 't',
-				exfat: 'sim/highascg',
-				project: '/home/casparcg/highascg',
+				exfat: 'drop-config/highascg.config.json',
+				project: '/home/casparcg/highascg/highascg.config.json',
 				direction: 'both',
-				exclude: ['node_modules'],
+				exclude: [],
 			},
 		],
 	})

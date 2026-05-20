@@ -11,7 +11,7 @@ const {
 	edgeConnectAllowed,
 	DEFAULT_DEVICE_ID,
 	DEST_DEVICE_ID,
-} = require('../src/config/device-graph')
+} = require('../../src/config/device-graph')
 
 test('normalizeDeviceGraph has default host device', () => {
 	const g = normalizeDeviceGraph({})

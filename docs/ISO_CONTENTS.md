@@ -1,10 +1,10 @@
 # HighAsCG live ISO — contents reference
 
-What is inside the **penguins-eggs** hybrid ISO produced by **`tools/live-usb/build-highascg-egg.sh`** (or **`make-dev-github-release-iso-quick.sh`**).
+What is inside the **penguins-eggs** hybrid ISO produced by **`tools/eggs/live-usb/build-highascg-egg.sh`** (or **`make-dev-github-release-iso-quick.sh`**).
 
-The image is a **`eggs produce --clone --max --excludes static`** snapshot of the **build host** at produce time. It is **not** a minimal net-install recipe: whatever was installed and configured on that machine (via **`scripts/install.sh`** and WO‑47 prep) is what gets cloned—minus paths listed in [**`tools/live-usb/penguins-eggs-exclude-highascg-fragment.list`**](../tools/live-usb/penguins-eggs-exclude-highascg-fragment.list).
+The image is a **`eggs produce --clone --max --excludes static`** snapshot of the **build host** at produce time. It is **not** a minimal net-install recipe: whatever was installed and configured on that machine (via **`scripts/install.sh`** and WO‑47 prep) is what gets cloned—minus paths listed in [**`tools/eggs/live-usb/penguins-eggs-exclude-highascg-fragment.list`**](../tools/eggs/live-usb/penguins-eggs-exclude-highascg-fragment.list).
 
-**Related:** [`LIVE_USB_IMAGE.md`](LIVE_USB_IMAGE.md) (workflow), [`WO47_ISO_VS_EXFAT.md`](WO47_ISO_VS_EXFAT.md) (ISO vs stick payload), [`BUILD_AND_FLASH.md`](../tools/live-usb/BUILD_AND_FLASH.md) (build & flash).
+**Related:** [`LIVE_USB_IMAGE.md`](LIVE_USB_IMAGE.md) (workflow), [`WO47_ISO_VS_EXFAT.md`](WO47_ISO_VS_EXFAT.md) (ISO vs stick payload), [`BUILD_AND_FLASH.md`](../tools/eggs/live-usb/BUILD_AND_FLASH.md) (build & flash).
 
 ---
 
@@ -13,8 +13,8 @@ The image is a **`eggs produce --clone --max --excludes static`** snapshot of th
 | Region | What it is |
 |--------|------------|
 | **Hybrid ISO partition(s)** | Bootable live system (this document). |
-| **Optional persistence** | ext4 **`persistence`** + **`/ union`** — survives reboots (drivers, `/etc`, `/var`, home). See [`FLASH_AND_PERSIST.md`](../tools/live-usb/FLASH_AND_PERSIST.md). |
-| **exFAT `HIGHASCGEXF`** | Operator data: **`sim/highascg`**, media, templates, configs — **not** inside the squashfs. See [§ WO‑47 split](#wo-47-what-is-on-the-iso-vs-on-exfat). |
+| **Optional persistence** | ext4 **`persistence`** + **`/ union`** — survives reboots (drivers, `/etc`, `/var`, home). See [`FLASH_AND_PERSIST.md`](../tools/eggs/live-usb/FLASH_AND_PERSIST.md). |
+| **exFAT `HIGHASCGEXF`** | Operator data: **`update/server/`**, media, templates, configs — **not** inside the squashfs. See [§ WO‑47 split](#wo-47-what-is-on-the-iso-vs-on-exfat). |
 
 ---
 
@@ -149,9 +149,9 @@ Caspar is launched with config under **`~/highascg`**, matching HighAsCG’s gen
 | **Service** | **`highascg.service`** — `node index.js` (see **`scripts/write-highascg-systemd-unit.sh`**) |
 | **HTTP / Web UI** | Default **:8080** (from config / `highascg.config.json`) |
 | **Deploy path on playout host** | **`/home/casparcg/highascg`** |
-| **Depends on** | **`package.json`** present (WO‑47: may arrive from exFAT bootstrap first) |
+| **Depends on** | **`package.json`** present (WO‑47: from exFAT **`update/server/`** apply) |
 
-**WO‑47:** Most of the **application source** (`src/`, `web/`, `tools/`, `node_modules/`, `package.json`, …) is **excluded from the squashfs** and expected on the stick under **`exfat/sim/highascg/`**. The ISO carries a **minimal Caspar shell** under **`~/highascg`** (see next section).
+**WO‑47:** **`src/`**, **`scripts/`**, **`package.json`**, and **`tools/`** (playout gets **`tools/runtime/`** only via server tarball) are **excluded from the squashfs** and applied from **`exfat/update/server/`**. The ISO carries a **minimal Caspar shell** under **`~/highascg`** (see next section).
 
 **Optional on image (if install.sh ran on build host)**
 
@@ -176,7 +176,7 @@ Kept under **`/home/casparcg/highascg`** for Caspar + mounts:
 
 **Not in squashfs** (excluded — see fragment list):
 
-- **`src/`**, **`web/`**, **`tools/`**, **`scripts/`**, **`work/`**, **`examples/`**, …  
+- **`src/`**, **`client/`**, **`tools/`**, **`scripts/`**, **`work/`**, **`examples/`**, …  
 - **`package.json`**, **`index.js`**, **`node_modules/`**  
 - Builder **`media/`** scratch, **`.git`**, IDE caches  
 
@@ -184,7 +184,7 @@ Kept under **`/home/casparcg/highascg`** for Caspar + mounts:
 
 | Path on stick | Role |
 |---------------|------|
-| **`sim/highascg/`** | Full HighAsCG tree (GitHub **`highascg_*.tar.gz`** or rsync) |
+| **`update/server/`** | Server drop: **`highascg-server_*.tar.gz`** (`src/`, `scripts/`, **`tools/runtime/`**, …) |
 | **`media/`**, **`templates/`**, **`configs/`**, … | Portable operator data |
 | **`drop-config/`** | Optional monolithic config |
 
@@ -192,8 +192,8 @@ Kept under **`/home/casparcg/highascg`** for Caspar + mounts:
 
 1. **`home-casparcg-exfat.mount`** — mount **`HIGHASCGEXF`** → **`/home/casparcg/exfat`**  
 2. **`highascg-exfat-media-prep`** + bind **`exfat/media`** → **`~/highascg/media/exfat`**  
-3. **`highascg-exfat-bootstrap`** — seed **`sim/highascg`** → **`~/highascg`** if no **`package.json`** yet  
-4. **`highascg-exfat-sync`** — mtime sync stick ↔ **`~/highascg`**  
+3. **`highascg-exfat-server-update`** — apply **`update/server/`** → **`~/highascg`** when pending  
+4. **`highascg-exfat-sync`** — mtime sync **`drop-config/`** (and configured pairs)    
 5. **`highascg-pick-nvidia`** (first boot)  
 6. **`nodm`** → Openbox → Caspar  
 7. **`highascg.service`** — Node app when **`package.json`** exists  
@@ -207,7 +207,7 @@ Kept under **`/home/casparcg/highascg`** for Caspar + mounts:
 | `home-casparcg-exfat.mount` | exFAT by label **HIGHASCGEXF** |
 | `highascg-exfat-media-prep.service` | Prepare media bind targets |
 | `home-casparcg-highascg-media-exfat.mount` | Bind exFAT media into tree |
-| `highascg-exfat-bootstrap.service` | One-shot rsync from **`sim/highascg`** |
+| `highascg-exfat-server-update.service` | Apply **`update/server/`** server drop |
 | `highascg-exfat-sync.service` | Boot sync via **`exfat-sync-cli.js`** |
 | `highascg-pick-nvidia.service` | First-boot NVIDIA branch selection |
 | `highascg.service` | HighAsCG Node server |
@@ -226,14 +226,14 @@ Kept under **`/home/casparcg/highascg`** for Caspar + mounts:
 
 ## Explicitly omitted from squashfs (eggs excludes)
 
-Summary of [**`penguins-eggs-exclude-highascg-fragment.list`**](../tools/live-usb/penguins-eggs-exclude-highascg-fragment.list):
+Summary of [**`penguins-eggs-exclude-highascg-fragment.list`**](../tools/eggs/live-usb/penguins-eggs-exclude-highascg-fragment.list):
 
 - Full HighAsCG app tree (see WO‑47 above)  
 - **`~/highascg/media`** contents, **`~/exfat/*`**  
 - **Tailscale** state under **`/var/lib/tailscale`**, **`/var/snap/tailscale`**  
 - **casparcg** shell history, **`.cursor`**, caches  
 
-Re-merge after editing the fragment: **`sudo bash tools/live-usb/merge-penguins-eggs-exclude-highascg.sh`**, then rebuild ISO.
+Re-merge after editing the fragment: **`sudo bash tools/eggs/live-usb/merge-penguins-eggs-exclude-highascg.sh`**, then rebuild ISO.
 
 ---
 
@@ -242,14 +242,14 @@ Re-merge after editing the fragment: **`sudo bash tools/live-usb/merge-penguins-
 | Step | Script |
 |------|--------|
 | Production stack (Caspar, nodm, NVIDIA, DeckLink, HighAsCG, …) | **`sudo ./scripts/install.sh`** (phases 1–5) |
-| WO‑47 units + excludes + empty stubs | **`sudo bash tools/live-usb/prepare-eggs-clone-with-exfat.sh`** |
-| NVIDIA pool + live network (full build only) | **`sudo bash tools/live-usb/build-highascg-egg.sh`** |
+| WO‑47 units + excludes + empty stubs | **`sudo bash tools/eggs/live-usb/prepare-eggs-clone-with-exfat.sh`** |
+| NVIDIA pool + live network (full build only) | **`sudo bash tools/eggs/live-usb/build-highascg-egg.sh`** |
 | Squashfs + ISO | **`eggs produce --nointeractive --clone --max --excludes static --basename highascg`** |
 
 **ISO-only rebuild** (host already prepared):
 
 ```bash
-sudo bash tools/release/make-dev-github-release-iso-quick.sh
+sudo bash deprecated/tools/release/make-dev-github-release-iso-quick.sh
 ```
 
 ---
@@ -264,7 +264,7 @@ sudo bash tools/release/make-dev-github-release-iso-quick.sh
 | DeckLink **desktopvideo**? | **Yes**, if installed on build host before produce |
 | Caspar + scanner binaries? | **Yes**, if install.sh ran |
 | **`~/highascg/config/casparcg.config`** stub? | **Yes** (minimal shell) |
-| Full HighAsCG **`src/` / `web/` / `node_modules`?** | **No** — use **exFAT `sim/highascg`** or bootstrap |
+| Full HighAsCG **`src/` / `node_modules`?** | **No** — use **exFAT `update/server/`** (`highascg-server_*.tar.gz`) |
 | Operator media / templates? | **No** in squashfs — **exFAT** |
 | GitHub alpha tarball contents? | Same as **exFAT app tree**, not the minimal ISO shell |
 

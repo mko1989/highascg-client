@@ -64,9 +64,9 @@
 
 | Lines | Path |
 |------:|------|
-| 557 | `HighAsCG/web/components/preview-canvas-panel.js` |
+| 557 | `HighAsCG/client/components/preview-canvas-panel.js` |
 | 525 | `HighAsCG/index.js` |
-| 503 | `HighAsCG/web/app.js` |
+| 503 | `HighAsCG/client/app.js` |
 
 ## `companion-*` modules and surfaces
 
@@ -93,7 +93,7 @@
 | 1399 | `companion-module-highpass-accompaniment_v2/original_electron_app/src/renderer/ui/waveformExpanded.js` |
 | 1399 | `companion-module-highpass-accompaniment_v2/pkg/gui/ui/waveformExpanded.js` |
 | 1315 | `companion-module-avonic-cm93/src/actions.js` |
-| 1302 | `companion-module-casparcg-server/src/web/components/inspector-panel.js` |
+| 1302 | `companion-module-casparcg-server/src/client/components/inspector-panel.js` |
 | 1230 | `companion-module-highpass-accompaniment-builtin/companion-module-highpass-countdown/src/timer.js` |
 | 1230 | `companion-module-base-main/src/internal/__tests__/feedback.spec.ts` |
 | 1230 | `companion-module-highpass-countdown/src/timer.js` |
@@ -104,7 +104,7 @@
 | 1155 | `companion-module-generic-onvif-main/src/actions.js` |
 | 1150 | `companion-module-casparcg-server/Server_tools/casparcg_setup.sh` |
 | 1132 | `companion-module-resolume-arena-master/src/actions/osc-transport/oscTransportActions.ts` |
-| 1125 | `companion-module-casparcg-server/src/web/components/scenes-editor.js` |
+| 1125 | `companion-module-casparcg-server/src/client/components/scenes-editor.js` |
 | 1106 | `companion-module-casparcg-server/src/api-routes.js` |
 | 1106 | `companion-module-highpass-accompaniment_v2/original_electron_app/src/renderer/ui/cueGrid.js` |
 | 1049 | `companion-module-avstumpfl-pixera-master/src/Pixera.js` |
@@ -155,7 +155,7 @@
 | 694 | `companion-module-highpass-accompaniment_v2/accompaniment-v2-backend/src/renderer/ui/waveformCore.js` |
 | 694 | `companion-module-highpass-accompaniment_v2/original_electron_app/src/renderer/ui/waveformCore.js` |
 | 689 | `companion-module-base-main/src/module-api/base.ts` |
-| 669 | `companion-module-casparcg-server/src/web/components/timeline-canvas.js` |
+| 669 | `companion-module-casparcg-server/src/client/components/timeline-canvas.js` |
 | 661 | `companion-surface-highpass-controller/highpass_controller/st7789_mpy-master/fonts/vector/gothger.py` |
 | 661 | `companion-surface-chinese-controller/highpass-controller/st7789_mpy-master/fonts/vector/gothger.py` |
 | 659 | `companion-module-highpass-accompaniment_v2/gui/ui.js` |
@@ -164,7 +164,7 @@
 | 645 | `companion-surface-highpass-controller/highpass_controller/st7789_mpy-master/fonts/vector/gotheng.py` |
 | 645 | `companion-surface-chinese-controller/highpass-controller/st7789_mpy-master/fonts/vector/gotheng.py` |
 | 644 | `companion-module-highpass-accompaniment_v2/original_electron_app/src/renderer/audioPlaybackCore.js` |
-| 633 | `companion-module-casparcg-server/src/web/components/timeline-editor.js` |
+| 633 | `companion-module-casparcg-server/src/client/components/timeline-editor.js` |
 | 630 | `companion-module-cvmeventi-countdown/src/presets.ts` |
 | 626 | `companion-module-novastar-splicer-main/src/main.js` |
 | 617 | `companion-module-bosch-dcn/BoschDcnBridge/BridgeService.Delegate.cs` |
@@ -216,8 +216,8 @@
 | 521 | `companion-surface-chinese-controller/highpass-controller/st7789_mpy-master/fonts/truetype/NotoSansMono_32.py` |
 | 518 | `companion-module-casparcg-server/src/scene-transition.js` |
 | 515 | `companion-module-roland-vr400uhd/src/actions.ts` |
-| 513 | `companion-module-casparcg-server/src/web/components/preview-canvas.js` |
-| 511 | `companion-module-casparcg-server/src/web/components/dashboard.js` |
+| 513 | `companion-module-casparcg-server/src/client/components/preview-canvas.js` |
+| 511 | `companion-module-casparcg-server/src/client/components/dashboard.js` |
 | 511 | `companion-module-highpass-accompaniment_v2/accompaniment-v2-backend/src/backend/audioPlaybackManager.js` |
 | 509 | `companion-module-casparcg-server/src/timeline-engine.js` |
 

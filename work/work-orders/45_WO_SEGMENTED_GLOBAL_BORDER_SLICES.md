@@ -41,7 +41,7 @@ A "Global Border" should appear as three distinct boxes, one around each physica
   - Apply the same animation parameters (speed, color, thickness) to all slices to maintain a synchronized look.
 
 ### 4. UI / Inspector
-- **File**: `web/components/inspector-panel-views.js` (or relevant border settings panel)
+- **File**: `client/components/inspector-panel-views.js` (or relevant border settings panel)
 - **Change**: 
   - Add a "Slices" section in the Global Border settings.
   - Add a button to "Add Slice".

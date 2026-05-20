@@ -15,17 +15,17 @@ The following files exceed the 500-line limit and should be considered for modul
 | Lines | File | Category |
 |-------|------|----------|
 | 793 | `src/config/config-generator-builders.js` | Backend |
-| 751 | `web/components/device-view-inspectors.js` | Frontend |
+| 751 | `client/components/device-view-inspectors.js` | Frontend |
 | 578 | `src/engine/pip-overlay.js` | Backend |
-| 554 | `web/components/sources-panel-helpers.js` | Frontend |
-| 525 | `web/styles/04-media-lists-drag-dashboard.css` | CSS |
-| 511 | `web/components/header-bar.js` | Frontend |
-| 507 | `web/components/system-settings.js` | Frontend |
+| 554 | `client/components/sources-panel-helpers.js` | Frontend |
+| 525 | `client/styles/04-media-lists-drag-dashboard.css` | CSS |
+| 511 | `client/components/header-bar.js` | Frontend |
+| 507 | `client/components/system-settings.js` | Frontend |
 | 506 | `templates/led_grid_test.html` | HTML |
 | 505 | `src/config/defaults.js` | Backend |
 
 > [!NOTE]
-> Several large files previously listed in `PROJECT_BREAKDOWN.md` (e.g., `web/components/device-view.js` at 1357 lines) have been successfully modularized and are now well below the limit.
+> Several large files previously listed in `PROJECT_BREAKDOWN.md` (e.g., `client/components/device-view.js` at 1357 lines) have been successfully modularized and are now well below the limit.
 
 ---
 
@@ -38,7 +38,7 @@ The following features are listed in `PROJECT_BREAKDOWN.md` but have no implemen
 - **WO-32: CG Overlay Studio**: No implementation found.
 
 ### Skeleton/Partial Implementations
-- **WO-19: Person Tracking**: Only a skeleton registration exists in `src/tracking/register.js` and a directory in `web/assets/modules/tracking`.
+- **WO-19: Person Tracking**: Only a skeleton registration exists in `src/tracking/register.js` and a directory in `client/assets/modules/tracking`.
 
 ### Outdated Information
 - `PROJECT_BREAKDOWN.md` is significantly outdated regarding file sizes and structure. Most of the "Monoliths" listed in the breakdown (Line 452 onwards) have already been split into smaller modules (e.g., `device-view.js`, `scene-state.js`, `routing.js`).
@@ -64,5 +64,5 @@ A deep scan for suspicious patterns, nonsensical logic, and non-existent depende
 
 ## Recommendations
 1.  **Modularize `src/config/config-generator-builders.js`**: This is currently the largest JS file and handles multiple XML fragment types.
-2.  **Split `web/components/device-view-inspectors.js`**: As Device View grows, this file is becoming a new monolith.
+2.  **Split `client/components/device-view-inspectors.js`**: As Device View grows, this file is becoming a new monolith.
 3.  **Update `PROJECT_BREAKDOWN.md`**: Refresh the line counts and file lists to reflect the current modular state of the repository.

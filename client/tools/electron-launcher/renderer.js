@@ -13,6 +13,8 @@ const pageMeta = {
   simulation: { title: 'Simulation Center', subtitle: 'Run HighAsCG locally in simulated offline mode' }
 }
 
+let isSimRunning = false
+
 function switchTab(tabId) {
   navItems.forEach(item => {
     if (item.getAttribute('data-tab') === tabId) {
@@ -133,8 +135,6 @@ const terminalOutput = document.getElementById('terminal-output-text')
 const terminalBody = document.getElementById('terminal-body-box')
 const btnClearTerminal = document.getElementById('btn-clear-terminal')
 
-let isSimRunning = false
-
 function getTargetUrl() {
   const ip = (serverIpInput.value || 'localhost').trim()
   const port = simPortInput.value || 4200
@@ -142,7 +142,9 @@ function getTargetUrl() {
 }
 
 function updateWebuiButton() {
-  btnOpenWebui.textContent = `Open Web UI (${getTargetUrl()})`
+  if (btnOpenWebui) {
+    btnOpenWebui.textContent = `Open Web UI (${getTargetUrl()})`
+  }
 }
 
 // Bind live text change listeners to update Open Web UI button label
@@ -238,7 +240,11 @@ document.getElementById('btn-open-readme').addEventListener('click', () => {
   switchTab('flash')
 })
 
+document.getElementById('btn-open-github').addEventListener('click', () => {
+  ipcRenderer.send('open-external-url', 'https://github.com/mko1989/highascg')
+})
+
 document.getElementById('btn-open-logs').addEventListener('click', () => {
-  // Try to open operator directory manual
-  ipcRenderer.send('open-external-url', 'https://github.com/')
+  // Open commits of the repo
+  ipcRenderer.send('open-external-url', 'https://github.com/mko1989/highascg/commits')
 })

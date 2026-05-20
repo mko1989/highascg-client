@@ -6,7 +6,7 @@ set -euo pipefail
 # data partition LABEL=HIGHASCGEXF as the sticky “source of truth” (see EXFAT_DATA_ZERO_TOUCH.md).
 #
 # Usage (on dev / imaging host):
-#   sudo bash tools/live-usb/prepare-eggs-clone-with-exfat.sh [casparcg]
+#   sudo bash tools/eggs/live-usb/prepare-eggs-clone-with-exfat.sh [casparcg]
 #
 # Optional env:
 #   HIGHASCG_ROOT=/home/casparcg/highascg   deployed tree path (must contain package.json)
@@ -26,7 +26,7 @@ getent passwd "$USER_CASPAR" >/dev/null 2>&1 || {
 }
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
-REPO_ROOT="$(cd "${HERE}/../.." && pwd)"
+REPO_ROOT="$(cd "${HERE}/../../.." && pwd)"
 HIGHASCG_ROOT="${HIGHASCG_ROOT:-/home/casparcg/highascg}"
 
 if [[ ! -f "${HIGHASCG_ROOT}/package.json" ]]; then

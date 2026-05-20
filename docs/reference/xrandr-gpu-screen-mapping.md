@@ -9,7 +9,7 @@ This document is the **implementation-facing** companion to the product narrativ
 `N` is the **1-based Caspar main screen index** (`screen_1_*` … `screen_4_*`). It must match between:
 
 - `calculateLayoutPositions` (`src/utils/os-layout-calculator.js`) for graph-bound `gpu_out`, and  
-- Device View GPU inspector (`web/components/device-view-inspector-gpu.js`), which reads/writes `screen_${N}_*`.
+- Device View GPU inspector (`client/components/device-view-inspector-gpu.js`), which reads/writes `screen_${N}_*`.
 
 **Resolution order (same as the layout calculator):**
 
@@ -53,7 +53,7 @@ Device View **Apply resolution** sends **`apply-os`** a body that includes both 
 
 - **Override checkbox** → root **`screen_N_force_os_resolution`** and **`casparServer.screen_N_force_os_resolution`** (kept in sync on save/apply).
 - **Video mode** (Caspar) → **`casparServer.screen_N_mode`** (+ custom width/height/fps keys when `custom`).
-- **With override on**, OS apply uses **Caspar video mode** mapped to **`screen_N_os_mode` / `screen_N_os_rate`** (see `casparVideoModeToOsModeAndRate` in `web/components/device-view-destinations-inspector.js`) so xrandr is not accidentally driven only by the EDID dropdown (which still reflects the **current** link).
+- **With override on**, OS apply uses **Caspar video mode** mapped to **`screen_N_os_mode` / `screen_N_os_rate`** (see `casparVideoModeToOsModeAndRate` in `client/components/device-view-destinations-inspector.js`) so xrandr is not accidentally driven only by the EDID dropdown (which still reflects the **current** link).
 
 ---
 
@@ -65,8 +65,8 @@ Device View **Apply resolution** sends **`apply-os`** a body that includes both 
 | xrandr execution, mode availability, CVT | `src/utils/os-config.js`, `src/utils/xrandr-custom-mode.js` |
 | apply-os merge + save | `src/api/settings-os.js` |
 | Full settings merge | `src/api/settings-post.js` (`mergeSystemDisplaySettings`) |
-| GPU inspector screen index + apply payload | `web/components/device-view-inspector-gpu.js` |
-| Caspar mode ↔ OS WxH helper (web) | `web/components/device-view-destinations-inspector.js` (`CASPAR_VIDEO_MODE_SPECS`, `casparVideoModeToOsModeAndRate`) |
+| GPU inspector screen index + apply payload | `client/components/device-view-inspector-gpu.js` |
+| Caspar mode ↔ OS WxH helper (web) | `client/components/device-view-destinations-inspector.js` (`CASPAR_VIDEO_MODE_SPECS`, `casparVideoModeToOsModeAndRate`) |
 | Regression tests | `npm run test:os-layout-w40` → `tools/smoke-os-layout-w40.js` |
 
 ---

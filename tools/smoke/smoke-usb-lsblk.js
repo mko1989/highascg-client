@@ -4,7 +4,7 @@ const fs = require('fs')
 const path = require('path')
 const test = require('node:test')
 const assert = require('node:assert/strict')
-const { parseLsblkJson } = require('../src/media/usb-drives')
+const { parseLsblkJson } = require('../../src/media/usb-drives')
 
 const fixturePath = path.join(__dirname, 'fixtures', 'lsblk-ubuntu-usb.json')
 

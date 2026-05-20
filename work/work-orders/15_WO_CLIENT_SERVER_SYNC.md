@@ -53,7 +53,7 @@ When running HighAsCG locally without a CasparCG backend, media files uploaded i
 ## Work Log
 
 ### 2026-04-06 | Antigravity - Sync Engine Implementation
-- **Publish Modal**: Created `web/components/publish-modal.js` featuring a multi-step sync UI (Bundle → Diff → Upload → Apply).
+- **Publish Modal**: Created `client/components/publish-modal.js` featuring a multi-step sync UI (Bundle → Diff → Upload → Apply).
 - **Differential Sync**: Implemented `/api/project/diff` to identify only missing or size-mismatched files on the target server.
 - **Media Streaming**: Added `GET /api/ingest/preview` to the server to allow the client to stream local media blobs to the remote server during sync.
 - **Directory Structure Persistence**: Enhanced `handleUpload` in `routes-ingest.js` to support a `path` field, preserving directory hierarchy on the production server.

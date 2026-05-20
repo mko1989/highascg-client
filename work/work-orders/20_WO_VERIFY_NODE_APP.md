@@ -30,10 +30,10 @@ After migration (WO-02) is complete, thoroughly verify, test, and polish the Hig
 
 ### Phase 1: Build Verification
 
-> **Note (2026-04-04):** WO-02 migration is **complete**. Phase 1 re-verified against the current tree. Use `node scripts/verify-w02-structure.js` for a path checklist.
+> **Note (2026-04-04):** WO-02 migration is **complete**. Phase 1 re-verified against the current tree. Use `node tools/eggs/verify-w02-structure.js` for a path checklist.
 
 - [x] **T1.1** Verify project structure matches target from WO-02
-  - `node scripts/verify-w02-structure.js` → **23/23** expected paths present (checklist includes `amcp-client.js` instead of legacy `amcp-commands.js`)
+  - `node tools/eggs/verify-w02-structure.js` → **23/23** expected paths present (checklist includes `amcp-client.js` instead of legacy `amcp-commands.js`)
   - Circular requires in `src/caspar` reviewed earlier — no runtime cycle
 
 - [x] **T1.2** Verify `npm install` succeeds cleanly
@@ -46,7 +46,7 @@ After migration (WO-02) is complete, thoroughly verify, test, and polish the Hig
 
 - [x] **T1.4** Verify no file exceeds 500 lines
   - Run: `find src/ web/ -name "*.js" | xargs wc -l | sort -n`
-  - Largest web files after splits: `inspector-panel.js` ~491, `timeline-canvas.js` ~479; all `src/**/*.js` and `web/**/*.js` ≤ **500** lines
+  - Largest web files after splits: `inspector-panel.js` ~491, `timeline-canvas.js` ~479; all `src/**/*.js` and `client/**/*.js` ≤ **500** lines
 
 ### Phase 2: Connection Verification
 
@@ -106,7 +106,7 @@ npm install
 npm start
 
 # WO-02 structure checklist (paths expected after full migration)
-node scripts/verify-w02-structure.js
+node tools/eggs/verify-w02-structure.js
 
 # Line count check
 find src/ web/ -name "*.js" | xargs wc -l | sort -n
@@ -116,7 +116,7 @@ curl http://localhost:PORT/api/state
 curl -X POST http://localhost:PORT/api/raw -d '{"cmd":"VERSION"}'
 
 # Automated HTTP + WS smoke (server must be running)
-node scripts/http-smoke.js PORT
+node tools/smoke/http-smoke.js PORT
 npm run smoke -- PORT
 
 # With Caspar connected (GET /api/state → 200): VERSION + 404 unknown route
@@ -133,8 +133,8 @@ npm run smoke:caspar -- PORT
 
 ### 2026-04-04 — Agent (WO-03: Companion `/instance/` static SPA + smoke)
 **Work Done:**
-- **[`src/server/http-server.js`](src/server/http-server.js):** **`mapInstanceStaticPath`** — requests like **`/instance/<id>/app.js`** map to **`web/app.js`** so the same **`index.html`** relative `src`/`href` work when the page is opened at **`/instance/<id>/`** (aligned with **`getApiBase()`** / **`getWsUrl()`**).
-- **[`scripts/http-smoke.js`](scripts/http-smoke.js):** Assert **`GET /instance/wo03-smoke/`** returns HTML and **`…/app.js`** returns the ES module.
+- **[`src/server/http-server.js`](src/server/http-server.js):** **`mapInstanceStaticPath`** — requests like **`/instance/<id>/app.js`** map to **`client/app.js`** so the same **`index.html`** relative `src`/`href` work when the page is opened at **`/instance/<id>/`** (aligned with **`getApiBase()`** / **`getWsUrl()`**).
+- **[`tools/smoke/http-smoke.js`](tools/smoke/http-smoke.js):** Assert **`GET /instance/wo03-smoke/`** returns HTML and **`…/app.js`** returns the ES module.
 - **[`README.md`](README.md):** Notes static behaviour under **`/instance/`**.
 
 **Status:** Completes the optional “serve SPA under instance prefix” follow-up from the prior WO log.
@@ -145,7 +145,7 @@ npm run smoke:caspar -- PORT
 **Work Done:**
 - **[`src/server/http-server.js`](src/server/http-server.js):** Route **`/instance/<id>/api/...`** to the same API handler as **`/api/...`**, matching **`getApiBase()`** in the browser.
 - **[`src/server/ws-server.js`](src/server/ws-server.js):** Upgrade WebSocket for **`/instance/<id>/api/ws`** and **`/instance/<id>/ws`** (same as **`getWsUrl()`**).
-- **[`scripts/http-smoke.js`](scripts/http-smoke.js):** Assert **`GET /instance/wo03-smoke/api/settings`**, **`/api/streams`**, **`GET /api/osc/state`**, and WebSocket on both plain and instance-prefixed URLs.
+- **[`tools/smoke/http-smoke.js`](tools/smoke/http-smoke.js):** Assert **`GET /instance/wo03-smoke/api/settings`**, **`/api/streams`**, **`GET /api/osc/state`**, and WebSocket on both plain and instance-prefixed URLs.
 - **[`README.md`](README.md):** Documents behaviour.
 
 **Status:** WO-03 task list was already complete; this closes the gap where the client was Companion-safe but the standalone Node process only listened on **`/api/*`**.
@@ -155,18 +155,18 @@ npm run smoke:caspar -- PORT
 ### 2026-04-04 — Agent (WO-03 T7.2: inline docs for client integration)
 **Work Done:**
 - **[`config/default.js`](config/default.js):** File-level documentation for config sections (caspar, osc, ui, **audioRouting** / **browserMonitor**, runtime **streaming** via `stream-config`).
-- **[`web/lib/api-client.js`](web/lib/api-client.js), [`web/lib/ws-client.js`](web/lib/ws-client.js):** JSDoc on `apiGet`/`apiPost`/`apiPut` and `getWsUrl` (Companion `/instance/…` parity with `getApiBase`).
-- **[`web/lib/stream-state.js`](web/lib/stream-state.js), [`web/lib/webrtc-client.js`](web/lib/webrtc-client.js):** Module descriptions tying **`/api/streams`**, go2rtc port, and browser hostname for WebRTC.
+- **[`client/lib/api-client.js`](client/lib/api-client.js), [`client/lib/ws-client.js`](client/lib/ws-client.js):** JSDoc on `apiGet`/`apiPost`/`apiPut` and `getWsUrl` (Companion `/instance/…` parity with `getApiBase`).
+- **[`client/lib/stream-state.js`](client/lib/stream-state.js), [`client/lib/webrtc-client.js`](client/lib/webrtc-client.js):** Module descriptions tying **`/api/streams`**, go2rtc port, and browser hostname for WebRTC.
 - **[`src/streaming/stream-config.js`](src/streaming/stream-config.js), [`src/api/router.js`](src/api/router.js):** Comments on streaming defaults and pre–Caspar-gate routes.
 
 **Status:** Phase 7 **T7.2** complete.
 
-**Instructions for Next Agent:** Optional JSDoc pass on remaining `web/lib/*-state.js` modules; live Caspar passes for Phases 2–6 if not already done on hardware.
+**Instructions for Next Agent:** Optional JSDoc pass on remaining `client/lib/*-state.js` modules; live Caspar passes for Phases 2–6 if not already done on hardware.
 
 ### 2026-04-04 — Agent (WO-03 client: Companion-safe streams + status line + browserMonitor)
 **Work Done:**
-- **[`web/lib/stream-state.js`](web/lib/stream-state.js):** **`GET /api/streams`** uses **`getApiBase()`** (works under **`/instance/…`**). **`applyBrowserMonitorFromSettings()`** applies **audioRouting.browserMonitor** (PGM vs off) to WebRTC monitoring audio.
-- **[`web/app.js`](web/app.js):** Header shows **Live** / **HTTP**, **Caspar** / **Caspar offline** / **no AMCP**; refreshes on **`caspar.connection`** WS updates. **`settingsState`** subscribe + **`highascg-settings-applied`** for browser monitoring.
+- **[`client/lib/stream-state.js`](client/lib/stream-state.js):** **`GET /api/streams`** uses **`getApiBase()`** (works under **`/instance/…`**). **`applyBrowserMonitorFromSettings()`** applies **audioRouting.browserMonitor** (PGM vs off) to WebRTC monitoring audio.
+- **[`client/app.js`](web/app.js):** Header shows **Live** / **HTTP**, **Caspar** / **Caspar offline** / **no AMCP**; refreshes on **`caspar.connection`** WS updates. **`settingsState`** subscribe + **`highascg-settings-applied`** for browser monitoring.
 - **[`README.md`](README.md):** Documents behaviour.
 
 **Status:**
@@ -177,9 +177,9 @@ npm run smoke:caspar -- PORT
 
 ### 2026-04-04 — Agent (WO-03 client: stream refresh + Caspar smoke script)
 **Work Done:**
-- **[`web/lib/stream-state.js`](web/lib/stream-state.js):** On **`highascg-settings-applied`**, call **`refreshStreams()`** so go2rtc / WebRTC preview and header audio controls update immediately after saving Application Settings (no 10s wait).
-- **[`web/app.js`](web/app.js):** On **WebSocket connect**, **`settingsState.load()`** + **`streamState.refreshStreams()`** so reconnect picks up server config and stream list.
-- **[`scripts/smoke-caspar.js`](scripts/smoke-caspar.js):** When **`GET /api/state`** is **200**, assert unknown route **404** and **`POST /api/raw`** `VERSION` succeeds; exits **1** if Caspar offline (503). **`npm run smoke:caspar -- PORT`** in [`package.json`](package.json).
+- **[`client/lib/stream-state.js`](client/lib/stream-state.js):** On **`highascg-settings-applied`**, call **`refreshStreams()`** so go2rtc / WebRTC preview and header audio controls update immediately after saving Application Settings (no 10s wait).
+- **[`client/app.js`](web/app.js):** On **WebSocket connect**, **`settingsState.load()`** + **`streamState.refreshStreams()`** so reconnect picks up server config and stream list.
+- **[`tools/smoke/smoke-caspar.js`](tools/smoke/smoke-caspar.js):** When **`GET /api/state`** is **200**, assert unknown route **404** and **`POST /api/raw`** `VERSION` succeeds; exits **1** if Caspar offline (503). **`npm run smoke:caspar -- PORT`** in [`package.json`](package.json).
 - **[`README.md`](README.md):** Document `smoke:caspar` and client refresh behaviour.
 
 **Status:**
@@ -191,8 +191,8 @@ npm run smoke:caspar -- PORT
 ### 2026-04-04 — Agent (WO-03 client integration: settings / streams / audio without Caspar)
 **Work Done:**
 - **[`src/api/router.js`](src/api/router.js):** Register **`GET/POST /api/settings`**, **`GET /api/hardware/displays`**, **`POST /api/settings/apply-os`**, **`GET /api/streams`**, **`POST /api/streaming/toggle`** & **`/restart`** *before* the Caspar gate so **`--no-caspar`** and offline Caspar still support OSC/streaming/audio config, System displays, and **WebRTC preview** discovery (`stream-state.js` → `/api/streams`).
-- **[`web/components/audio-mixer-panel.js`](web/components/audio-mixer-panel.js):** Bus faders use **`POST /api/audio/volume`** with `{ master: true }` (same AMCP path as `/api/mixer/mastervolume`, aligns with WO-06 audio API).
-- **[`scripts/http-smoke.js`](scripts/http-smoke.js):** Assert **`/api/settings`**, **`/api/streams`**, **`/api/audio/devices`** return 200.
+- **[`client/components/audio-mixer-panel.js`](client/components/audio-mixer-panel.js):** Bus faders use **`POST /api/audio/volume`** with `{ master: true }` (same AMCP path as `/api/mixer/mastervolume`, aligns with WO-06 audio API).
+- **[`tools/smoke/http-smoke.js`](tools/smoke/http-smoke.js):** Assert **`/api/settings`**, **`/api/streams`**, **`/api/audio/devices`** return 200.
 - **[`README.md`](README.md):** Table of endpoints that work without Caspar; CLI blurb update.
 
 **Status:**
@@ -203,7 +203,7 @@ npm run smoke:caspar -- PORT
 
 ### 2026-04-04 — Agent
 **Work Done:**
-- **[`scripts/http-smoke.js`](scripts/http-smoke.js):** HTTP checks (`GET /`, `/api/scene/live`, `/api/state`, unknown `/api/*` — 503 vs 404 when Caspar connected) + WebSocket `/api/ws` first message `type: state`. **`npm run smoke -- PORT`**. Documented in [`README.md`](README.md) and **Test Commands** in this WO. **Phase 3 / 4** task bullets annotated with smoke coverage.
+- **[`tools/smoke/http-smoke.js`](tools/smoke/http-smoke.js):** HTTP checks (`GET /`, `/api/scene/live`, `/api/state`, unknown `/api/*` — 503 vs 404 when Caspar connected) + WebSocket `/api/ws` first message `type: state`. **`npm run smoke -- PORT`**. Documented in [`README.md`](README.md) and **Test Commands** in this WO. **Phase 3 / 4** task bullets annotated with smoke coverage.
 
 **Status:**
 - Repeatable automated smoke without Caspar; Phases 2–6 still need manual / Caspar for full coverage.
@@ -213,8 +213,8 @@ npm run smoke:caspar -- PORT
 
 ### 2026-04-04 — Agent
 **Work Done:**
-- **Phase 1 (WO-03) completion:** [`scripts/verify-w02-structure.js`](scripts/verify-w02-structure.js) — expect **`src/caspar/amcp-client.js`** (not monolithic `amcp-commands.js`); run → **23/23** paths. Added [`README.md`](README.md) (install, env, CLI, layout). **`npm start` / `node index.js`** smoke-tested (`--no-caspar`, `curl /` → 200).
-- **T1.4:** Split oversized web modules — [`preview-canvas-draw.js`](web/components/preview-canvas-draw.js) + [`preview-canvas-panel.js`](web/components/preview-canvas-panel.js) + barrel [`preview-canvas.js`](web/components/preview-canvas.js); [`timeline-canvas-utils.js`](web/components/timeline-canvas-utils.js) + [`timeline-canvas-clip.js`](web/components/timeline-canvas-clip.js) + slim [`timeline-canvas.js`](web/components/timeline-canvas.js). Re-export `fmtSmpte` / `parseTcInput` from `timeline-canvas.js` for existing imports.
+- **Phase 1 (WO-03) completion:** [`tools/eggs/verify-w02-structure.js`](tools/eggs/verify-w02-structure.js) — expect **`src/caspar/amcp-client.js`** (not monolithic `amcp-commands.js`); run → **23/23** paths. Added [`README.md`](README.md) (install, env, CLI, layout). **`npm start` / `node index.js`** smoke-tested (`--no-caspar`, `curl /` → 200).
+- **T1.4:** Split oversized web modules — [`preview-canvas-draw.js`](client/components/preview-canvas-draw.js) + [`preview-canvas-panel.js`](client/components/preview-canvas-panel.js) + barrel [`preview-canvas.js`](client/components/preview-canvas.js); [`timeline-canvas-utils.js`](client/components/timeline-canvas-utils.js) + [`timeline-canvas-clip.js`](client/components/timeline-canvas-clip.js) + slim [`timeline-canvas.js`](client/components/timeline-canvas.js). Re-export `fmtSmpte` / `parseTcInput` from `timeline-canvas.js` for existing imports.
 
 **Status:**
 - **T1.1**, **T1.2**, **T1.3**, **T1.4** complete. **T7.1** (README) complete. Phases 2–6 + T7.2 remain (need live CasparCG for most).
@@ -225,7 +225,7 @@ npm run smoke:caspar -- PORT
 ### 2026-04-04 — Agent
 **Work Done:**
 - Read `00_PROJECT_GOAL.md` (standalone HighAsCG app, ≤500-line files, HTTP+WS+Caspar).
-- **Phase 1 (WO-03):** Ran structure audit vs WO-02 target; added [`scripts/verify-w02-structure.js`](scripts/verify-w02-structure.js) (prints missing expected paths). Result: **12/21** present — migration incomplete (no `web/`, `src/server/`, `templates/`, `README.md`, several state/utils files).
+- **Phase 1 (WO-03):** Ran structure audit vs WO-02 target; added [`tools/eggs/verify-w02-structure.js`](tools/eggs/verify-w02-structure.js) (prints missing expected paths). Result: **12/21** present — migration incomplete (no `client/`, `src/server/`, `templates/`, `README.md`, several state/utils files).
 - **`npm install`:** succeeds; `package-lock.json` present; 5 packages, 0 vulnerabilities.
 - **`node index.js`:** runs and exits (scaffolding — no HTTP listener yet).
 - **Line counts:** all existing `src/**/*.js` under 500 lines (max `amcp-commands.js` ~438).
@@ -235,7 +235,7 @@ npm run smoke:caspar -- PORT
 - **T1.2** ✅ · **T1.4** ✅ · **T1.1** ⏳ (blocked on WO-02 completion) · **T1.3** ⏳ (blocked on HTTP server).
 
 **Instructions for Next Agent:**
-- Finish remaining **WO-02** tasks, then re-run `node scripts/verify-w02-structure.js` and Phase 1 T1.1/T1.3.
+- Finish remaining **WO-02** tasks, then re-run `node tools/eggs/verify-w02-structure.js` and Phase 1 T1.1/T1.3.
 - When `http-server.js` exists, validate T1.3 (bind, banner URLs, no unhandled rejections).
 
 ---

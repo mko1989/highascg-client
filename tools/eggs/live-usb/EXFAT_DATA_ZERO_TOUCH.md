@@ -4,7 +4,7 @@ HighAsCG mounts cross-platform data at **`/home/casparcg/exfat`** by **volume la
 
 **Same label on every operator stick** lets the correct volume attach whether the machine boots from internal disk or from the USB: plug the stick **before** **`local-fs`** if you need it on HDD boots.
 
-Boot order: **`home-casparcg-exfat.mount`** → **`highascg-exfat-media-prep.service`** → **`home-casparcg-highascg-media-exfat.mount`** (bind) → **`highascg-exfat-bootstrap.service`** (**`rsync`** seed from **`sim/highascg`** when **`package.json`** absent on **`~/highascg`**) → **`highascg-exfat-sync.service`** (node mtime sync, **skipped** if **`tools/exfat-sync-cli.js`** missing) → **`highascg.service`** (**`ConditionPathExists=package.json`**). Matrix: **[`docs/WO47_ISO_VS_EXFAT.md`](../../docs/WO47_ISO_VS_EXFAT.md)**.
+Boot order: **`home-casparcg-exfat.mount`** → **`highascg-exfat-media-prep.service`** → **`home-casparcg-highascg-media-exfat.mount`** (bind) → **`highascg-exfat-server-update.service`** (**`update/server/`** → **`~/highascg`**) → **`highascg-exfat-sync.service`** (**`drop-config/`** mtime sync; **skipped** if **`tools/runtime/exfat-sync-cli.js`** missing) → **`highascg.service`** (**`ConditionPathExists=package.json`**). Matrix: **[`docs/WO47_ISO_VS_EXFAT.md`](../../docs/WO47_ISO_VS_EXFAT.md)**.
 
 ---
 
@@ -66,7 +66,7 @@ Optional: **`EXFAT_SIZE_MIB=8192`** before **`add-exfat-data-partition.sh`** to 
 
 1. Boot **Live with persistence** when you added the persistence partition (GRUB entry / `persistence` cmdline — see **`tools/live-usb/FLASH_AND_PERSIST.md`**).
 
-2. On boot with **`HIGHASCGEXF`** present: **mount → bind → bootstrap (rsync seed if needed) → mtime sync (node)** — see **[`docs/WO47_ISO_VS_EXFAT.md`](../../docs/WO47_ISO_VS_EXFAT.md)** — then **`highascg.service`** if **`package.json`** exists.
+2. On boot with **`HIGHASCGEXF`** present: **mount → bind → server-update (`update/server/`) → mtime sync (node)** — see **[`docs/WO47_ISO_VS_EXFAT.md`](../../docs/WO47_ISO_VS_EXFAT.md)** — then **`highascg.service`** if **`package.json`** exists.
 
 3. **Settings → media/usb → exFAT sync** shows the map and pair status; **Dry-run sync** is safe to click anytime.
 
@@ -94,7 +94,7 @@ You **may** edit **`/etc/highascg/exfat-sync.json`** (or **`config/exfat-sync.js
 
 ### **Portable newer app than the boot partition**
 
-Boot sync (**`highascg-exfat-sync.service`**) copies **`~/exfat/sim/highascg`** ↔ **`~/highascg`** with **mtime-wins** (**`media`**, **`node_modules`**, **`.git`**, etc. are excluded per **`/etc/highascg/exfat-sync.json`**). If you put a **fresher clone on exFAT** under **`sim/highascg`** (e.g. from GitHub), a **reboot** applies it before **`highascg.service`** starts. Without reboot run **`sudo systemctl restart highascg.service`** **after** a manual sync: **`sudo systemctl start highascg-exfat-sync.service`** **or** `node tools/exfat-sync-cli.js` **or** the Settings API **Dry-run / Run**. After pulling new dependencies on exFAT, run **`npm ci`** inside **`~/highascg`** (or wherever won the sync).
+Boot sync (**`highascg-exfat-sync.service`**) applies **`drop-config/highascg.config.json`** ↔ **`~/highascg/highascg.config.json`** (mtime-wins). **Server tree updates** use **`update/server/`** ( **`highascg-exfat-server-update`** ), not whole-tree mtime sync. Manual sync: **`sudo systemctl start highascg-exfat-sync.service`** or `node tools/runtime/exfat-sync-cli.js`. After a server drop with new lockfile, **`npm ci`** runs automatically when enabled.
 
 ---
 

@@ -8,7 +8,7 @@ const {
 	pickStripFallbackMode,
 	pickBestExistingModeForPlan,
 	rateHintFromModeSuffix,
-} = require('../src/utils/xrandr-custom-mode')
+} = require('../../src/utils/xrandr-custom-mode')
 
 test('parseModelineFromCvtOutput extracts name and timings', () => {
 	const sample = `# 1920x1080 59.96 Hz (CVT) fieldrate 60.00 Hz; hsync: 67.49 kHz; pclk: 173.00 MHz

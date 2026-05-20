@@ -33,7 +33,7 @@ Primary UX target: field operator with no Linux experience, working from the web
   - `POST /api/ingest/upload` (busboy, streaming, zip auto-extract)
   - `POST /api/ingest/download` (HTTP + WeTransfer URL downloads)
   - `GET /api/ingest/download-status` (poll background progress)
-- Web UI (`web/components/sources-panel.js`) has the **+ (Add Media)** drop-up with “Select File(s)” and “Paste URL”.
+- Web UI (`client/components/sources-panel.js`) has the **+ (Add Media)** drop-up with “Select File(s)” and “Paste URL”.
 - Media folder resolution lives in `src/media/local-media.js` → `getMediaIngestBasePath(config)`; sandbox via `resolveSafe`.
 - There is **no USB awareness** today — users must either:
   - SSH in and `cp` files manually, or
@@ -77,7 +77,7 @@ Keep the discoverable pattern users already know: the **+ drop-up** in the sourc
 - Add new item **"📼 Import from USB…"** to the drop-up.
   - Disabled with hint "No USB drive detected" when the list is empty.
   - Badge with drive count when present.
-- Clicking opens a new modal component **`web/components/usb-import-modal.js`**:
+- Clicking opens a new modal component **`client/components/usb-import-modal.js`**:
   - Left: drive picker (label, size, free space, fs type).
   - Centre: folder-tree browser + selectable file list with checkboxes + "Select all videos/images" shortcut.
   - Right: summary (count, total bytes, estimated time at measured copy rate).
@@ -119,9 +119,9 @@ Update **WO-11 Boot Orchestrator** and **`install-phase4.sh`**:
 | Media folder resolution (reuse) | `src/media/local-media.js` (`getMediaIngestBasePath`, `resolveSafe`) |
 | Settings schema | `config/default.js`, `src/api/routes-settings.js` |
 | Install helpers | `scripts/install-phase4.sh`, `docs/MANUAL_INSTALL.md` |
-| Drop-up menu hook | `web/components/sources-panel.js` |
-| Import modal | `web/components/usb-import-modal.js` [NEW] |
-| Styles | `web/styles/08-modals-settings-logs-misc.css`, `web/styles/03a-offline-sync-publish-ingest-menu.css` (badge) |
+| Drop-up menu hook | `client/components/sources-panel.js` |
+| Import modal | `client/components/usb-import-modal.js` [NEW] |
+| Styles | `client/styles/08-modals-settings-logs-misc.css`, `client/styles/03a-offline-sync-publish-ingest-menu.css` (badge) |
 
 ---
 
@@ -141,10 +141,10 @@ Update **WO-11 Boot Orchestrator** and **`install-phase4.sh`**:
 - [x] **T29.9** Add settings keys (`usb_ingest_enabled`, `usb_ingest_default_subfolder`, `usb_ingest_overwrite_policy`, `usb_ingest_verify_hash`) to `config/default.js` and the Settings modal.
 
 ### Phase 3 — Web UI
-- [x] **T29.10** Extend `web/components/sources-panel.js` drop-up with **"📼 Import from USB…"** item + drive-count badge + empty-state hint.
-- [x] **T29.11** Build `web/components/usb-import-modal.js` (drive picker, folder tree, multi-select file list, summary, progress, eject).
+- [x] **T29.10** Extend `client/components/sources-panel.js` drop-up with **"📼 Import from USB…"** item + drive-count badge + empty-state hint.
+- [x] **T29.11** Build `client/components/usb-import-modal.js` (drive picker, folder tree, multi-select file list, summary, progress, eject).
 - [x] **T29.12** Wire modal to WebSocket `usb:*` events + REST; refresh media library on completion (no separate client state module).
-- [x] **T29.13** Add styles (glass/dark-mode consistent) in `web/styles/08-modals-settings-logs-misc.css`.
+- [x] **T29.13** Add styles (glass/dark-mode consistent) in `client/styles/08-modals-settings-logs-misc.css`.
 - [x] **T29.14** Add keyboard shortcuts: `Enter` to import, `Esc` to cancel/close.
 
 ### Phase 4 — OS / production install

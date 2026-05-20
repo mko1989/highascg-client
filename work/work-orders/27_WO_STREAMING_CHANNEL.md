@@ -42,12 +42,12 @@ Add a dedicated **Streaming** feature to HighAsCG. This includes:
 
 | Concern | File / area |
 |---------|----------------|
-| Settings Toggle | `web/components/settings-modal.js` |
-| Navigation | `web/app.js` (initTabs & conditional render), `web/index.html` |
+| Settings Toggle | `client/components/settings-modal.js` |
+| Navigation | `client/app.js` (initTabs & conditional render), `client/index.html` |
 | Channel Mapping | `src/config/routing.js` — `getChannelMap`, `streamingCh` |
 | Config Generation | `src/config/config-generator.js` — add channel |
 | Streaming API | `src/api/routes-streaming-channel.js` — GET status; POST RTMP + record |
-| Streaming UI | `web/components/streaming-panel.js`, `web/app.js` tab visibility |
+| Streaming UI | `client/components/streaming-panel.js`, `client/app.js` tab visibility |
 | FFmpeg presets | `src/streaming/streaming-channel-ffmpeg.js` |
 
 ---
@@ -102,10 +102,10 @@ Add a dedicated **Streaming** feature to HighAsCG. This includes:
 ### 2026-04-22 — Agent (Streaming workspace tab + tracking)
 
 **Work Done:**
-- **T27.8–T27.9:** Added **Streaming** workspace tab (`web/index.html`), lazy `initStreamingPanel` on first open (`web/app.js`), `syncStreamingWorkspaceTab()` from `settingsState` + `highascg-settings-applied`.
+- **T27.8–T27.9:** Added **Streaming** workspace tab (`client/index.html`), lazy `initStreamingPanel` on first open (`client/app.js`), `syncStreamingWorkspaceTab()` from `settingsState` + `highascg-settings-applied`.
 - **`streaming-panel.js`:** RTMP (URL, key, quality), record (CRF), status poll against `/api/streaming-channel`; disables controls when API reports channel disabled.
 - **`sources-panel.js`:** Listens for `highascg-streaming-record-done` to refresh media list after record stop/start.
-- **Styles:** `.streaming-panel*` in `web/styles/02c-timeline-multiview-sources-sidebar.css`.
+- **Styles:** `.streaming-panel*` in `client/styles/02c-timeline-multiview-sources-sidebar.css`.
 - **`settings-state.js`:** Default `streamingChannel: { enabled: false }` for subscribers before GET completes.
 
 **Status:** Phases 1–2 and most of Phase 3 done; **T27.7** / **T27.10** / Phase 4 QA still open.

@@ -47,8 +47,8 @@ Scene take (scene-take-lbg.js)
 
 | Concern | File |
 |---------|------|
-| Layer data model + migration | `web/lib/scene-state.js` — `defaultLayerConfig`, `_migrateScene`, `patchLayer`, `copyLayerStyle` |
-| Inspector UI (checkbox + frames input) | `web/components/inspector-mixer.js` — `appendSceneLayerMixerGroup` |
+| Layer data model + migration | `client/lib/scene-state.js` — `defaultLayerConfig`, `_migrateScene`, `patchLayer`, `copyLayerStyle` |
+| Inspector UI (checkbox + frames input) | `client/components/inspector-mixer.js` — `appendSceneLayerMixerGroup` |
 | Server take — schedule fade | `src/engine/scene-take-lbg.js` — after `recordPlay` |
 | Clip-end-fade watcher | `src/engine/clip-end-fade.js` — `schedule`, `scheduleMidPlayback`, `scheduleWithOscFallback` |
 | OSC timing helper | `src/state/playback-tracker.js` — `getOscClipEndFadeDelayMs` |
@@ -60,9 +60,9 @@ Scene take (scene-take-lbg.js)
 
 ### Implementation
 
-- [x] **T26.1** Add `fadeOnEnd: { enabled: false, frames: 12 }` to `defaultLayerConfig` in `web/lib/scene-state.js`
+- [x] **T26.1** Add `fadeOnEnd: { enabled: false, frames: 12 }` to `defaultLayerConfig` in `client/lib/scene-state.js`
 - [x] **T26.2** Handle migration + `patchLayer` + `copyLayerStyle` / `pasteLayerStyle` for `fadeOnEnd`
-- [x] **T26.3** Add "Fade on end" UI group in `web/components/inspector-mixer.js` (`appendSceneLayerMixerGroup`)
+- [x] **T26.3** Add "Fade on end" UI group in `client/components/inspector-mixer.js` (`appendSceneLayerMixerGroup`)
 - [x] **T26.4** Create `src/engine/clip-end-fade.js` — `ClipEndFadeWatcher` class with `schedule()`, `cancel()`, `cancelAll()`
 - [x] **T26.5** Integrate watcher into `src/engine/scene-take-lbg.js` — schedule fades after `recordPlay`
 - [x] **T26.6** Wire watcher into `index.js` on `appCtx`

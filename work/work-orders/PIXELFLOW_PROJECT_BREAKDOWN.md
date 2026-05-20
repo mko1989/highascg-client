@@ -1,6 +1,6 @@
 # PixelFlow -> HighAsCG Migration Breakdown
 
-This breakdown is based on the extracted PixelFlow-facing code in `companion-module-pixelhue-switcher-main 2` and existing HighAsCG integration (`src/pixelhue`, `src/api/routes-pixelhue.js`, `web/lib/pixelhue-tandem.js`).
+This breakdown is based on the extracted PixelFlow-facing code in `companion-module-pixelhue-switcher-main 2` and existing HighAsCG integration (`src/pixelhue`, `src/api/routes-pixelhue.js`, `client/lib/pixelhue-tandem.js`).
 
 ## 1) PixelFlow capability inventory (from extracted source)
 
@@ -62,7 +62,7 @@ Phase A - API parity (server) [DONE in this pass]
 - Keep token/host details server-side only.
 
 Phase B - Web client service layer
-- Add `web/lib/pixelhue-api.js` wrappers for all `/api/pixelhue/*` endpoints.
+- Add `client/lib/pixelhue-api.js` wrappers for all `/api/pixelhue/*` endpoints.
 - Add response normalizers for screen/layer/preset/interface lists.
 - Centralize error mapping for firmware differences.
 
@@ -89,7 +89,7 @@ Phase F - QA and compatibility matrix
 
 ## 4) Immediate next implementation tasks
 
-1. Add client wrappers in `web/lib` for new PixelHue endpoints.
+1. Add client wrappers in `client/lib` for new PixelHue endpoints.
 2. Add PixelHue editor UI section (screens + layers basic controls) in Settings/Device View.
 3. Add route-level validation (payload shape) on new endpoints to reduce bad writes.
 4. Add automated smoke test script under `tools/` for endpoint sanity checks.

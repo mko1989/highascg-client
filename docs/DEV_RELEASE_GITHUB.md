@@ -8,7 +8,7 @@ Use this flow when you have a **build host or workstation** running the repo (ty
   - **`npm run release:github-server`** → `highascg-server_<UTC>.tar.gz` (tag `server_…`)
   - **`npm run release:github-client`** → `highascg-client_<UTC>.tar.gz` (tag `client_…`, Vite build → `dist-web/`)
 
-Extract both into the same **`sim/highascg`** directory. The backend serves **`dist-web/`** when present.
+**Playout stick:** extract **`highascg-server_*.tar.gz`** into **`update/server/`** only (`tools/runtime/`, no UI). **Client:** install **`highascg-client_*.tar.gz`** on Mac/Windows (`dist-web/`), not on the playout stick.
 
 ## What gets published
 
@@ -16,7 +16,7 @@ Extract both into the same **`sim/highascg`** directory. The backend serves **`d
 
 | Asset | Produced by |
 |-------|----------------|
-| `highascg_*.iso` under `/home/eggs/` | **Full:** `sudo tools/live-usb/build-highascg-egg.sh` (**default**) — merges [`penguins-eggs-exclude-highascg-fragment.list`](../tools/live-usb/penguins-eggs-exclude-highascg-fragment.list) via `prepare-eggs-clone-with-exfat.sh`. **Quick:** `sudo tools/release/make-dev-github-release-iso-quick.sh` (`--quick-iso`). |
+| `highascg_*.iso` under `/home/eggs/` | **Full:** `sudo npm run eggs:build` — merges [`penguins-eggs-exclude-highascg-fragment.list`](../tools/eggs/live-usb/penguins-eggs-exclude-highascg-fragment.list) via `prepare-eggs-clone-with-exfat.sh`. **Quick (deprecated):** `sudo bash deprecated/tools/release/make-dev-github-release-iso-quick.sh` |
 
 **Every** run produces:
 
@@ -26,7 +26,7 @@ Extract both into the same **`sim/highascg`** directory. The backend serves **`d
 
 **Alpha** run (`npm run release:github-app` / `--app-only`): **only** the tarball above — no ISO upload; runs **`npm run build:client`** first; omits **`client/`** sources unless `--with-client-sources`. Tag defaults to **`alpha_YYYY-MM-DD_HHMMSSZ`**.
 
-GitHub Releases have a soft **per-asset ~2 GiB** limit. If the tarball or ISO is too large, use `--zip-exclude-node-modules` and run `npm ci` inside `sim/highascg` after extract (legacy flag name still applies to the bundle).
+GitHub Releases have a soft **per-asset ~2 GiB** limit. If the server tarball is too large, use `--zip-exclude-node-modules` and run `npm ci` under `~/highascg` after the stick applies `update/server/`.
 
 ### Why is the **server** tarball so big?
 
@@ -35,7 +35,7 @@ The **server** asset (`release:github-server`) is backend-only — it does **not
 | Component | Typical share |
 |-----------|----------------|
 | **`node_modules/`** | Largest — all runtime deps (optional packages too if installed). Use `--zip-exclude-node-modules` + `npm ci` on the stick. |
-| **`tools/`** | Full tree (live-usb, release, stick-tools, smokes, electron-launcher). |
+| **`tools/runtime/`** | Only tools subtree in server tarball (`exfat-sync-cli`, staged Caspar). |
 | **`src/`** | Node orchestrator, APIs, Caspar client (repo root). |
 | **`scripts/`**, **`config/`**, **`template/`** | Install helpers and Caspar templates. |
 
@@ -47,7 +47,7 @@ Shared rules: [`scripts/archive-common.sh`](../scripts/archive-common.sh) (used 
 
 1. **`gh`** installed and **`gh auth login`** finished for the repo you push to.
 2. **`tar`** (gzip) — standard on Ubuntu/Debian. **`sudo`** only for **full** image builds (**`npm run release:dev-github`**).
-3. **penguins‑eggs** only when you build a **full** ISO (same expectations as [**`BUILD_AND_FLASH.md`**](../tools/live-usb/BUILD_AND_FLASH.md)).
+3. **penguins‑eggs** only when you build a **full** ISO (same expectations as [**`BUILD_AND_FLASH.md`**](../tools/eggs/live-usb/BUILD_AND_FLASH.md)).
 4. Repo root checkout (for `npm run …` wrappers below).
 
 ## Commands
@@ -68,14 +68,14 @@ npm run release:github-server
 npm run release:github-client
 ```
 
-On the stick (same mount as monolith):
+On the playout stick:
 
 ```bash
-tar -xzf highascg-server_<stamp>.tar.gz -C <mount>/sim/highascg
-tar -xzf highascg-client_<stamp>.tar.gz -C <mount>/sim/highascg
+mkdir -p <mount>/update/server
+tar -xzf highascg-server_<stamp>.tar.gz -C <mount>/update/server
 ```
 
-Server-only API: `HIGHASCG_HEADLESS=true`. Custom UI path: `HIGHASCG_WEB_DIR=/path/to/dist-web`.
+Client on Mac/Windows: extract **`highascg-client_*.tar.gz`** locally and point the UI at the server IP. Production playout: **`HIGHASCG_HEADLESS=true`**.
 
 ### Full image — Eggs ISO + tarball (rare)
 
@@ -94,14 +94,14 @@ npm run release:dev-github
 Direct script equivalents:
 
 ```bash
-./tools/release/make-dev-github-release.sh --app-only --dry-run
-./tools/release/make-dev-github-release.sh --app-only
-./tools/release/make-dev-github-release.sh --dry-run
-./tools/release/make-dev-github-release.sh
-./tools/release/make-dev-github-release.sh --quick-iso --tag dev-smoke-$(date -u +%Y%m%d)
+./deprecated/tools/release/make-dev-github-release.sh --app-only --dry-run
+./deprecated/tools/release/make-dev-github-release.sh --app-only
+./deprecated/tools/release/make-dev-github-release.sh --dry-run
+./deprecated/tools/release/make-dev-github-release.sh
+./deprecated/tools/release/make-dev-github-release.sh --quick-iso --tag dev-smoke-$(date -u +%Y%m%d)
 ```
 
-See `./tools/release/make-dev-github-release.sh --help` for every flag.
+See `./deprecated/tools/release/make-dev-github-release.sh --help` for every flag.
 
 Useful variants:
 
@@ -117,7 +117,7 @@ Useful variants:
 
 ## ISO discovery
 
-The helper uses **`find_latest_iso`** from [`flash-stick-common.sh`](../tools/live-usb/flash-stick-common.sh) (same rule as flashing tools — typically **`/home/eggs/**/*.iso`** newest). Align **`BASENAME`** with Eggs output if you renamed the image.
+The helper uses **`find_latest_iso`** from [`flash-stick-common.sh`](../tools/eggs/live-usb/flash-stick-common.sh) (same rule as flashing tools — typically **`/home/eggs/**/*.iso`** newest). Align **`BASENAME`** with Eggs output if you renamed the image.
 
 ## Operator path: Stick Studio + release tarball
 
@@ -138,40 +138,35 @@ On a workstation with UI:
 npm run stick-studio
 ```
 
-Documentation: **`tools/stick-tools/README.md`**.
+Documentation: **`client/tools/stick-tools/README.md`**.
 
 Rough order in the GUI:
 
 1. Point **ISO** at the downloaded file and **whole-disk USB**.
 2. Enable **Erase stick with ISO**, run **pkexec pipeline** (or flash first, then exFAT-only if you skipped dd).
 3. Enable **Append exFAT … HIGHASCGEXF** where appropriate.
-4. Mount the exFAT volume and set **mount path** in Stick Studio; enable **Ensure sim/highascg (+ operator dirs)**.
+4. Mount the exFAT volume and set **mount path** in Stick Studio; create **`update/server/`** (and operator dirs).
 
-### 3. Lay out HighAsCG from the tarball
+### 3. Lay out server drop on the stick
 
 With the exFAT volume mounted at `<mount>`:
 
 ```bash
-mkdir -p <mount>/sim/highascg
-tar -xzf /path/to/highascg_<stamp>.tar.gz -C <mount>/sim/highascg
+mkdir -p <mount>/update/server
+tar -xzf /path/to/highascg-server_<stamp>.tar.gz -C <mount>/update/server
 ```
 
-so that `<mount>/sim/highascg/package.json` exists.
+so that `<mount>/update/server/package.json` exists (includes **`tools/runtime/`**).
 
-**Stick Studio shortcut:** extract the tarball to a **temporary directory** on disk, then browse that **folder** as “Copy:” source and enable **Copy:** — this mirrors the tree into `sim/highascg` via `sync_tree` (destructive overwrite of matching names).
+If the archive omitted `node_modules`, run **`npm ci`** on the playout host after first boot apply (or bake deps into the tarball).
 
-If the archive omitted `node_modules`:
-
-```bash
-cd /path/to/mounted/HIGHASCGEXF/sim/highascg
-npm ci
-```
+**Monolith / alpha tarball (deprecated):** see `deprecated/tools/release/make-dev-github-release.sh` — prefer split server + client releases.
 
 (Use **`install:base`** / **`install:previs`** from `package.json` if you mirror production optional deps.)
 
 ### 4. Simulation mode
 
-Stick Studio runs **`npm run portable:sim`** against the **HighAsCG repo path** configured at the top of the window (point this at your **local git checkout** on the workstation, not necessarily the stick copy). That script uses [`tools/portable-desktop/launch-sim-from-exfat.js`](../tools/portable-desktop/launch-sim-from-exfat.js) to drive simulation using exFAT paths.
+Stick Studio runs **`npm run portable:sim`** against the **HighAsCG repo path** configured at the top of the window (point this at your **local git checkout** on the workstation, not necessarily the stick copy). That script uses [`client/tools/portable-desktop/launch-sim-from-exfat.js`](../client/tools/portable-desktop/launch-sim-from-exfat.js) to drive simulation using exFAT paths.
 
 For headless / CI testing, from a repo that has the same mount layout available:
 
@@ -182,13 +177,13 @@ npm run portable:sim
 ### 5. Reference docs
 
 - [**`WO47_ISO_VS_EXFAT.md`**](WO47_ISO_VS_EXFAT.md) — split between squashfs and exFAT.
-- [**`BUILD_AND_FLASH.md`**](../tools/live-usb/BUILD_AND_FLASH.md) — full build and flash runbook.
-- [**`EXFAT_DATA_ZERO_TOUCH.md`**](../tools/live-usb/EXFAT_DATA_ZERO_TOUCH.md) — mount and data layout on the stick.
+- [**`BUILD_AND_FLASH.md`**](../tools/eggs/live-usb/BUILD_AND_FLASH.md) — full build and flash runbook.
+- [**`EXFAT_DATA_ZERO_TOUCH.md`**](../tools/eggs/live-usb/EXFAT_DATA_ZERO_TOUCH.md) — mount and data layout on the stick.
 
 ## Troubleshooting
 
 - **Eggs prints “finished” but the release script says there is no ISO** — the image is often at **`/home/eggs/mnt/highascg_*.iso`**. The release script now **`chmod`**s that tree after a full/quick build so your user can read it; if you built ISO separately, run **`sudo chmod a+rx /home/eggs/mnt`** and **`sudo chmod a+r /home/eggs/mnt/*.iso`**, or set **`HIGHASCG_ISO=/home/eggs/mnt/….iso`**.
-- **Exit code 141** — usually **SIGPIPE** (e.g. a broken pipe or the terminal closing while a long **`tar`**/upload is still running). Re-run after the ISO step finishes, or run **`./tools/release/make-dev-github-release.sh --no-iso`** once the ISO already exists (still uploads that ISO + a fresh tarball).
+- **Exit code 141** — usually **SIGPIPE** (e.g. a broken pipe or the terminal closing while a long **`tar`**/upload is still running). Re-run after the ISO step finishes, or run **`./deprecated/tools/release/make-dev-github-release.sh --no-iso`** once the ISO already exists (still uploads that ISO + a fresh tarball).
 - **`HIGHASCG_ISO`** is **ignored** when using **`--app-only`** / **`release:github-app`** (those releases intentionally have no ISO asset).
 
 ## Environment variables

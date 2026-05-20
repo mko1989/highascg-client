@@ -136,7 +136,7 @@ Full AMCP 2.x protocol implementation with ~79 commands across 7 categories.
 | Module | Lines | Connections | Description |
 |--------|-------|-------------|-------------|
 | `src/engine/pip-overlay.js` | 475 | scene-native-fill, amcp-batch | AMCP line builders for HTML PIP templates (server) |
-| `web/lib/pip-overlay-amcp.js` | 243 | pip-overlay-registry.js | Shared AMCP line builders (browser + tooling) |
+| `client/lib/pip-overlay-amcp.js` | 243 | pip-overlay-registry.js | Shared AMCP line builders (browser + tooling) |
 | `src/api/routes-pip-overlay.js` | 132 | response, pip-overlay | REST: apply/update/remove PIP overlays |
 | `templates/pip-*.html` | ? | - | HTML/CSS PIP overlay templates (border, shadow, glow, edge strip) |
 
@@ -145,7 +145,7 @@ Full AMCP 2.x protocol implementation with ~79 commands across 7 categories.
 | Module | Lines | Connections | Description |
 |--------|-------|-------------|-------------|
 | `src/api/routes-multiview.js` | 386 | fs, path, response, routing, persiste... | Multiview grid layout, route sources, HTML overlay, DeckLink cells |
-| `web/components/multiview-editor.js` | **502** ⚠️ | multiview-state.js, live-view.js, str... | Drag-and-drop multiview layout editor |
+| `client/components/multiview-editor.js` | **502** ⚠️ | multiview-state.js, live-view.js, str... | Drag-and-drop multiview layout editor |
 | `templates/multiview-overlay.html` | ? | - | Multiview HTML overlay template |
 
 ### 6. Streaming & Live Preview (WebRTC)
@@ -276,26 +276,26 @@ Roughly **26** `routes-*.js` modules plus `router.js`, `get-state.js`, `response
 | `src/previs/register.js` | 71 | routes-models | |
 | `src/previs/routes-models.js` | 270 | fs, path, crypto, busboy, persistence... | |
 | `src/previs/types.js` | 108 | - | |
-| `web/assets/modules/previs/entry.js` | 141 | /components/previs-pgm-3d.js, /lib/pr... | |
-| `web/components/previs-mesh-inspector.js` | **617** ⚠️ | previs-state.js, previs-uv-mapper.js,... | |
-| `web/components/previs-pgm-3d-dropzone.js` | 175 | previs-model-loader.js, previs-state.js | |
-| `web/components/previs-pgm-3d-inspector-binder.js` | 353 | previs-mesh-inspector.js, previs-sett... | |
-| `web/components/previs-pgm-3d-keyboard.js` | 143 | previs-scene.js, previs-scene-model.j... | |
-| `web/components/previs-pgm-3d-toolbar.js` | 151 | - | |
-| `web/components/previs-pgm-3d.js` | 459 | previs-scene.js, previs-video-texture... | |
-| `web/components/previs-settings-modal-pane.js` | 38 | previs-state.js, previs-settings-pane... | |
-| `web/components/previs-settings-panel.js` | 237 | previs-state.js | |
-| `web/components/previs-uv-editor.js` | 212 | - | |
-| `web/lib/previs-mesh-info.js` | 301 | three | |
-| `web/lib/previs-model-loader.js` | 275 | previs-mesh-info.js, three | |
-| `web/lib/previs-scene-model.js` | **623** ⚠️ | previs-mesh-info.js, previs-model-loa... | |
-| `web/lib/previs-scene.js` | 367 | three | |
-| `web/lib/previs-state.js` | 435 | - | |
-| `web/lib/previs-stream-sources.js` | 147 | previs-video-texture.js, three | |
-| `web/lib/previs-texture-crop.js` | 84 | - | |
-| `web/lib/previs-uv-mapper.js` | 383 | web/lib/previs-uv-mapper.js | |
-| `web/lib/previs-video-texture.js` | 345 | three | |
-| `web/styles/previs.css` | **551** ⚠️ | - | |
+| `client/assets/modules/previs/entry.js` | 141 | /components/previs-pgm-3d.js, /lib/pr... | |
+| `client/components/previs-mesh-inspector.js` | **617** ⚠️ | previs-state.js, previs-uv-mapper.js,... | |
+| `client/components/previs-pgm-3d-dropzone.js` | 175 | previs-model-loader.js, previs-state.js | |
+| `client/components/previs-pgm-3d-inspector-binder.js` | 353 | previs-mesh-inspector.js, previs-sett... | |
+| `client/components/previs-pgm-3d-keyboard.js` | 143 | previs-scene.js, previs-scene-model.j... | |
+| `client/components/previs-pgm-3d-toolbar.js` | 151 | - | |
+| `client/components/previs-pgm-3d.js` | 459 | previs-scene.js, previs-video-texture... | |
+| `client/components/previs-settings-modal-pane.js` | 38 | previs-state.js, previs-settings-pane... | |
+| `client/components/previs-settings-panel.js` | 237 | previs-state.js | |
+| `client/components/previs-uv-editor.js` | 212 | - | |
+| `client/lib/previs-mesh-info.js` | 301 | three | |
+| `client/lib/previs-model-loader.js` | 275 | previs-mesh-info.js, three | |
+| `client/lib/previs-scene-model.js` | **623** ⚠️ | previs-mesh-info.js, previs-model-loa... | |
+| `client/lib/previs-scene.js` | 367 | three | |
+| `client/lib/previs-state.js` | 435 | - | |
+| `client/lib/previs-stream-sources.js` | 147 | previs-video-texture.js, three | |
+| `client/lib/previs-texture-crop.js` | 84 | - | |
+| `client/lib/previs-uv-mapper.js` | 383 | client/lib/previs-uv-mapper.js | |
+| `client/lib/previs-video-texture.js` | 345 | three | |
+| `client/styles/previs.css` | **551** ⚠️ | - | |
 
 ### 16. Project Sync & Bundles
 
@@ -459,40 +459,40 @@ Roughly **26** `routes-*.js` modules plus `router.js`, `get-state.js`, `response
 
 ## File size tracking (lines > 500)
 
-Active codebase only (`src/`, `web/`, `index.js`). **Vendored or reference trees** (e.g. `.reference/casparcg-client/`) are excluded from maintainability targets.
+Active codebase only (`src/`, `client/`, `index.js`). **Vendored or reference trees** (e.g. `.reference/casparcg-client/`) are excluded from maintainability targets.
 
 ### Over 500 lines (consider splitting when next touching)
 
 | Lines | File |
 |------:|------|
-| 1357 | `web/components/device-view.js` |
-| 940 | `web/lib/scene-state.js` |
-| 939 | `web/components/settings-modal-caspar-ui.js` |
-| 872 | `web/components/settings-modal.js` |
+| 1357 | `client/components/device-view.js` |
+| 940 | `client/lib/scene-state.js` |
+| 939 | `client/components/settings-modal-caspar-ui.js` |
+| 872 | `client/components/settings-modal.js` |
 | 719 | `src/media/usb-drives.js` |
 | 677 | `src/config/routing.js` |
-| 649 | `web/components/scenes-editor.js` |
+| 649 | `client/components/scenes-editor.js` |
 | 642 | `index.js` |
-| 634 | `web/styles/08-modals-settings-logs-misc.css` |
-| 623 | `web/lib/previs-scene-model.js` |
-| 617 | `web/components/previs-mesh-inspector.js` |
+| 634 | `client/styles/08-modals-settings-logs-misc.css` |
+| 623 | `client/lib/previs-scene-model.js` |
+| 617 | `client/components/previs-mesh-inspector.js` |
 | 608 | `src/api/routes-device-view.js` |
 | 608 | `src/api/routes-settings.js` |
-| 608 | `web/components/preview-canvas-panel.js` |
-| 570 | `web/styles/06a-scenes-deck-cards.css` |
-| 551 | `web/components/sources-panel.js` |
-| 551 | `web/styles/previs.css` |
-| 537 | `web/app.js` |
+| 608 | `client/components/preview-canvas-panel.js` |
+| 570 | `client/styles/06a-scenes-deck-cards.css` |
+| 551 | `client/components/sources-panel.js` |
+| 551 | `client/styles/previs.css` |
+| 537 | `client/app.js` |
 | 530 | `src/streaming/go2rtc-manager.js` |
-| 502 | `web/components/multiview-editor.js` |
+| 502 | `client/components/multiview-editor.js` |
 
 ### Near the limit (about 450–500 lines)
 
-Examples: `src/state/playback-tracker.js` (499), `web/components/timeline-editor-handlers.js` (495), `web/components/inspector-panel-timeline.js` (488), `web/components/dashboard.js` (486), `web/styles/04-media-lists-drag-dashboard.css` (486), `web/components/timeline-canvas.js` (478), `web/components/system-settings.js` (476), `web/lib/timeline-state.js` (476), `src/engine/pip-overlay.js` (475), `web/components/inspector-mixer.js` (464), `web/components/usb-import-modal.js` (464), `web/components/inspector-panel.js` (461), `web/components/preview-canvas-draw-stacks.js` (459), `web/components/previs-pgm-3d.js` (459), `web/components/header-bar.js` (450).
+Examples: `src/state/playback-tracker.js` (499), `client/components/timeline-editor-handlers.js` (495), `client/components/inspector-panel-timeline.js` (488), `client/components/dashboard.js` (486), `client/styles/04-media-lists-drag-dashboard.css` (486), `client/components/timeline-canvas.js` (478), `client/components/system-settings.js` (476), `client/lib/timeline-state.js` (476), `src/engine/pip-overlay.js` (475), `client/components/inspector-mixer.js` (464), `client/components/usb-import-modal.js` (464), `client/components/inspector-panel.js` (461), `client/components/preview-canvas-draw-stacks.js` (459), `client/components/previs-pgm-3d.js` (459), `client/components/header-bar.js` (450).
 
 ### Large stylesheets
 
-Several `web/styles/*.css` files exceed 500 lines (e.g. dashboard/media themes). Treat as acceptable for pure CSS unless a split improves maintenance.
+Several `client/styles/*.css` files exceed 500 lines (e.g. dashboard/media themes). Treat as acceptable for pure CSS unless a split improves maintenance.
 
 ### Historical splits (still accurate)
 
@@ -502,7 +502,7 @@ Earlier modularization moved weight out of monoliths into helpers (`timeline-pla
 
 ## Comments pointing at future development
 
-There are **no `TODO` / `FIXME` / `HACK` markers** in first-party `*.js` under `src/` and `web/` (as of this pass). The following are **notes or limitations** that imply future or alternate work:
+There are **no `TODO` / `FIXME` / `HACK` markers** in first-party `*.js` under `src/` and `client/` (as of this pass). The following are **notes or limitations** that imply future or alternate work:
 
 | Location | Note |
 |----------|------|
@@ -550,39 +550,39 @@ UI copy that says “optional” (e.g. custom Caspar fields, xrandr rate) is pro
 | `src/utils/lan-ipv4.js` | 20 | os | |
 | `src/utils/media-browser-dedupe.js` | 114 | - | |
 | `src/utils/os-config.js` | 149 | child_process, multiview-helpers, logger | |
-| `web/assets/modules/autofollow/entry.js` | 30 | - | |
-| `web/assets/modules/tracking/entry.js` | 29 | - | |
-| `web/components/device-view-helpers.js` | 81 | - | |
-| `web/components/inspector-html-template.js` | 85 | api-client.js, scene-state.js | |
-| `web/components/inspector-panel-presets-modes.js` | 350 | scene-state.js, scene-layer-row.js, s... | |
-| `web/components/streaming-panel.js` | 161 | api-client.js | |
-| `web/components/tandem-device-panel.js` | 296 | api-client.js, settings-state.js | |
-| `web/index.html` | 90 | app.js, assets/favicon.svg, styles.css | |
-| `web/lib/look-preset-events.js` | 8 | scenes-editor.js | |
-| `web/lib/media-audio-kind.js` | 24 | mixer-fill.js | |
-| `web/lib/optional-modules.js` | 128 | - | |
-| `web/lib/pixelhue-tandem.js` | 118 | api-client.js | |
-| `web/lib/project-remote-sync.js` | 16 | - | |
-| `web/lib/scene-live-match.js` | 77 | - | |
-| `web/setup.html` | 90 | assets/favicon.svg, styles.css | |
-| `web/styles/01a-base-theme-header-connection.css` | 399 | - | |
-| `web/styles/01b-layout-panels-workspace.css` | 212 | - | |
-| `web/styles/02a-workspace-tabs-scenes-preview-host.css` | 188 | - | |
-| `web/styles/02b-preview-panel-output-compose.css` | 294 | - | |
-| `web/styles/02c-timeline-multiview-sources-sidebar.css` | 287 | - | |
-| `web/styles/03a-offline-sync-publish-ingest-menu.css` | 291 | - | |
-| `web/styles/03b-ingest-drag-upload-progress.css` | 140 | - | |
-| `web/styles/03c-sources-items-effects.css` | 297 | - | |
-| `web/styles/05a-dashboard-cells.css` | 88 | - | |
-| `web/styles/05b-timeline-editor.css` | 188 | - | |
-| `web/styles/05c-multiview-editor.css` | 91 | - | |
-| `web/styles/05d-inspector-fields-dashboard.css` | 153 | - | |
-| `web/styles/06b-scenes-edit-transitions-layerstrip.css` | 249 | - | |
-| `web/styles/06c-inspector-effects-pip.css` | 241 | - | |
-| `web/styles/07a-scenes-compose-canvas.css` | 271 | - | |
-| `web/styles/07b-audio-mixer-modal-shell.css` | 259 | - | |
-| `web/styles/09-device-view.css` | 406 | - | |
-| `web/styles.css` | 24 | - | |
+| `client/assets/modules/autofollow/entry.js` | 30 | - | |
+| `client/assets/modules/tracking/entry.js` | 29 | - | |
+| `client/components/device-view-helpers.js` | 81 | - | |
+| `client/components/inspector-html-template.js` | 85 | api-client.js, scene-state.js | |
+| `client/components/inspector-panel-presets-modes.js` | 350 | scene-state.js, scene-layer-row.js, s... | |
+| `client/components/streaming-panel.js` | 161 | api-client.js | |
+| `client/components/tandem-device-panel.js` | 296 | api-client.js, settings-state.js | |
+| `client/index.html` | 90 | app.js, assets/favicon.svg, styles.css | |
+| `client/lib/look-preset-events.js` | 8 | scenes-editor.js | |
+| `client/lib/media-audio-kind.js` | 24 | mixer-fill.js | |
+| `client/lib/optional-modules.js` | 128 | - | |
+| `client/lib/pixelhue-tandem.js` | 118 | api-client.js | |
+| `client/lib/project-remote-sync.js` | 16 | - | |
+| `client/lib/scene-live-match.js` | 77 | - | |
+| `client/setup.html` | 90 | assets/favicon.svg, styles.css | |
+| `client/styles/01a-base-theme-header-connection.css` | 399 | - | |
+| `client/styles/01b-layout-panels-workspace.css` | 212 | - | |
+| `client/styles/02a-workspace-tabs-scenes-preview-host.css` | 188 | - | |
+| `client/styles/02b-preview-panel-output-compose.css` | 294 | - | |
+| `client/styles/02c-timeline-multiview-sources-sidebar.css` | 287 | - | |
+| `client/styles/03a-offline-sync-publish-ingest-menu.css` | 291 | - | |
+| `client/styles/03b-ingest-drag-upload-progress.css` | 140 | - | |
+| `client/styles/03c-sources-items-effects.css` | 297 | - | |
+| `client/styles/05a-dashboard-cells.css` | 88 | - | |
+| `client/styles/05b-timeline-editor.css` | 188 | - | |
+| `client/styles/05c-multiview-editor.css` | 91 | - | |
+| `client/styles/05d-inspector-fields-dashboard.css` | 153 | - | |
+| `client/styles/06b-scenes-edit-transitions-layerstrip.css` | 249 | - | |
+| `client/styles/06c-inspector-effects-pip.css` | 241 | - | |
+| `client/styles/07a-scenes-compose-canvas.css` | 271 | - | |
+| `client/styles/07b-audio-mixer-modal-shell.css` | 259 | - | |
+| `client/styles/09-device-view.css` | 406 | - | |
+| `client/styles.css` | 24 | - | |
 
 ---
 

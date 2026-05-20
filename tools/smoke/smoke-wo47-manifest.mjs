@@ -8,9 +8,9 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const here = fileURLToPath(import.meta.url)
-const root = join(dirname(here), '..')
+const root = join(dirname(here), '../..')
 
-const fragmentPath = join(root, 'tools/live-usb/penguins-eggs-exclude-highascg-fragment.list')
+const fragmentPath = join(root, 'tools/eggs/live-usb/penguins-eggs-exclude-highascg-fragment.list')
 const excludesPath = join(root, 'config/bootstrap-rsync-excludes.txt')
 
 /** @param {string} filePath @param {string[]} needles */
@@ -24,11 +24,9 @@ function mustContain(filePath, needles) {
 const eggsNeedles = [
 	'home/casparcg/highascg/src',
 	'home/casparcg/highascg/tools',
-	'home/casparcg/highascg/web',
-	'home/casparcg/highascg/work',
-	'home/casparcg/highascg/node_modules',
-	'home/casparcg/highascg/package.json',
+	'home/casparcg/highascg/client',
 	'home/casparcg/highascg/index.js',
+	'home/casparcg/highascg/package.json',
 ]
 
 const rsyncNeedles = ['config/casparcg.config', 'lib/', 'node_modules/']

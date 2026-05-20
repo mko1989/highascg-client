@@ -15,7 +15,7 @@ Ship **click-to-run** native wrappers (not only shell/PowerShell scripts) that l
 
 **“Simulation mode”** here means: **no Caspar AMCP** (`--no-caspar` CLI), using the **simulated AMCP stack** already in the repo (`src/caspar/amcp-simulated.js`, see **WO‑14**, **WO‑37**). Optionally align with **`offline_mode`** in config (`src/config/defaults.js`) for UX that matches “prep / no playout hardware”.
 
-Operators keep the **canonical app tree** under exFAT at **`sim/highascg/`** (ZIP / GitHub release drop; same path as **`config/exfat-sync.json`** `sim-highascg` pair). The launcher must **resolve that path** from the **volume label `HIGHASCGEXF`** (11‑char exFAT limit — see **WO‑47** / **`tools/live-usb/MANUAL_STICK_WINDOWS_MACOS.md`**).
+Operators keep the **canonical app tree** under exFAT at **`sim/highascg/`** (ZIP / GitHub release drop; same path as **`config/exfat-sync.json`** `sim-highascg` pair). The launcher must **resolve that path** from the **volume label `HIGHASCGEXF`** (11‑char exFAT limit — see **WO‑47** / **`tools/eggs/live-usb/MANUAL_STICK_WINDOWS_MACOS.md`**).
 
 Deliverables:
 
@@ -30,8 +30,8 @@ Deliverables:
 
 | Work / doc | Relationship |
 |------------|----------------|
-| **WO‑47** | **`/home/casparcg/exfat`** on Linux; **`sim/highascg`** ↔ project sync map. Launcher targets **`sim/highascg`** on the **mounted** `HIGHASCGEXF` volume on Win/Mac — **same layout** operators already use on the stick. |
-| **`tools/live-usb/MANUAL_STICK_WINDOWS_MACOS.md`** | Describes manual Etcher + partitioning + folder seeds; launcher docs should link here for “why `HIGHASCGEXF` / where to unzip releases.” |
+| **WO‑47** | Linux playout uses **`exfat/update/server/`** (not **`sim/highascg`**). Win/Mac launcher still uses **`sim/highascg`** for **offline simulation only** — separate from production stick layout. |
+| **`tools/eggs/live-usb/MANUAL_STICK_WINDOWS_MACOS.md`** | Describes manual Etcher + partitioning + folder seeds; launcher docs should link here for “why `HIGHASCGEXF` / where to unzip releases.” |
 | **WO‑14 Offline preparation** | Simulated AMCP / no‑Caspar workflows. Launcher must invoke **`node index.js --no-caspar`** (or equivalent programmatic flag) from the **`sim/highascg`** root containing **`package.json`**. |
 | **WO‑37 Simulation placeholders** | UI expectations when not connected to real Caspar; launcher should document “simulation / prep only.” |
 
@@ -41,14 +41,14 @@ Deliverables:
 
 ### A. Discovery & paths
 
-- [x] **A1.** Resolved **volume** by filesystem **label** **`HIGHASCGEXF`** on **Windows** and **macOS** (fallback: **`HIGHASCG_EXFAT_ROOT`** / **`HIGHASCG_EXFAT_APP_ROOT`**; dev **cwd** when **`package.json`** present — documented in **`tools/portable-desktop/README.md`**. **Not done:** graphical volume picker if label missing.)
+- [x] **A1.** Resolved **volume** by filesystem **label** **`HIGHASCGEXF`** on **Windows** and **macOS** (fallback: **`HIGHASCG_EXFAT_ROOT`** / **`HIGHASCG_EXFAT_APP_ROOT`**; dev **cwd** when **`package.json`** present — documented in **`client/tools/portable-desktop/README.md`**. **Not done:** graphical volume picker if label missing.)
 - [x] **A2.** Canonical app root **`{volume}/sim/highascg`** — refuse to start unless **`package.json`** exists **under** that root (guard against typo “double nested” folder — log a helpful error with expected layout).
 - [x] **A3.** **Working directory** for Node is **`sim/highascg`** (so relative paths behave like Linux **`~/highascg`**).
 
 ### B. Simulation runtime
 
 - [x] **B1.** Start server with **`--no-caspar`** passed to **`index.js`** (or internal equivalent that prevents real AMCP TCP).
-- [x] **B2.** **`offline_mode`** for prep UX: **`HIGHASCG_OFFLINE_MODE`** honoured in **`buildConfig`** (**`src/bootstrap/config.js`**); portable launcher **defaults** **`HIGHASCG_OFFLINE_MODE=1`** ( **`HIGHASCG_LAUNCH_NO_OFFLINE_DEFAULT=1`** to rely on disk only). **`config/general.json`** / monolithic **`offline_mode`** documented in **`tools/portable-desktop/README.md`**. (**`drop-config`** / dedicated sim drop still optional.)
+- [x] **B2.** **`offline_mode`** for prep UX: **`HIGHASCG_OFFLINE_MODE`** honoured in **`buildConfig`** (**`src/bootstrap/config.js`**); portable launcher **defaults** **`HIGHASCG_OFFLINE_MODE=1`** ( **`HIGHASCG_LAUNCH_NO_OFFLINE_DEFAULT=1`** to rely on disk only). **`config/general.json`** / monolithic **`offline_mode`** documented in **`client/tools/portable-desktop/README.md`**. (**`drop-config`** / dedicated sim drop still optional.)
 - [x] **B3.** **Ports:** Launcher resolves **`httpPort`** / **`bindAddress`** consistently with **`index.js`** (modular **`config/server.json`** if **`config/`** present else **`highascg.config.json`**; honours **`HIGHASCG_CONFIG_PATH`**; **`HTTP_PORT` / `PORT` / `HIGHASCG_PORT`** and **`BIND_ADDRESS`**). **TCP bind preflight** (**`HIGHASCG_LAUNCH_SKIP_PORT_CHECK=1`** to skip). **`HIGHASCG_LAUNCH_PORT_FALLBACK=N`** probes successive ports and passes **`--port`** to **`index.js`**. **Optional / not done:** interactive tty prompt.
 - [x] **B4.** **Browser:** Optionally open **`http://127.0.0.1:<port>/`** once timer elapses (~**`2500` ms**) — suppress with **`HIGHASCG_LAUNCH_NO_BROWSER=1`** (host via **`HIGHASCG_BIND_ADDRESS`** / **`HIGHASCG_LAUNCH_BROWSER_HOST`**).
 
@@ -75,15 +75,15 @@ Pick **one** primary strategy (secondary allowed as advanced):
 
 ### E. Repo & CI
 
-- [x] **E1.** Source for launchers lives under **`tools/portable-desktop/`** (or **`tools/win-mac-sim-launcher/`** — bikeshed in first PR).
+- [x] **E1.** Source for launchers lives under **`client/tools/portable-desktop/`** (or **`tools/win-mac-sim-launcher/`** — bikeshed in first PR).
 - [ ] **E2.** **`npm run`** or **`make`** recipes to produce Windows / mac bundles on tagged releases (GitHub Actions matrix **windows-latest** / **macos-latest** preferred). **Partial:** **`.github/workflows/portable-desktop-check.yml`** runs **`npm run portable:sim:check`** on **ubuntu-latest** (syntax only; not bundle builds).
 - [ ] **E3.** Attribution / license headers for third-party wrapper deps.
 
 ### F. Documentation
 
-- [x] **F1.** Operator one‑pager: **`tools/portable-desktop/README.md`** (double‑click **`.cmd` / `.command`**, **`npm ci`**, **`HIGHASCGEXF`** layout). Packaged installers TBD (**§D**).
-- [x] **F2.** Troubleshooting in **`tools/portable-desktop/README.md`**: label, **`node_modules`**, port conflict + probe, firewall, **`powershell`**, BitLocker/encryption, antivirus, Gatekeeper, rare **`EACCES`**. Refine with operator reports.
-- [x] **F3.** Explicit **non‑goals** in **`tools/portable-desktop/README.md`** — no Caspar/DeckLink **production** guarantees; prep / simulation lane only (**§ Non‑goals**).
+- [x] **F1.** Operator one‑pager: **`client/tools/portable-desktop/README.md`** (double‑click **`.cmd` / `.command`**, **`npm ci`**, **`HIGHASCGEXF`** layout). Packaged installers TBD (**§D**).
+- [x] **F2.** Troubleshooting in **`client/tools/portable-desktop/README.md`**: label, **`node_modules`**, port conflict + probe, firewall, **`powershell`**, BitLocker/encryption, antivirus, Gatekeeper, rare **`EACCES`**. Refine with operator reports.
+- [x] **F3.** Explicit **non‑goals** in **`client/tools/portable-desktop/README.md`** — no Caspar/DeckLink **production** guarantees; prep / simulation lane only (**§ Non‑goals**).
 
 ---
 
@@ -148,7 +148,7 @@ Pick **one** primary strategy (secondary allowed as advanced):
 ## 2026-05-18 — @cursor-agent
 
 ### Done
-- Added **`tools/portable-desktop/launch-sim-from-exfat.js`**: resolve **`HIGHASCGEXF`** (PowerShell on Windows, `/Volumes/` on macOS, common Linux mount paths + `findmnt`), **`HIGHASCG_EXFAT_ROOT`**, **`HIGHASCG_EXFAT_APP_ROOT`**, or **cwd fallback** for `npm run portable:sim`; require **`node_modules`**; spawn **`index.js --no-caspar`**; optional browser open to **`server.httpPort`** (default **4200**).
+- Added **`client/tools/portable-desktop/launch-sim-from-exfat.js`**: resolve **`HIGHASCGEXF`** (PowerShell on Windows, `/Volumes/` on macOS, common Linux mount paths + `findmnt`), **`HIGHASCG_EXFAT_ROOT`**, **`HIGHASCG_EXFAT_APP_ROOT`**, or **cwd fallback** for `npm run portable:sim`; require **`node_modules`**; spawn **`index.js --no-caspar`**; optional browser open to **`server.httpPort`** (default **4200**).
 - Added **`win/HighAscg-Simulation.cmd`**, **`mac/HighAscg-Simulation.command`**, **`README.md`**.
 - **`package.json`**: scripts **`portable:sim`**, **`portable:sim:check`** (`node --check` on the launcher).
 - **`README.md`**: **Non‑goals** section (**F3**); env table includes **`HIGHASCG_EXFAT_APP_ROOT`**.

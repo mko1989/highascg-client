@@ -33,12 +33,17 @@ DOC_PKG=/usr/share/doc/highascg-wo47
 prep_svc="highascg-exfat-media-prep.service"
 bind_mount_esc="home-casparcg-highascg-media-exfat.mount"
 bootstrap_svc="highascg-exfat-bootstrap.service"
+update_svc="highascg-exfat-server-update.service"
 BOOT_SH_SRC="${REPO_ROOT}/scripts/highascg-exfat-bootstrap.sh"
 BOOT_SH_DST=/usr/local/lib/highascg/highascg-exfat-bootstrap.sh
+UPDATE_SH_SRC="${REPO_ROOT}/scripts/highascg-exfat-server-update.sh"
+UPDATE_SH_DST=/usr/local/lib/highascg/highascg-exfat-server-update.sh
 BOOT_EXCLUDE_SRC="${REPO_ROOT}/config/bootstrap-rsync-excludes.txt"
 BOOT_EXCLUDE_DST=/etc/highascg/bootstrap-rsync-excludes.txt
+UPDATE_EXCLUDE_SRC="${REPO_ROOT}/config/server-update-rsync-excludes.txt"
+UPDATE_EXCLUDE_DST=/etc/highascg/server-update-rsync-excludes.txt
 
-DOC_EXFAT="${REPO_ROOT}/tools/live-usb/EXFAT_DATA_ZERO_TOUCH.md"
+DOC_EXFAT="${REPO_ROOT}/tools/eggs/live-usb/EXFAT_DATA_ZERO_TOUCH.md"
 DOC_MATRIX="${REPO_ROOT}/docs/WO47_ISO_VS_EXFAT.md"
 
 mkdir -p /usr/local/lib/highascg /etc/highascg "$DOC_PKG"
@@ -47,9 +52,14 @@ mkdir -p /usr/local/lib/highascg /etc/highascg "$DOC_PKG"
 	exit 1
 }
 install -m 0755 -o root -g root "$BOOT_SH_SRC" "$BOOT_SH_DST"
+[[ -f "$UPDATE_SH_SRC" ]] && install -m 0755 -o root -g root "$UPDATE_SH_SRC" "$UPDATE_SH_DST"
 if [[ -f "$BOOT_EXCLUDE_SRC" ]]; then
 	install -m 0644 -o root -g root "$BOOT_EXCLUDE_SRC" "$BOOT_EXCLUDE_DST"
 	echo "installed ${BOOT_EXCLUDE_DST}"
+fi
+if [[ -f "$UPDATE_EXCLUDE_SRC" ]]; then
+	install -m 0644 -o root -g root "$UPDATE_EXCLUDE_SRC" "$UPDATE_EXCLUDE_DST"
+	echo "installed ${UPDATE_EXCLUDE_DST}"
 fi
 for d in "$DOC_EXFAT" "$DOC_MATRIX"; do
 	[[ -f "$d" ]] || continue
@@ -70,7 +80,7 @@ Description=HighAsCG exFAT data (LABEL=HIGHASCGEXF)
 Documentation=${DOC_URI}
 DefaultDependencies=no
 Conflicts=umount.target
-Before=${prep_svc} ${bind_mount_esc} ${bootstrap_svc} highascg-exfat-sync.service highascg.service
+Before=${prep_svc} ${bind_mount_esc} ${bootstrap_svc} ${update_svc} highascg-exfat-sync.service highascg.service
 After=blk-availability.target systemd-remount-fs.service
 
 [Mount]
@@ -90,7 +100,7 @@ Documentation=${DOC_URI}
 DefaultDependencies=no
 BindsTo=home-casparcg-exfat.mount
 After=home-casparcg-exfat.mount
-Before=${bind_mount_esc} ${bootstrap_svc} highascg-exfat-sync.service highascg.service
+Before=${bind_mount_esc} ${bootstrap_svc} ${update_svc} highascg-exfat-sync.service highascg.service
 
 [Service]
 Type=oneshot
@@ -110,7 +120,7 @@ Requires=${prep_svc} home-casparcg-exfat.mount
 After=${prep_svc} home-casparcg-exfat.mount
 BindsTo=home-casparcg-exfat.mount
 RequiresMountsFor=/home/casparcg/exfat
-Before=${bootstrap_svc} highascg-exfat-sync.service highascg.service
+Before=${bootstrap_svc} ${update_svc} highascg-exfat-sync.service highascg.service
 
 [Mount]
 What=/home/casparcg/exfat/media
@@ -128,7 +138,7 @@ Description=Seed HighAsCG tree from exFAT sim/highascg if ISO omitted Node sourc
 Documentation=${DOC_URI}
 DefaultDependencies=no
 After=network-pre.target home-casparcg-exfat.mount ${bind_mount_esc}
-Before=highascg-exfat-sync.service highascg.service
+Before=${update_svc} highascg-exfat-sync.service highascg.service
 ConditionPathIsMountPoint=/home/casparcg/exfat
 ConditionPathExists=/home/casparcg/exfat/sim/highascg/package.json
 
@@ -144,15 +154,37 @@ ExecStart=${BOOT_SH_DST}
 WantedBy=multi-user.target
 BVCEOF
 
+cat > "/etc/systemd/system/${update_svc}" <<UPDEOF
+[Unit]
+Description=Apply server drop from exFAT update/server/ (WO-47)
+Documentation=${DOC_URI}
+DefaultDependencies=no
+After=home-casparcg-exfat.mount ${bind_mount_esc} ${bootstrap_svc}
+Before=highascg-exfat-sync.service highascg.service
+ConditionPathIsMountPoint=/home/casparcg/exfat
+ConditionPathExists=/home/casparcg/exfat/update/server/package.json
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=root
+Group=root
+Environment=HIGHASCG_SERVICE_USER=${USER_CASPAR}
+ExecStart=${UPDATE_SH_DST}
+
+[Install]
+WantedBy=multi-user.target
+UPDEOF
+
 cat > /etc/systemd/system/highascg-exfat-sync.service <<SVCEOF
 [Unit]
 Description=HighAsCG exFAT to project mtime sync (WO-47)
 Documentation=${DOC_URI}
 DefaultDependencies=no
-After=network-pre.target home-casparcg-exfat.mount ${bind_mount_esc} ${bootstrap_svc}
+After=network-pre.target home-casparcg-exfat.mount ${bind_mount_esc} ${bootstrap_svc} ${update_svc}
 Before=highascg.service
 ConditionPathIsMountPoint=/home/casparcg/exfat
-ConditionPathExists=/home/casparcg/highascg/tools/exfat-sync-cli.js
+ConditionPathExists=/home/casparcg/highascg/tools/runtime/exfat-sync-cli.js
 
 [Service]
 Type=oneshot
@@ -160,7 +192,7 @@ RemainAfterExit=yes
 User=${USER_CASPAR}
 Group=${GNAME}
 WorkingDirectory=/home/casparcg/highascg
-ExecStart=/usr/bin/node /home/casparcg/highascg/tools/exfat-sync-cli.js
+ExecStart=/usr/bin/node /home/casparcg/highascg/tools/runtime/exfat-sync-cli.js
 
 [Install]
 WantedBy=multi-user.target
@@ -169,20 +201,24 @@ SVCEOF
 chmod 0644 "/etc/systemd/system/home-casparcg-exfat.mount" \
 	"/etc/systemd/system/highascg-exfat-sync.service" \
 	"/etc/systemd/system/highascg-exfat-bootstrap.service" \
+	"/etc/systemd/system/${update_svc}" \
 	"/etc/systemd/system/${prep_svc}" \
 	"/etc/systemd/system/${bind_mount_esc}"
 
 systemctl daemon-reload
-systemctl enable home-casparcg-exfat.mount "${bootstrap_svc}" highascg-exfat-sync.service \
+systemctl enable home-casparcg-exfat.mount "${bootstrap_svc}" "${update_svc}" highascg-exfat-sync.service \
 	"${bind_mount_esc}" "${prep_svc}" 2>/dev/null || true
 
 echo "Installed:"
 echo "  ${BOOT_SH_DST}"
+echo "  ${UPDATE_SH_DST}"
 echo "  ${BOOT_EXCLUDE_DST} (rsync excludes — protects caspar lib/config on seed)"
+echo "  ${UPDATE_EXCLUDE_DST} (server drop — skips client/, dist-web/, runtime)"
 echo "  ${DOC_PKG}/ (offline Documentation= targets)"
 echo "  /etc/systemd/system/home-casparcg-exfat.mount"
 echo "  /etc/systemd/system/${prep_svc}"
 echo "  /etc/systemd/system/${bind_mount_esc}"
 echo "  /etc/systemd/system/${bootstrap_svc}"
+echo "  /etc/systemd/system/${update_svc}"
 echo "  /etc/systemd/system/highascg-exfat-sync.service"
 echo "Re-run: sudo bash ${REPO_ROOT}/scripts/write-highascg-systemd-unit.sh ${USER_CASPAR}"

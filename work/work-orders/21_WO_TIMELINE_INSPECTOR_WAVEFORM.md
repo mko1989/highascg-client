@@ -25,7 +25,7 @@ These are **large, separable** features; implement in phases below. Prefer small
 
 ## Current State (Baseline)
 
-- Timeline UI lives under `web/components/` (`timeline-editor.js`, `timeline-canvas.js`, `timeline-transport.js`, etc.).
+- Timeline UI lives under `client/components/` (`timeline-editor.js`, `timeline-canvas.js`, `timeline-transport.js`, etc.).
 - Inspector and sources are likely composed in `timeline-editor.js` or `app.js` layout; compose area vs timeline may use flex/grid with a fixed “gutter” for resize.
 - Preview during editing may use `timeline-preview-runtime` / go2rtc or canvas — trim gestures may not seek the preview element to the edited frame.
 - No first-class waveform asset today; media browser may expose duration via `ffprobe` or Caspar metadata only in some paths.
@@ -73,7 +73,7 @@ These are **large, separable** features; implement in phases below. Prefer small
 
 - [x] **T3.1** Implement **drag-to-resize** for inspector (min/max width constraints, e.g. 200–600px).
 - [x] **T3.2** Persist **widths** in `localStorage` (same namespace as T2.2).
-- [x] **T3.3** If sources panel is width-resizable, **share one pattern** (small shared module `web/lib/panel-resize.js` or similar) to avoid duplication.
+- [x] **T3.3** If sources panel is width-resizable, **share one pattern** (small shared module `client/lib/panel-resize.js` or similar) to avoid duplication.
 
 ### Phase 4: Trim preview — frame at current edit position
 
@@ -139,7 +139,7 @@ These are **large, separable** features; implement in phases below. Prefer small
 
 ### 2026-04-08 — Phases 1–4 (partial) implemented
 **Work Done:**
-- **`web/lib/workspace-layout.js`**: Collapsible Sources + Inspector (`«`/`»`), persisted widths (`--sources-panel-w`, `--inspector-panel-w`), resize handle **before** inspector (`#resize-inspector`), merged sources resize + persist (namespace `highascg.workspace.v1.*`).
+- **`client/lib/workspace-layout.js`**: Collapsible Sources + Inspector (`«`/`»`), persisted widths (`--sources-panel-w`, `--inspector-panel-w`), resize handle **before** inspector (`#resize-inspector`), merged sources resize + persist (namespace `highascg.workspace.v1.*`).
 - **`index.html`**: Header actions + collapse buttons; inspector resize handle between workspace and inspector.
 - **`01-base-fonts-header-connection.css`**: Inspector width vars, collapsed 36px strip, consolidated side resize handles (1px line, hover accent), removed duplicate `.resize-handle` block.
 - **`02-layout-workspace-tabs-preview.css`**: Thinner **Scenes** compose split (`scenes-split__handle`); **Timeline** preview vs tracks split (`tl-split-handle`) + `timeline-editor.js` drag + `casparcg_timeline_preview_split_px` LS; `fillParentHeight: true` on timeline preview panel.
@@ -154,7 +154,7 @@ These are **large, separable** features; implement in phases below. Prefer small
 ### 2026-04-08 — Phase 5 waveform cache + `hasAudio`; Phase 6 client memo / no-audio
 **Work Done:**
 - **`src/media/local-media.js`**: `WAVEFORM_VERSION`; SHA-256 cache key (path + mtime + size + bars + version); JSON cache files under `data/waveforms/` (override via `waveform_cache_path` on server config); `ffprobe` sets `hasAudio` on successful probe; waveform handler skips ffmpeg when `hasAudio === false` and returns `{ peaks: [], hasAudio: false }`; cache hit avoids re-probe/re-encode.
-- **`web/components/timeline-canvas-clip.js`**: Waveform strip hidden while loading; server **`no-audio`** cached as `'no-audio'` (no false waveform); fetch errors use synthetic bars; empty peak arrays use synthetic fallback.
+- **`client/components/timeline-canvas-clip.js`**: Waveform strip hidden while loading; server **`no-audio`** cached as `'no-audio'` (no false waveform); fetch errors use synthetic bars; empty peak arrays use synthetic fallback.
 - **`.gitignore`**: `data/waveforms/`.
 
 **How to test:** Place a video **without** an audio stream — clip should show **no** bottom waveform strip after probe. Place a normal clip — strip appears; second load should be faster (disk cache). Delete `data/waveforms/` to force re-analysis.
@@ -179,8 +179,8 @@ These are **large, separable** features; implement in phases below. Prefer small
 
 ### 2026-04-08 — T4.3 preview edge cases + T5.4 waveform stagger
 **Work Done:**
-- **`web/lib/media-audio-kind.js`**: `isLikelyAudioOnlySource` — CLS `type === audio` or common audio extensions.
-- **`web/lib/waveform-fetch-queue.js`**: `enqueueWaveformFetch` — minimum ~55ms between **starts** of waveform GETs (reduces burst when many clips visible).
+- **`client/lib/media-audio-kind.js`**: `isLikelyAudioOnlySource` — CLS `type === audio` or common audio extensions.
+- **`client/lib/waveform-fetch-queue.js`**: `enqueueWaveformFetch` — minimum ~55ms between **starts** of waveform GETs (reduces burst when many clips visible).
 - **`timeline-canvas-clip.js`**: Skips video thumbnail fetch for audio-only sources; waveform `fetch` runs through the queue.
 - **`preview-canvas-draw.js` (`drawTimelineStack`)**: Audio-only → gradient + label + decorative bars; thumbnail **loading** → “Loading…”; **failed** (offline / missing file) → “No preview”.
 - **`timeline-editor.js`**: `showTimelineToast` + `notifyTimelineSeekFailed` (max once / 5s) on failed `POST .../seek` (ruler, trim preview, seek end).

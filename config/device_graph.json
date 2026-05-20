@@ -10,6 +10,93 @@
       "id": "destinations",
       "role": "destinations",
       "label": "Screen destinations"
+    },
+    {
+      "id": "mapping_mpcohde8_1",
+      "role": "pixel_mapping",
+      "label": "Pixel Mapping 1",
+      "settings": {
+        "numOutputs": 3,
+        "outputs": [
+          {
+            "id": "out_1",
+            "mode": "1080p5000",
+            "label": "Output 1"
+          },
+          {
+            "id": "out_2",
+            "mode": "1080p5000",
+            "label": "Output 2"
+          },
+          {
+            "id": "out_3",
+            "mode": "1080p5000",
+            "label": "Output 3"
+          }
+        ],
+        "mappings": [
+          {
+            "id": "auto_out_1",
+            "type": "video_slice",
+            "label": "Output 1",
+            "outputId": "out_1",
+            "rotation": 0,
+            "rect": {
+              "x": 0,
+              "y": 0,
+              "w": 1920,
+              "h": 1080
+            }
+          },
+          {
+            "id": "auto_out_2",
+            "type": "video_slice",
+            "label": "Output 2",
+            "outputId": "out_2",
+            "rotation": 0,
+            "rect": {
+              "x": 1920,
+              "y": 0,
+              "w": 1920,
+              "h": 1080
+            }
+          },
+          {
+            "id": "auto_out_3",
+            "type": "video_slice",
+            "label": "Output 3",
+            "outputId": "out_3",
+            "rotation": 0,
+            "rect": {
+              "x": 3840,
+              "y": 0,
+              "w": 1920,
+              "h": 1080
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "mapping_mpcohevd_1",
+      "role": "pixel_mapping",
+      "label": "Pixel Mapping 1",
+      "settings": {
+        "numOutputs": 2,
+        "outputs": [
+          {
+            "id": "out_1",
+            "mode": "1080p5000",
+            "label": "Output 1"
+          },
+          {
+            "id": "out_2",
+            "mode": "1080p5000",
+            "label": "Output 2"
+          }
+        ],
+        "mappings": []
+      }
     }
   ],
   "connectors": [
@@ -224,6 +311,53 @@
       "kind": "destination_in",
       "label": "PGM 2",
       "externalRef": "dst_mp9zrnpf_1"
+    },
+    {
+      "id": "mapping_mpcohde8_1_in",
+      "deviceId": "mapping_mpcohde8_1",
+      "kind": "pixel_map_in",
+      "label": "Input Feed"
+    },
+    {
+      "id": "mapping_mpcohevd_1_in",
+      "deviceId": "mapping_mpcohevd_1",
+      "kind": "pixel_map_in",
+      "label": "Input Feed"
+    },
+    {
+      "id": "mapping_mpcohevd_1_out_1",
+      "deviceId": "mapping_mpcohevd_1",
+      "kind": "pixel_map_out",
+      "index": 0,
+      "label": "Output 1"
+    },
+    {
+      "id": "mapping_mpcohevd_1_out_2",
+      "deviceId": "mapping_mpcohevd_1",
+      "kind": "pixel_map_out",
+      "index": 1,
+      "label": "Output 2"
+    },
+    {
+      "id": "mapping_mpcohde8_1_out_1",
+      "deviceId": "mapping_mpcohde8_1",
+      "kind": "pixel_map_out",
+      "index": 0,
+      "label": "Output 1"
+    },
+    {
+      "id": "mapping_mpcohde8_1_out_2",
+      "deviceId": "mapping_mpcohde8_1",
+      "kind": "pixel_map_out",
+      "index": 1,
+      "label": "Output 2"
+    },
+    {
+      "id": "mapping_mpcohde8_1_out_3",
+      "deviceId": "mapping_mpcohde8_1",
+      "kind": "pixel_map_out",
+      "index": 2,
+      "label": "Output 3"
     }
   ],
   "edges": [
@@ -251,6 +385,11 @@
       "id": "e_dst_in_dst_mp9zrnpf_1_str_1",
       "sourceId": "dst_in_dst_mp9zrnpf_1",
       "sinkId": "str_1"
+    },
+    {
+      "id": "e_dst_in_dst_mp4fu33j_1_mapping_mpcohde8_1_in",
+      "sourceId": "dst_in_dst_mp4fu33j_1",
+      "sinkId": "mapping_mpcohde8_1_in"
     }
   ],
   "layout": {
@@ -260,31 +399,5 @@
       "w": 170,
       "h": 120
     }
-  },
-  "sources": [
-    {
-      "id": "dst_in_dst_mp4fu33j_1",
-      "label": "PGM/PRV 1",
-      "videoMode": "custom",
-      "width": 15360,
-      "height": 1728,
-      "fps": 50
-    },
-    {
-      "id": "dst_in_dst_mp7g9t8u_1",
-      "label": "Multiview 1",
-      "videoMode": "1080p5000",
-      "width": 1920,
-      "height": 1080,
-      "fps": 50
-    },
-    {
-      "id": "dst_in_dst_mp9zrnpf_1",
-      "label": "PGM 2",
-      "videoMode": "1080p5000",
-      "width": 1920,
-      "height": 1080,
-      "fps": 50
-    }
-  ]
+  }
 }

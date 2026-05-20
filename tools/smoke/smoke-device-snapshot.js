@@ -4,9 +4,9 @@
  */
 const test = require('node:test')
 const assert = require('node:assert/strict')
-const defaults = require('../src/config/defaults')
-const ds = require('../src/config/device-snapshot')
-const routes = require('../src/api/routes-device-snapshot')
+const defaults = require('../../src/config/defaults')
+const ds = require('../../src/config/device-snapshot')
+const routes = require('../../src/api/routes-device-snapshot')
 
 function cloneCfg() {
 	return JSON.parse(JSON.stringify(defaults))

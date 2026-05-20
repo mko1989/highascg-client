@@ -8,13 +8,15 @@ set -euo pipefail
 TARGET="${EGGS_EXCLUDE_LIST:-/etc/penguins-eggs.d/exclude.list}"
 HERE="$(cd "$(dirname "$0")" && pwd)"
 FRAG="${HERE}/penguins-eggs-exclude-highascg-fragment.list"
-MARKER="# --- HighAsCG tools/live-usb: merge-penguins-eggs-exclude-highascg.sh ---"
+MARKER="# --- HighAsCG tools/eggs/live-usb: merge-penguins-eggs-exclude-highascg.sh ---"
 if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
-  echo "Usage: sudo $0"
+  echo "Usage: sudo $0 [--replace]"
   echo "  Appends to ${TARGET} (set EGGS_EXCLUDE_LIST to override)."
-  echo "  Idempotent: skips if the marker is already in the file."
+  echo "  --replace  Remove every HighAsCG marker block, then append one fresh block."
   exit 0
 fi
+REPLACE=0
+[[ "${1:-}" == "--replace" ]] && REPLACE=1
 if [[ "$(id -u)" -ne 0 ]]; then
   echo "Run as root: sudo $0" >&2
   exit 1
@@ -29,7 +31,13 @@ if [[ ! -f "$TARGET" ]]; then
   echo "  eggs produce without --excludes static so the template is built)." >&2
   exit 1
 fi
-if grep -qF "$MARKER" "$TARGET" 2>/dev/null; then
+if [[ "$REPLACE" -eq 1 ]]; then
+  tmp="$(mktemp)"
+  awk '/^# --- HighAsCG tools\/(live-usb|eggs\/live-usb):/ { exit } { print }' "$TARGET" >"$tmp"
+  mv "$tmp" "$TARGET"
+  echo "Removed prior HighAsCG exclude blocks from: $TARGET" >&2
+fi
+if grep -qF "$MARKER" "$TARGET" 2>/dev/null && [[ "$REPLACE" -eq 0 ]]; then
   added=0
   while IFS= read -r line || [[ -n "${line:-}" ]]; do
     line="${line%%#*}"

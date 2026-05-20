@@ -293,37 +293,37 @@ The following methods/queries in the current codebase **poll** CasparCG via AMCP
 
 ### Phase 4: Web GUI Components (ties into WO-08)
 
-- [x] **T4.1** Create `web/lib/osc-client.js` (≤150 lines)
+- [x] **T4.1** Create `client/lib/osc-client.js` (≤150 lines)
   - Subscribe to OSC WebSocket messages — **done** (`osc` + optional `state` seed); full/delta merge
   - Parse and distribute data by channel/layer — **done** (`_run` fan-out)
   - Callbacks: `onAudioLevels(ch, callback)`, `onLayerState(ch, layer, callback)`, `onProfiler(ch, callback)` — **done**
   - Auto-reconnect on WS disconnect — **done** when no shared `wsClient` (standalone socket)
-  - [`ws-client.js`](web/lib/ws-client.js) exports **`getWsUrl`**; [`app.js`](web/app.js) **`getOscClient()`** after bootstrap
+  - [`ws-client.js`](client/lib/ws-client.js) exports **`getWsUrl`**; [`app.js`](web/app.js) **`getOscClient()`** after bootstrap
 
-- [x] **T4.2** Create `web/components/playback-timer.js` (≤200 lines)
+- [x] **T4.2** Create `client/components/playback-timer.js` (≤200 lines)
   - Inline countdown/elapsed timer from OSC `file/time` data — **done** (`layer.file` elapsed/duration/remaining/progress/fps)
   - Displays: elapsed / total / remaining — **done**
   - Format: `HH:MM:SS:FF` or `MM:SS` — **done** (`format` + `formatHmsf` / `formatMmSs` exports)
   - Progress bar (thin horizontal bar) — **done**
   - Color changes as remaining time decreases — **done** (green >30s, yellow 10–30s, red under 10s + optional flash)
-  - Used in: rundown item, layer status, header bar, dashboard cells — **export** [`mountPlaybackTimer`](web/components/playback-timer.js) (wire in WO-08 / UI as needed)
+  - Used in: rundown item, layer status, header bar, dashboard cells — **export** [`mountPlaybackTimer`](client/components/playback-timer.js) (wire in WO-08 / UI as needed)
 
-- [x] **T4.3** Create `web/components/now-playing.js` (≤150 lines)
-  - "Now Playing" display from OSC file metadata — **done** [`mountNowPlaying`](web/components/now-playing.js)
+- [x] **T4.3** Create `client/components/now-playing.js` (≤150 lines)
+  - "Now Playing" display from OSC file metadata — **done** [`mountNowPlaying`](client/components/now-playing.js)
   - Shows: file name, elapsed/remaining, codec, resolution — **done** (`file` + `video` / `audio`)
   - Thumbnail from THUMBNAIL RETRIEVE — **done** (`GET /api/thumbnail/…` via `getApiBase()`)
   - Loop indicator — **done** (`file.loop` → `⟲ loop`)
   - Per-channel or per-layer — **done** (`channel` + `layer` + `oscClient`)
 
-- [x] **T4.4** Create `web/components/profiler-display.js` (≤100 lines)
-  - Channel performance monitor from OSC profiler data — **done** [`mountProfilerDisplay`](web/components/profiler-display.js)
+- [x] **T4.4** Create `client/components/profiler-display.js` (≤100 lines)
+  - Channel performance monitor from OSC profiler data — **done** [`mountProfilerDisplay`](client/components/profiler-display.js)
   - Shows: frame time actual vs expected — **done** (`${actual} / ${expected} ms` when not compact)
   - Health indicator: green dot (OK), yellow (marginal), red (dropping frames) — **done** (`profilerTier`: ratio ≤1.02 green, ≤1.05 yellow, else red)
   - Compact mode for header bar — **done** (`compact: true` → dot only, values in `title`)
   - Used in: channel status, settings, debug panel — **export** for wiring
 
-- [x] **T4.5** Create `web/components/output-status.js` (≤100 lines)
-  - Output consumer status from OSC output data — **done** [`mountOutputStatus`](web/components/output-status.js)
+- [x] **T4.5** Create `client/components/output-status.js` (≤100 lines)
+  - Output consumer status from OSC output data — **done** [`mountOutputStatus`](client/components/output-status.js)
   - Shows: consumer type, frame count — **done** (`formatOutputLine`)
   - For file consumers: frames written — **done** (`frames` / `maxFrames` when file/ffmpeg-like)
   - For stream consumers: connection status — **done** (`… · live` or frame count when present)
@@ -474,37 +474,37 @@ CasparCG Server
 
 ### 2026-04-04 — Agent (T4.5 output-status.js)
 **Work Done:**
-- [`web/components/output-status.js`](web/components/output-status.js): `formatOutputLine`, `mountOutputStatus(container, { channel, oscClient, portId, compact, pollMs })`.
+- [`client/components/output-status.js`](client/components/output-status.js): `formatOutputLine`, `mountOutputStatus(container, { channel, oscClient, portId, compact, pollMs })`.
 
 **Instructions for Next Agent:**
 - **Phase 5** config generator OSC block, or wire T4.x into header/dashboard (WO-08).
 
 ### 2026-04-04 — Agent (T4.4 profiler-display.js)
 **Work Done:**
-- [`web/components/profiler-display.js`](web/components/profiler-display.js): `profilerTier`, `mountProfilerDisplay(container, { channel, oscClient, compact })`, `onProfiler` + `refresh`.
+- [`client/components/profiler-display.js`](client/components/profiler-display.js): `profilerTier`, `mountProfilerDisplay(container, { channel, oscClient, compact })`, `onProfiler` + `refresh`.
 
 **Instructions for Next Agent:**
 - **T4.5** `output-status.js`.
 
 ### 2026-04-04 — Agent (T4.3 now-playing.js)
 **Work Done:**
-- [`web/components/now-playing.js`](web/components/now-playing.js): `mountNowPlaying(container, { channel, layer, oscClient, showThumbnail })`; title from `file` / `template.path`; times via `formatMmSs`; tech line codec + `video` resolution; thumbnail `img` with `onerror` clear.
+- [`client/components/now-playing.js`](client/components/now-playing.js): `mountNowPlaying(container, { channel, layer, oscClient, showThumbnail })`; title from `file` / `template.path`; times via `formatMmSs`; tech line codec + `video` resolution; thumbnail `img` with `onerror` clear.
 
 **Instructions for Next Agent:**
 - **T4.4** `profiler-display.js`.
 
 ### 2026-04-04 — Agent (T4.2 playback-timer.js)
 **Work Done:**
-- [`web/components/playback-timer.js`](web/components/playback-timer.js): `mountPlaybackTimer(container, { channel, layer, oscClient, format, fpsFallback, flashWhenCritical })`, `formatMmSs`, `formatHmsf`; tier colors + progress bar; `destroy` / `refresh`.
+- [`client/components/playback-timer.js`](client/components/playback-timer.js): `mountPlaybackTimer(container, { channel, layer, oscClient, format, fpsFallback, flashWhenCritical })`, `formatMmSs`, `formatHmsf`; tier colors + progress bar; `destroy` / `refresh`.
 
 **Instructions for Next Agent:**
 - **T4.3** `now-playing.js` or mount timer in dashboard/header when product owner picks placement.
 
 ### 2026-04-04 — Agent (T4.1 osc-client.js)
 **Work Done:**
-- [`web/lib/osc-client.js`](web/lib/osc-client.js): `OscClient`, merge full/delta, callbacks, standalone WS reconnect.
-- [`web/lib/ws-client.js`](web/lib/ws-client.js): export `getWsUrl`.
-- [`web/app.js`](web/app.js): `new OscClient({ wsClient })`, `getOscClient()`.
+- [`client/lib/osc-client.js`](client/lib/osc-client.js): `OscClient`, merge full/delta, callbacks, standalone WS reconnect.
+- [`client/lib/ws-client.js`](client/lib/ws-client.js): export `getWsUrl`.
+- [`client/app.js`](web/app.js): `new OscClient({ wsClient })`, `getOscClient()`.
 
 **Instructions for Next Agent:**
 - **T4.2** `playback-timer.js` — use `getOscClient().onLayerState(ch, layer, …)`.
@@ -562,7 +562,7 @@ CasparCG Server
 
 ### 2026-04-04 — Agent
 **Work Done:**
-- **Phase 1 (T1.1–T1.4, T1.5 partial):** `npm install osc`. Added [`src/osc/osc-config.js`](src/osc/osc-config.js) (`normalizeOscConfig`, env `HIGHASCG_OSC_ENABLED`, `OSC_LISTEN_PORT`, `OSC_BIND_ADDRESS`), [`src/osc/osc-state.js`](src/osc/osc-state.js) (aggregate channel / mixer / layer / output / file metadata, throttled `change` events), [`src/osc/osc-listener.js`](src/osc/osc-listener.js) (`osc.UDPPort`, `message` + `bundle`). [`config/default.js`](config/default.js) `osc` block. [`index.js`](index.js): `--no-osc`, `appCtx.oscState`, `appCtx.log('info')` → `logger.info`, shutdown closes UDP + `oscState.destroy()`. [`scripts/verify-w02-structure.js`](scripts/verify-w02-structure.js) includes `src/osc/*`. [`README.md`](README.md) OSC env section.
+- **Phase 1 (T1.1–T1.4, T1.5 partial):** `npm install osc`. Added [`src/osc/osc-config.js`](src/osc/osc-config.js) (`normalizeOscConfig`, env `HIGHASCG_OSC_ENABLED`, `OSC_LISTEN_PORT`, `OSC_BIND_ADDRESS`), [`src/osc/osc-state.js`](src/osc/osc-state.js) (aggregate channel / mixer / layer / output / file metadata, throttled `change` events), [`src/osc/osc-listener.js`](src/osc/osc-listener.js) (`osc.UDPPort`, `message` + `bundle`). [`config/default.js`](config/default.js) `osc` block. [`index.js`](index.js): `--no-osc`, `appCtx.oscState`, `appCtx.log('info')` → `logger.info`, shutdown closes UDP + `oscState.destroy()`. [`tools/eggs/verify-w02-structure.js`](tools/eggs/verify-w02-structure.js) includes `src/osc/*`. [`README.md`](README.md) OSC env section.
 
 **Status:**
 - **T1.1**–**T1.4** complete. **T1.5** complete except settings UI (WO-05); `config-hint` added in Phase 2 entry above.
@@ -576,7 +576,7 @@ CasparCG Server
 - [`src/api/routes-settings.js`](src/api/routes-settings.js): GET returns full `osc` (`listenPort`, `peakHoldMs`, …) + `ui`; POST merges `osc` (re-`normalizeOscConfig`), `ui`, persists `osc`/`ui`; `restartOscSubsystem()` when `settings.osc` present.
 - [`index.js`](index.js): `stopOscSubsystem` / `startOscSubsystem`, `appCtx.restartOscSubsystem`.
 - [`src/api/get-state.js`](src/api/get-state.js): `ui` on snapshot.
-- Web: [`settings-modal.js`](web/components/settings-modal.js) — **Audio / OSC** tab; [`settings-state.js`](web/lib/settings-state.js); [`osc-footer-strip.js`](web/components/osc-footer-strip.js); [`app.js`](web/app.js) — WS before scenes + footer init; [`scenes-editor.js`](web/components/scenes-editor.js) — rundown `mountPlaybackTimer`; [`index.html`](web/index.html) + [`styles.css`](web/styles.css). Save fires `highascg-settings-applied` (no full page reload).
+- Web: [`settings-modal.js`](client/components/settings-modal.js) — **Audio / OSC** tab; [`settings-state.js`](client/lib/settings-state.js); [`osc-footer-strip.js`](client/components/osc-footer-strip.js); [`app.js`](web/app.js) — WS before scenes + footer init; [`scenes-editor.js`](client/components/scenes-editor.js) — rundown `mountPlaybackTimer`; [`index.html`](web/index.html) + [`styles.css`](web/styles.css). Save fires `highascg-settings-applied` (no full page reload).
 
 **Status:**
 - **T5.2** complete.

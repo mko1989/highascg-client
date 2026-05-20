@@ -120,7 +120,7 @@ graph TD
     Src --> |Engine| Engine[engine/, caspar/, state/]
     Src --> |Peripherals| Ext[osc/, artnet/, streaming/, audio/]
     Web --> |Single Page App| SPA[index.html, app.js, styles.css]
-    Web --> |Web Components| Components[web/components/...]
+    Web --> |Web Components| Components[client/components/...]
 ```
 
 ### 1. Root Folder Files
@@ -161,8 +161,8 @@ Divided into clean, modular domains inside [/home/casparcg/highascg/src/](file:/
 
 ---
 
-### 4. The Frontend Source (`web/`)
-HighAsCG features a premium, responsive Single Page Application (SPA) located in [/home/casparcg/highascg/web/](file:///home/casparcg/highascg/web/):
+### 4. The Frontend Source (`client/`)
+HighAsCG features a premium, responsive Single Page Application (SPA) located in [/home/casparcg/highascg/client/](file:///home/casparcg/highascg/client/):
 * `index.html` — The main structural wrapper.
 * `app.js` — The core logic, initializing WebSocket event listeners and state synchronization.
 * `styles.css` — High-fidelity modern styling, utilizing dark modes, visual highlights, and fluid transitions.

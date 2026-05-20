@@ -144,7 +144,7 @@ HighAsCG/
     └── black.html
 ```
 
-> **Implementation note (2026-04-04):** `src/caspar/` ships **`amcp-client.js`** plus modular `amcp-basic.js`, `amcp-mixer.js`, etc., instead of a single `amcp-commands.js`. Extra web splits include [`scenes-preview-runtime.js`](web/components/scenes-preview-runtime.js), [`scenes-compose.js`](web/components/scenes-compose.js), [`preview-canvas-draw.js`](web/components/preview-canvas-draw.js) / [`preview-canvas-panel.js`](web/components/preview-canvas-panel.js), [`timeline-canvas-utils.js`](web/components/timeline-canvas-utils.js) / [`timeline-canvas-clip.js`](web/components/timeline-canvas-clip.js).
+> **Implementation note (2026-04-04):** `src/caspar/` ships **`amcp-client.js`** plus modular `amcp-basic.js`, `amcp-mixer.js`, etc., instead of a single `amcp-commands.js`. Extra web splits include [`scenes-preview-runtime.js`](client/components/scenes-preview-runtime.js), [`scenes-compose.js`](client/components/scenes-compose.js), [`preview-canvas-draw.js`](client/components/preview-canvas-draw.js) / [`preview-canvas-panel.js`](client/components/preview-canvas-panel.js), [`timeline-canvas-utils.js`](client/components/timeline-canvas-utils.js) / [`timeline-canvas-clip.js`](client/components/timeline-canvas-clip.js).
 
 ---
 
@@ -219,7 +219,7 @@ HighAsCG/
 - [x] **T4.1** Create `src/server/http-server.js`
   - HTTP server on configurable port
   - Bind to `0.0.0.0` for LAN accessibility
-  - Serve static files from `web/`
+  - Serve static files from `client/`
   - Route `/api/*` to API handlers
   - CORS headers for cross-origin access
   - Log startup URL with all LAN IPs
@@ -282,16 +282,16 @@ HighAsCG/
 ### Phase 9: Web GUI Migration
 
 - [x] **T9.1** Migrate base web files
-  - `web/index.html` — update API/WS URLs (no more Companion instance path prefix)
-  - `web/app.js` — update initialization
-  - `web/styles.css` — copy as-is
+  - `client/index.html` — update API/WS URLs (no more Companion instance path prefix)
+  - `client/app.js` — update initialization
+  - `client/styles.css` — copy as-is
 
 - [x] **T9.2** Split large web components
   - `inspector-panel.js` → `inspector-panel.js` + `inspector-common.js` (drag inputs + keyframe defs) + `inspector-fill.js` + `inspector-mixer.js` + `inspector-transition.js`
   - `scenes-editor.js` → `scenes-editor.js` + `scenes-shared.js` (transition row + take payload + AMCP helpers) + `scene-list.js` + `scene-layer-row.js`
   - `dashboard.js` → `dashboard.js` + `dashboard-cell.js`
   - `timeline-editor.js` → `timeline-editor.js` + `timeline-transport.js`
-  - *Follow-up (2026-04-04):* `scenes-editor.js` split into [`scenes-preview-runtime.js`](web/components/scenes-preview-runtime.js) (PRV push queue + AMCP), [`scenes-compose.js`](web/components/scenes-compose.js) (compose frame + drag/rotate/scale), slim [`scenes-editor.js`](web/components/scenes-editor.js) — all ≤500 lines.
+  - *Follow-up (2026-04-04):* `scenes-editor.js` split into [`scenes-preview-runtime.js`](client/components/scenes-preview-runtime.js) (PRV push queue + AMCP), [`scenes-compose.js`](client/components/scenes-compose.js) (compose frame + drag/rotate/scale), slim [`scenes-editor.js`](client/components/scenes-editor.js) — all ≤500 lines.
 
 - [x] **T9.3** Migrate remaining web components (under 500 lines — copy with path updates)
   - `timeline-canvas.js`, `multiview-editor.js`, `preview-canvas.js`
@@ -350,7 +350,7 @@ HighAsCG/
 | ~~`variables.js`~~ | — | Not migrated (Companion-only) |
 | ~~`polling.js`~~ | — | Not migrated (Companion-only) |
 | ~~`config-upgrade.js`~~ | — | Not migrated (Companion-only) |
-| All `web/` files | `web/` | Copy + adapt paths |
+| All `client/` files | `client/` | Copy + adapt paths |
 
 ---
 
@@ -405,7 +405,7 @@ const base = '/api'  // Direct to standalone server
 
 ### 2026-04-04 — Agent
 **Work Done:**
-- **WO-02 doc hygiene:** Target tree **implementation note** — `amcp-client.js` + modular `amcp-*.js`, web split files (`scenes-preview-runtime`, `preview-canvas-draw`, `timeline-canvas-clip`, …). **Follow-up verification:** [`scripts/http-smoke.js`](scripts/http-smoke.js) + `npm run smoke -- PORT` (see [`20_WO_VERIFY_NODE_APP.md`](20_WO_VERIFY_NODE_APP.md)).
+- **WO-02 doc hygiene:** Target tree **implementation note** — `amcp-client.js` + modular `amcp-*.js`, web split files (`scenes-preview-runtime`, `preview-canvas-draw`, `timeline-canvas-clip`, …). **Follow-up verification:** [`tools/smoke/http-smoke.js`](tools/smoke/http-smoke.js) + `npm run smoke -- PORT` (see [`20_WO_VERIFY_NODE_APP.md`](20_WO_VERIFY_NODE_APP.md)).
 
 **Status:**
 - WO-02 migration **complete**; ongoing QA in **20_WO**.
@@ -415,7 +415,7 @@ const base = '/api'  // Direct to standalone server
 
 ### 2026-04-04 — Agent
 **Work Done:**
-- **Post-migration verification (see [`20_WO_VERIFY_NODE_APP.md`](20_WO_VERIFY_NODE_APP.md)):** Phase 1 — structure script updated for `amcp-client.js`, **23/23** paths; [`README.md`](README.md); `npm start` smoke OK; split [`preview-canvas`](web/components/preview-canvas.js) + [`timeline-canvas`](web/components/timeline-canvas.js) so every `src/` + `web/**/*.js` file ≤500 lines.
+- **Post-migration verification (see [`20_WO_VERIFY_NODE_APP.md`](20_WO_VERIFY_NODE_APP.md)):** Phase 1 — structure script updated for `amcp-client.js`, **23/23** paths; [`README.md`](README.md); `npm start` smoke OK; split [`preview-canvas`](client/components/preview-canvas.js) + [`timeline-canvas`](client/components/timeline-canvas.js) so every `src/` + `client/**/*.js` file ≤500 lines.
 
 **Status:**
 - WO-02 remains **complete**; verification work continues in **20_WO**.
@@ -425,7 +425,7 @@ const base = '/api'  // Direct to standalone server
 
 ### 2026-04-04 — Agent
 **Work Done:**
-- **T9.2 follow-up (≤500 lines):** Split [`scenes-editor.js`](web/components/scenes-editor.js) (~840 → ~417 lines) into [`scenes-preview-runtime.js`](web/components/scenes-preview-runtime.js) — `createScenesPreviewRuntime()` (debounced PRV push, serialized drain, `pushSceneToPreview` / AMCP batch); [`scenes-compose.js`](web/components/scenes-compose.js) — `createApplyNativeFillForSource`, `createComposeDragHandlers`, `renderComposeScene`; slim orchestrator [`scenes-editor.js`](web/components/scenes-editor.js). Updated T9.2 follow-up bullet in this WO.
+- **T9.2 follow-up (≤500 lines):** Split [`scenes-editor.js`](client/components/scenes-editor.js) (~840 → ~417 lines) into [`scenes-preview-runtime.js`](client/components/scenes-preview-runtime.js) — `createScenesPreviewRuntime()` (debounced PRV push, serialized drain, `pushSceneToPreview` / AMCP batch); [`scenes-compose.js`](client/components/scenes-compose.js) — `createApplyNativeFillForSource`, `createComposeDragHandlers`, `renderComposeScene`; slim orchestrator [`scenes-editor.js`](client/components/scenes-editor.js). Updated T9.2 follow-up bullet in this WO.
 
 **Status:**
 - **T9.2** follow-up complete (project line-count goal for scenes editor).
@@ -445,17 +445,17 @@ const base = '/api'  // Direct to standalone server
 
 ### 2026-04-04 — Agent
 **Work Done:**
-- **T9.2** Large web component splits under [`web/components/`](web/): **Inspector** — [`inspector-common.js`](web/components/inspector-common.js), [`inspector-fill.js`](web/components/inspector-fill.js), [`inspector-mixer.js`](web/components/inspector-mixer.js), [`inspector-transition.js`](web/components/inspector-transition.js), slim [`inspector-panel.js`](web/components/inspector-panel.js) (≤500 lines). **Dashboard** — [`dashboard-cell.js`](web/components/dashboard-cell.js). **Scenes** — [`scenes-shared.js`](web/components/scenes-shared.js), [`scene-list.js`](web/components/scene-list.js), [`scene-layer-row.js`](web/components/scene-layer-row.js). **Timeline** — [`timeline-transport.js`](web/components/timeline-transport.js). **`styles.css`** unchanged (WO copy as-is). **`scenes-editor.js`** still ~840 lines — remaining compose/preview/drag blocks should be extracted in a follow-up to meet the ≤500-line goal.
+- **T9.2** Large web component splits under [`client/components/`](web/): **Inspector** — [`inspector-common.js`](client/components/inspector-common.js), [`inspector-fill.js`](client/components/inspector-fill.js), [`inspector-mixer.js`](client/components/inspector-mixer.js), [`inspector-transition.js`](client/components/inspector-transition.js), slim [`inspector-panel.js`](client/components/inspector-panel.js) (≤500 lines). **Dashboard** — [`dashboard-cell.js`](client/components/dashboard-cell.js). **Scenes** — [`scenes-shared.js`](client/components/scenes-shared.js), [`scene-list.js`](client/components/scene-list.js), [`scene-layer-row.js`](client/components/scene-layer-row.js). **Timeline** — [`timeline-transport.js`](client/components/timeline-transport.js). **`styles.css`** unchanged (WO copy as-is). **`scenes-editor.js`** still ~840 lines — remaining compose/preview/drag blocks should be extracted in a follow-up to meet the ≤500-line goal.
 
 **Status:**
 - **T9.2** complete (with follow-up note for `scenes-editor.js` length).
 
 **Instructions for Next Agent:**
-- Optional: split [`scenes-editor.js`](web/components/scenes-editor.js) further (compose + preview push), or proceed **Phase 10** integration.
+- Optional: split [`scenes-editor.js`](client/components/scenes-editor.js) further (compose + preview push), or proceed **Phase 10** integration.
 
 ### 2026-04-04 — Agent
 **Work Done:**
-- **Phase 9 (bulk):** Copied companion [`src/web/`](../companion-module-casparcg-server/src/web/) → [`web/`](web/) (30 files: `index.html`, `app.js`, `styles.css`, `components/*`, `lib/*`). **T9.1:** `index.html` title/header **HighAsCG**; `api-client` / `ws-client` already use relative `/api/...` and `getApiBase()` for optional `/instance/ID`. **T9.3–T9.4:** same-origin fetch + WebSocket `…/api/ws` (matches [`ws-server.js`](src/server/ws-server.js)). **T9.5:** [`templates/multiview_overlay.html`](templates/multiview_overlay.html) + [`templates/black.html`](templates/black.html) from companion `src/templates/`. **`styles.css`** ~2452 lines (WO copy as-is).
+- **Phase 9 (bulk):** Copied companion [`src/client/`](../companion-module-casparcg-server/src/client/) → [`client/`](web/) (30 files: `index.html`, `app.js`, `styles.css`, `components/*`, `lib/*`). **T9.1:** `index.html` title/header **HighAsCG**; `api-client` / `ws-client` already use relative `/api/...` and `getApiBase()` for optional `/instance/ID`. **T9.3–T9.4:** same-origin fetch + WebSocket `…/api/ws` (matches [`ws-server.js`](src/server/ws-server.js)). **T9.5:** [`templates/multiview_overlay.html`](templates/multiview_overlay.html) + [`templates/black.html`](templates/black.html) from companion `src/templates/`. **`styles.css`** ~2452 lines (WO copy as-is).
 
 **Status:**
 - **T9.1**, **T9.3**, **T9.4**, **T9.5** complete.
@@ -467,7 +467,7 @@ const base = '/api'  // Direct to standalone server
 
 ### 2026-04-04 — Agent
 **Work Done:**
-- **T8.4 / T8.5:** Verified [`src/media/local-media.js`](src/media/local-media.js) vs companion [`local-media.js`](../companion-module-casparcg-server/src/local-media.js) — `resolveSafe`, `probeMedia`, `extractWaveform`, `handleLocalMedia`, `extractThumbnailPng`, `tryLocalThumbnailPng`; uses shared [`response.js`](src/api/response.js) for JSON helpers; also exports **`extractWaveform`** for routes. [`src/media/cinf-parse.js`](src/media/cinf-parse.js) matches companion [`cinf-parse.js`](../companion-module-casparcg-server/src/cinf-parse.js) (`parseCinfMedia`). Wired from [`routes-media`](src/api/routes-media.js), [`routes-state`](src/api/routes-state.js), [`get-state`](src/api/get-state.js), state engines. Added `src/media/local-media.js` to [`scripts/verify-w02-structure.js`](scripts/verify-w02-structure.js).
+- **T8.4 / T8.5:** Verified [`src/media/local-media.js`](src/media/local-media.js) vs companion [`local-media.js`](../companion-module-casparcg-server/src/local-media.js) — `resolveSafe`, `probeMedia`, `extractWaveform`, `handleLocalMedia`, `extractThumbnailPng`, `tryLocalThumbnailPng`; uses shared [`response.js`](src/api/response.js) for JSON helpers; also exports **`extractWaveform`** for routes. [`src/media/cinf-parse.js`](src/media/cinf-parse.js) matches companion [`cinf-parse.js`](../companion-module-casparcg-server/src/cinf-parse.js) (`parseCinfMedia`). Wired from [`routes-media`](src/api/routes-media.js), [`routes-state`](src/api/routes-state.js), [`get-state`](src/api/get-state.js), state engines. Added `src/media/local-media.js` to [`tools/eggs/verify-w02-structure.js`](tools/eggs/verify-w02-structure.js).
 
 **Status:**
 - **T8.4** and **T8.5** complete. **Phase 8 (Utility modules)** complete.
@@ -709,7 +709,7 @@ const base = '/api'  // Direct to standalone server
 
 ### 2026-04-04 — Agent
 **Work Done:**
-- **T4.1:** [`src/server/http-server.js`](src/server/http-server.js) — `startHttpServer` / `stopHttpServer` / `serveWebApp`; `bindAddress` default `0.0.0.0`; CORS via [`src/server/cors.js`](src/server/cors.js); LAN + localhost URLs on listen; `/api/*` uses injectable `routeApi` (default **503** JSON until **T5.1**). [`web/index.html`](web/index.html) placeholder. [`index.js`](index.js) starts HTTP, SIGINT/SIGTERM shutdown, `--no-http` for config-only exit.
+- **T4.1:** [`src/server/http-server.js`](src/server/http-server.js) — `startHttpServer` / `stopHttpServer` / `serveWebApp`; `bindAddress` default `0.0.0.0`; CORS via [`src/server/cors.js`](src/server/cors.js); LAN + localhost URLs on listen; `/api/*` uses injectable `routeApi` (default **503** JSON until **T5.1**). [`client/index.html`](web/index.html) placeholder. [`index.js`](index.js) starts HTTP, SIGINT/SIGTERM shutdown, `--no-http` for config-only exit.
 
 **Status:**
 - **T4.1** complete.

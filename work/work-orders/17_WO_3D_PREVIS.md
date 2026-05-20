@@ -11,7 +11,7 @@
 
 ## Module context
 
-Part of the **Previs & Tracking optional module** — see [WO-30](./30_WO_PREVIS_TRACKING_MODULE.md) for packaging, feature flag, and directory boundary. This WO is inert unless `HIGHASCG_PREVIS=1` or `config.features.previs3d === true`. All source lives under `src/previs/`, `web/components/previs-*`, `web/lib/previs-*`, and is deletable as a unit.
+Part of the **Previs & Tracking optional module** — see [WO-30](./30_WO_PREVIS_TRACKING_MODULE.md) for packaging, feature flag, and directory boundary. This WO is inert unless `HIGHASCG_PREVIS=1` or `config.features.previs3d === true`. All source lives under `src/previs/`, `client/components/previs-*`, `client/lib/previs-*`, and is deletable as a unit.
 
 Sibling WOs: [WO-19](./19_WO_PERSON_TRACKING.md) (tracking) and [WO-31](./31_WO_STAGE_AUTOFOLLOW_PTZ.md) (PTZ/lighting auto-follow) depend on the 3D stage model and floor plane defined here (zones, calibration).
 
@@ -138,17 +138,17 @@ The sibling project `Unnamed_Show_Creator` has already solved the hardest bits o
 
 | Show Creator (React / R3F, read-only) | HighAsCG (vanilla Three.js, to be written) | What to port |
 |----------------------------------------|---------------------------------------------|--------------|
-| `SceneViewer.tsx` → `InteractiveImportedModel` | `web/components/previs-pgm-3d.js` + `web/lib/previs-model-loader.js` | `useGLTF` → `new GLTFLoader().loadAsync`; deep-clone scene, preserve texture references via the `cloneMaterialWithTextures()` helper; `traverse()` to collect meshes; walk up the object tree on click to find the `THREE.Mesh`. |
-| `SceneViewer.tsx` → `getMeshInfo()` | `web/lib/previs-mesh-info.js` [NEW, ≤120 lines] | Pure function: given a `THREE.Mesh`, return `{ name, uuid, position, rotation, scale, boundingBox, worldWidth/Height/Depth }` — **identical shape** to their `ModelMeshInfo` so our JSON sidecars interoperate with theirs. |
+| `SceneViewer.tsx` → `InteractiveImportedModel` | `client/components/previs-pgm-3d.js` + `client/lib/previs-model-loader.js` | `useGLTF` → `new GLTFLoader().loadAsync`; deep-clone scene, preserve texture references via the `cloneMaterialWithTextures()` helper; `traverse()` to collect meshes; walk up the object tree on click to find the `THREE.Mesh`. |
+| `SceneViewer.tsx` → `getMeshInfo()` | `client/lib/previs-mesh-info.js` [NEW, ≤120 lines] | Pure function: given a `THREE.Mesh`, return `{ name, uuid, position, rotation, scale, boundingBox, worldWidth/Height/Depth }` — **identical shape** to their `ModelMeshInfo` so our JSON sidecars interoperate with theirs. |
 | `SceneViewer.tsx` → selection highlight (`emissive` mutation) | Inside `previs-pgm-3d.js` | Exact same pattern: on selection, set `mat.emissive = 0xff6600`, `emissiveIntensity = 0.8`, `needsUpdate = true`. Restore to `0x000000` / `0` on deselect. Handles both `MeshStandardMaterial` and `MeshBasicMaterial`. Never mutate the loader's cached scene — only the clone. |
-| `SceneViewer.tsx` → `LEDGridOverlay` | `web/lib/previs-led-grid.js` [NEW, ≤150 lines] | Take `{ panelsWide, panelsHigh, pixelPitch, worldWidth, worldHeight }` → emit a `THREE.Group` of `THREE.Line` segments for panel borders + a `Text`/DOM label for "1920×1080 (3.9mm)". Same green-border / grey-interior colouring. |
+| `SceneViewer.tsx` → `LEDGridOverlay` | `client/lib/previs-led-grid.js` [NEW, ≤150 lines] | Take `{ panelsWide, panelsHigh, pixelPitch, worldWidth, worldHeight }` → emit a `THREE.Group` of `THREE.Line` segments for panel borders + a `Text`/DOM label for "1920×1080 (3.9mm)". Same green-border / grey-interior colouring. |
 | `SceneViewer.tsx` → `SelectableScreen` + `TransformControls` | `previs-pgm-3d.js` | Screen meshes are flat planes positioned/rotated in stage coords; `TransformControls` (translate mode) wired up only in edit mode. Keep the irregular-screen path (per-panel `IrregularPanelMesh`) for composite LED layouts. |
-| `ScreenSystem.tsx` → `ContentLayer` (virtual-canvas UV math) | `web/lib/previs-uv-mapper.js` [NEW, ≤250 lines] | **Highest-value port.** The overlap maths that compute UV rect + mesh offset from `{ screenCanvasRect, contentCanvasRect }` is already correct and well-tested. Translate React `useMemo` blocks to pure functions `computeScreenUV(region, contentDims, virtualCanvas)` and `computePanelUV(panel, region, contentBounds)`. Return `{ uvs, meshWidth, meshHeight, offsetX, offsetY }` so the renderer just applies them. |
-| `ScreenSystem.tsx` → `VideoTexture` lifecycle | `web/lib/previs-video-texture.js` (already in Task T3.2, flesh it out with their lessons) | Reuse: `video.playsInline = true`, start `muted = true` to bypass autoplay gates, `preload = 'auto'`, `crossOrigin = 'anonymous'`. On `canplay` → create `THREE.VideoTexture`, `colorSpace = THREE.SRGBColorSpace`, `minFilter/magFilter = THREE.LinearFilter`, `generateMipmaps = false`. Explicit cleanup: `pause()`, `removeAttribute('src')`, `load()`, `texture.dispose()`. User-interaction unmute gate (one-shot click/keydown listener) for unmuting when the operator first touches the UI. |
+| `ScreenSystem.tsx` → `ContentLayer` (virtual-canvas UV math) | `client/lib/previs-uv-mapper.js` [NEW, ≤250 lines] | **Highest-value port.** The overlap maths that compute UV rect + mesh offset from `{ screenCanvasRect, contentCanvasRect }` is already correct and well-tested. Translate React `useMemo` blocks to pure functions `computeScreenUV(region, contentDims, virtualCanvas)` and `computePanelUV(panel, region, contentBounds)`. Return `{ uvs, meshWidth, meshHeight, offsetX, offsetY }` so the renderer just applies them. |
+| `ScreenSystem.tsx` → `VideoTexture` lifecycle | `client/lib/previs-video-texture.js` (already in Task T3.2, flesh it out with their lessons) | Reuse: `video.playsInline = true`, start `muted = true` to bypass autoplay gates, `preload = 'auto'`, `crossOrigin = 'anonymous'`. On `canplay` → create `THREE.VideoTexture`, `colorSpace = THREE.SRGBColorSpace`, `minFilter/magFilter = THREE.LinearFilter`, `generateMipmaps = false`. Explicit cleanup: `pause()`, `removeAttribute('src')`, `load()`, `texture.dispose()`. User-interaction unmute gate (one-shot click/keydown listener) for unmuting when the operator first touches the UI. |
 | `ScreenSystem.tsx` → image fallback (`TextureLoader` for PNG/JPG thumbnails) | `previs-video-texture.js` (same file) | Same pattern as the PGM source-priority ladder already documented in T3.2 — thumbnails drop in as `TextureLoader` textures when WebRTC isn't available. Their `isImageUrl()` extension sniff is directly reusable. |
 | `ScreenSystem.tsx` → irregular-panel rendering | `previs-pgm-3d.js` + `previs-uv-mapper.js` | Per-panel plane geometry at `(localX + width/2 - screenWidth/2, localY + height/2 - screenHeight/2, 0)`, then rotate the offset by the screen's Euler. Content mesh sits 0.001 m in front of the black panel backing to kill z-fighting. Panel width/height padded by a 1 mm "gap-eliminator" overlap. |
-| `CanvasMapper.tsx` → 2D drag UV editor | `web/components/previs-uv-editor.js` [NEW, ≤400 lines] | The side-pane "place screen rectangles on the virtual canvas" UI. Port the SVG drag-to-draw / drag-to-resize, snap-to-grid, and numeric input panel. This is the operator-facing complement to Phase 3's programmatic mapping. Goes under the inspector's Previs section in T5.2. |
-| `store.ts` → `ScreenRegion`, `LEDPanel`, `IrregularScreenConfig`, `LEDWallConfig`, `VirtualCanvas`, `ModelMeshInfo` | `src/previs/types.js` [NEW, ≤80 lines] + `web/lib/previs-state.js` (T1.3) | Adopt these shapes **verbatim**. JSON interop with Show Creator then becomes free: same tool can produce designs for both systems. |
+| `CanvasMapper.tsx` → 2D drag UV editor | `client/components/previs-uv-editor.js` [NEW, ≤400 lines] | The side-pane "place screen rectangles on the virtual canvas" UI. Port the SVG drag-to-draw / drag-to-resize, snap-to-grid, and numeric input panel. This is the operator-facing complement to Phase 3's programmatic mapping. Goes under the inspector's Previs section in T5.2. |
+| `store.ts` → `ScreenRegion`, `LEDPanel`, `IrregularScreenConfig`, `LEDWallConfig`, `VirtualCanvas`, `ModelMeshInfo` | `src/previs/types.js` [NEW, ≤80 lines] + `client/lib/previs-state.js` (T1.3) | Adopt these shapes **verbatim**. JSON interop with Show Creator then becomes free: same tool can produce designs for both systems. |
 
 ### Coordinate / unit conventions (confirmed against Show Creator)
 
@@ -180,11 +180,11 @@ From Show Creator's install notes (`PROJECT_PLAN.md §3`):
 
 - [x] **T1.1** Add Three.js dependency **as an `optionalDependency`** (see WO-30):
   - `three` (ES module, tree-shakeable) added at `optionalDependencies.three@^0.184.0`.
-  - Import path at runtime is bare-specifier (`import 'three'`, `import 'three/addons/...'`), resolved via a static `<script type="importmap">` in `web/index.html` that points at `/vendor/three/*`.
+  - Import path at runtime is bare-specifier (`import 'three'`, `import 'three/addons/...'`), resolved via a static `<script type="importmap">` in `client/index.html` that points at `/vendor/three/*`.
   - Served from `node_modules/three/` only when previs is active, by the new `vendorDirs` mount in `src/server/http-server.js` + `index.js::buildVendorDirs`.
   - Missing install is handled: clean 404 on `/vendor/three/*`, warning log, and the 2D/3D toggle declines to activate.
 
-- [x] **T1.2** Create `web/components/previs-pgm-3d.js` (≤500 lines) — 284 lines.
+- [x] **T1.2** Create `client/components/previs-pgm-3d.js` (≤500 lines) — 284 lines.
   - **Mounts inside the existing PGM preview cell**, not as a standalone tab.
   - Adds a **2D / 3D toggle button** to the PGM cell header (the PGM cell only — PRV is untouched).
   - On toggle-to-3D:
@@ -202,15 +202,15 @@ From Show Creator's install notes (`PROJECT_PLAN.md §3`):
   - Animation loop gated on visibility: pause when the output-preview panel is collapsed or the browser tab is hidden.
   - Clean `destroy()` disposes renderer, geometries, textures when toggling back to 2D or navigating away.
 
-- [x] **T1.3** `web/lib/previs-state.js` (298 lines — over the 200-line preview but still well under the 500-cap).
+- [x] **T1.3** `client/lib/previs-state.js` (298 lines — over the 200-line preview but still well under the 500-cap).
   - Pure, framework-free view-model store with per-event subscriptions (`change`, `models:changed`, `active:changed`, `tags:changed`, `presets:changed`, `ui:changed`).
   - Shape: `{ models[], activeModelId, tags: { [modelId]: { [meshUuid]: ScreenTag } }, presets: { [modelId]: CameraPreset[] }, ui: { grid, axes, wireframe } }`.
   - Persistence: debounced (`250 ms`) `localStorage.setItem` under `highascg.previs.state.v1`. Server-side models list is refetched on load — `localStorage` only stores *user intent* (which mesh was tagged, UI toggles, presets).
-  - Covered by `tools/smoke-previs-state.mjs` (`npm run smoke:previs-state`) — asserts upsert / remove / tag / preset / UI / reload flows and persistence parity.
+  - Covered by `tools/smoke/smoke-previs-state.mjs` (`npm run smoke:previs-state`) — asserts upsert / remove / tag / preset / UI / reload flows and persistence parity.
 
 ### Phase 2: Model Import
 
-- [x] **T2.1** `web/lib/previs-model-loader.js` (274 lines).
+- [x] **T2.1** `client/lib/previs-model-loader.js` (274 lines).
   - GLTFLoader (binary `.glb` + JSON `.gltf` w/ embedded resources) via
     `three/addons/loaders/GLTFLoader.js`, dependency-injected so the module stays loadable
     without the optional `three` dep installed.
@@ -238,14 +238,14 @@ From Show Creator's install notes (`PROJECT_PLAN.md §3`):
 #### Phase 2 UI (keystone component)
 
 - [x] **WO-17** Drag-drop / file-picker toolbar on the PGM 3D overlay.
-  - `web/components/previs-pgm-3d-toolbar.js` (150 lines): top-left toolbar with "Load model…", "Clear", and a live status line; separate drop-zone backdrop that toggles on dragenter/dragleave.
-  - `web/lib/previs-scene-model.js` (221 lines): owns the scene slot for the imported model. Adds/removes the loaded `root`, picks a screen mesh (pre-tagged first, else largest vertical surface, else keeps the demo plane), swaps its material for a `MeshBasicMaterial` backed by the shared `videoTexture`, and restores the original on unload.
-  - `web/components/previs-pgm-3d.js` (397 lines): dropped the inline demo plane, now delegates to `createPrevisSceneModel`. Wires dragenter/over/leave/drop handlers on the overlay, uploads the chosen file to `/api/previs/models` once parsing succeeds, and logs the returned model id. `ensureThreeLoaded` now also resolves `GLTFLoader` from `three/addons/loaders/`.
+  - `client/components/previs-pgm-3d-toolbar.js` (150 lines): top-left toolbar with "Load model…", "Clear", and a live status line; separate drop-zone backdrop that toggles on dragenter/dragleave.
+  - `client/lib/previs-scene-model.js` (221 lines): owns the scene slot for the imported model. Adds/removes the loaded `root`, picks a screen mesh (pre-tagged first, else largest vertical surface, else keeps the demo plane), swaps its material for a `MeshBasicMaterial` backed by the shared `videoTexture`, and restores the original on unload.
+  - `client/components/previs-pgm-3d.js` (397 lines): dropped the inline demo plane, now delegates to `createPrevisSceneModel`. Wires dragenter/over/leave/drop handlers on the overlay, uploads the chosen file to `/api/previs/models` once parsing succeeds, and logs the returned model id. `ensureThreeLoaded` now also resolves `GLTFLoader` from `three/addons/loaders/`.
 
 ### Phase 3: Video Texture Mapping
 
 - [~] **T3.1** Screen designation workflow — **core flow shipped**, multi-stream selector deferred.
-  - [x] Inspector panel (`web/components/previs-mesh-inspector.js`, 307 lines) pinned to the right edge of the 3D overlay with three sections: Saved models, Current-model meshes, Display toggles.
+  - [x] Inspector panel (`client/components/previs-mesh-inspector.js`, 307 lines) pinned to the right edge of the 3D overlay with three sections: Saved models, Current-model meshes, Display toggles.
   - [x] Mesh list enumerates everything in `LoadedModel.meshInfos`; clicking a row selects the mesh (`THREE.BoxHelper` outline via `modelHost.setSelection`, handled in `previs-scene-model.js`).
   - [x] "Set" / "Clear" per mesh calls `modelHost.tagMeshAsScreen(mesh, { screenId })` / `modelHost.untagMesh(mesh)`, which stamps `userData['highascg.screen']` via `previs-mesh-info.tagScreenMesh` and rebinds the PGM `VideoTexture` to the new choice.
   - [x] Saved-models section lists persisted models from `/api/previs/models` (fetched on overlay entry by the inspector binder), with `Load` (downloads + parses) and `✕ Delete` (server `DELETE /api/previs/models/:id` + state prune).
@@ -253,7 +253,7 @@ From Show Creator's install notes (`PROJECT_PLAN.md §3`):
   - [x] Display toggles (grid / axes / wireframe) backed by `previs-state` and applied through new scene-handle fields (`sceneHandle.grid`, `sceneHandle.axes`, `sceneHandle.setWireframe`).
   - [x] Per-mesh **stream selector** (`PGM / PRV`) shipped. `scene-model` now owns a `Map<meshUuid, MeshBinding>` with per-source bindings acquired via a new `previs-stream-sources.js` manager; the inspector row renders a `<select>` with sources listed by the keystone component. Channel N / Input M require per-channel `<video>` elements in the DOM (deferred until the streaming WO exposes them).
 
-- [x] **T3.2** Create `web/lib/previs-video-texture.js` (≤200 lines) — 205 lines.
+- [x] **T3.2** Create `client/lib/previs-video-texture.js` (≤200 lines) — 205 lines.
   - Reuses the existing PGM `<video>` element via `findPgmVideoElement()` — no new WebRTC peer.
   - `createPgmVideoTexture(videoEl, THREE, opts)` returns a binding with a live `.texture` handle that auto-upgrades from placeholder to `THREE.VideoTexture` when the video becomes playable, and auto-downgrades if the stream drops. Probed every 500 ms.
   - Source-priority ladder implemented: (1) live WebRTC → `VideoTexture`; (2) solid `DataTexture` placeholder when not ready. Thumbnail fallbacks (HighAsCG/Caspar) and the multi-channel path are deferred to a follow-up pass once the PGM path is visually confirmed end-to-end.
@@ -275,7 +275,7 @@ From Show Creator's install notes (`PROJECT_PLAN.md §3`):
   - [x] Per-model presets stored via `previs-state.addPreset/removePreset/getPresets`, persisted to `localStorage` through the existing debounced write.
   - [x] Dedicated **Reset view** button (ghost style below Front/Top/ISO; recalls `__builtin_front` — same pose as **Front**).
 
-- [x] **T4.2** Keyboard shortcuts — `web/components/previs-pgm-3d-keyboard.js` attaches a single `keydown` listener on the overlay (`tabIndex = 0`; focused on 3D enter). Keys are ignored while a text input / textarea / contenteditable has focus so the "Save view" field still works.
+- [x] **T4.2** Keyboard shortcuts — `client/components/previs-pgm-3d-keyboard.js` attaches a single `keydown` listener on the overlay (`tabIndex = 0`; focused on 3D enter). Keys are ignored while a text input / textarea / contenteditable has focus so the "Save view" field still works.
   - [x] `1-9` — recall saved preset by index (from `state.getPresets(activeId)`; built-ins remain button-only).
   - [x] `F` — frame selected mesh: computes `Box3.setFromObject` → bounding sphere, then flies camera along the current view direction to `radius / sin(fov/2)`, target = bbox centre.
   - [x] `G` — toggles `state.setUI({ grid: !ui.grid })` and `sceneHandle.grid.visible`.
@@ -285,7 +285,7 @@ From Show Creator's install notes (`PROJECT_PLAN.md §3`):
 ### Phase 5: Integration & UI Polish
 
 - [x] **T5.1** Wire the 2D/3D toggle into the PGM cell — auto-expand + event bus both shipped.
-  - [x] Register `previs-pgm-3d` via the optional-module loader — `web/assets/modules/previs/entry.js` polls for the PGM compose cell and attaches a `createPrevisPgm3d()` controller. A `MutationObserver` handles late mounts and panel remounts.
+  - [x] Register `previs-pgm-3d` via the optional-module loader — `client/assets/modules/previs/entry.js` polls for the PGM compose cell and attaches a `createPrevisPgm3d()` controller. A `MutationObserver` handles late mounts and panel remounts.
   - [x] Button inserted onto the PGM cell; clicks flip between 2D and 3D with full lifecycle cleanup on exit.
   - [x] Auto-expand: `preview-canvas-panel.js` now listens for `document`-level `CustomEvent('previs:set-prv-pct', { detail: { value } })`. On 3D enter, the previs entry dispatches `value: 0.2` (PRV gets 20%, PGM gets 80%); on exit (or module detach), it dispatches `value: null` and the panel restores the user-persisted split. The override is NOT written to `localStorage`, so the drag-saved preference survives a 3D toggle.
   - [x] Emit `previs:pgm-mode-changed` events for WO-19 / WO-31 consumers — `createPrevisPgm3d` dispatches `document`-level `CustomEvent('previs:pgm-mode-changed', { detail: { active, at } })` at the tail of both `enter3D` and `exit3D` (after PRV split / `onExpand` fire so listeners see the final layout). Listen with `document.addEventListener('previs:pgm-mode-changed', (e) => e.detail.active ? … : …)`.
@@ -305,12 +305,12 @@ From Show Creator's install notes (`PROJECT_PLAN.md §3`):
 - [x] **T5.3** Settings integration — shipped 2026-04-21 (collapsible **Scene settings** on 3D overlay, bottom-left).
   - [x] Persisted in `previs-state` `ui`: `backgroundColor`, `ambientIntensity`, `directionalIntensity`, `emissiveIntensity`, `pixelRatioCap` (1/2/4), `antialias`, `cameraFov`, `prvFractionWhen3d` (5–50 % PRV width while 3D is on). `mergeUiWithDefaults()` clamps + merges with `PREVIS_DEFAULT_UI` on load and on every `setUI`.
   - [x] Live apply while 3D is active: `sceneHandle.applySettings(...)` + `modelHost.setEmissiveIntensity` + `document.dispatchEvent('previs:set-prv-pct', { detail: { value } })` on `PREVIS_STATE_EVENTS.UI`.
-  - [x] `web/assets/modules/previs/entry.js` reads `readMergedPrevisUiFromStorage()` on expand so the first PRV split matches saved prefs (no longer hard-coded `0.2` only).
+  - [x] `client/assets/modules/previs/entry.js` reads `readMergedPrevisUiFromStorage()` on expand so the first PRV split matches saved prefs (no longer hard-coded `0.2` only).
   - [x] Antialiasing: stored flag; renderer uses it on **next** 3D session (WebGL context cannot toggle AA in place) — hint text in panel.
   - [x] Max video-texture resolution (auto / 720p / 1080p / native) — `previs-state` `ui.videoTextureMax` + `videoTextureMaxToLongEdge()`; `createPgmVideoTexture` uses `CanvasTexture` + 2D blit when cap > 0, else fast `VideoTexture`; stream manager passes `getMaxVideoLongEdge`; RAF `tick()` calls `streamManager.tick()`. Scene settings panel row **Video texture max**.
   - [x] **Application Settings** tab **3D Previs** (WO-30 parity) — `registerOptionalSettingsTab` in `optional-modules.js`, previs `entry.js` registers `mountPrevisSettingsModalPane`; `getSharedPrevisState()` keeps overlay + modal in sync; `settings-modal.js` injects tab/pane before Variables, lazy-mount + dispose on close.
 
-- [x] **T5.4** Styles — `web/styles/previs.css` is now a first-class module stylesheet (~280 lines) loaded automatically via `src/previs/register.js` → `webStyles: ['/styles/previs.css']`.
+- [x] **T5.4** Styles — `client/styles/previs.css` is now a first-class module stylesheet (~280 lines) loaded automatically via `src/previs/register.js` → `webStyles: ['/styles/previs.css']`.
   - [x] `.previs-pgm-3d-overlay` hosts the Three.js canvas; `.previs-pgm-3d-toolbar`, `.previs-pgm-3d-dropzone`, and `.previs-pgm-3d-inspector` cover the HUD.
   - [x] Inspector rows use BEM-ish modifiers: `.previs-pgm-3d-inspector__row--tagged`, `.previs-pgm-3d-inspector__label--active` (cyan accent), `.previs-pgm-3d-inspector__btn--ghost`.
   - [x] Hover states on rows + buttons match the dark-theme background (`rgba(255,255,255,0.06)` for untagged, `rgba(0,208,255,0.2)` for tagged).
@@ -393,7 +393,7 @@ loader.load(url, (gltf) => {
 - Existing: `webrtc-client.js`, `stream-state.js`, `live-view.js` from WO-05.
 - Existing: go2rtc streaming infrastructure.
 - Existing: HighAsCG thumbnail polling and Caspar thumbnail fallback (same ladder the 2D PGM cell uses).
-- Draco decoder files served statically from `/web/draco/` only when the module is installed.
+- Draco decoder files served statically from `/client/draco/` only when the module is installed.
 - **Reference files:** [`work/references/show_creator/`](./references/show_creator/README.md) — read-only snapshot of `Unnamed_Show_Creator`'s `SceneViewer.tsx`, `ScreenSystem.tsx`, `CanvasMapper.tsx`, plus the data-model excerpt from their Zustand store. Consult the "Borrowed workflows" section above for the 1:1 porting map.
 
 ---
@@ -420,7 +420,7 @@ loader.load(url, (gltf) => {
 - Added a **"Borrowed workflows from Show Creator"** section above Tasks, with a 1:1 table mapping each of their R3F components to a HighAsCG vanilla-Three target file. Highest-value port is `ScreenSystem.tsx → previs-uv-mapper.js` — the virtual-canvas UV math is already solved there.
 - Confirmed coordinate / unit conventions line up (metres, right-handed +Y-up, pixel pitch in mm, UV v inverted relative to canvas y). glTF files produced for Show Creator will render correctly in HighAsCG Previs without axis re-mapping.
 - Recorded Capture 2025 gotchas (light fixtures come in as meshes, not KHR_lights; name-prefix heuristic for auto-tagging screens on first import).
-- Added `src/previs/types.js`, `src/previs/register.js`, `web/assets/modules/previs/entry.js`, `web/styles/previs.css` as module skeletons — the registry now has a real module to load when `HIGHASCG_PREVIS=1`. Each file is a stub with the right exports and TODO markers pointing back into this WO's tasks.
+- Added `src/previs/types.js`, `src/previs/register.js`, `client/assets/modules/previs/entry.js`, `client/styles/previs.css` as module skeletons — the registry now has a real module to load when `HIGHASCG_PREVIS=1`. Each file is a stub with the right exports and TODO markers pointing back into this WO's tasks.
 
 **Status:** Scope locked with concrete port targets. Module skeleton loads end-to-end (flag → registry → web loader → stub entry logs `[previs] initialised`). Real implementation of T1.2 / T2.1 / T3.1 / T3.2 is unblocked.
 
@@ -429,17 +429,17 @@ loader.load(url, (gltf) => {
 ### 2026-04-21 (later again) — Agent (Phase 1 keystone landed)
 
 **Work Done:**
-- Ported the Show Creator UV maths into `web/lib/previs-uv-mapper.js` (380 lines). Both `computeScreenUV` and `computePanelUV` are pure functions, covered by an in-file `__selfTest()` and runnable as `npm run smoke:previs-uv` (20/20 cases pass).
-- Ported `getMeshInfo` + material-texture-preserving cloning + mesh-tagging convention into `web/lib/previs-mesh-info.js` (297 lines). THREE is dependency-injected so nothing in this file forces the `three` dependency to load.
-- Added `web/lib/previs-video-texture.js` (205 lines): reuses the existing PGM `<video>` element, auto-upgrades between a 1×1 placeholder `DataTexture` and a live `THREE.VideoTexture`, with a `setSource()` hook for channel swaps.
-- Added `web/lib/previs-scene.js` (218 lines): vanilla-Three equivalent of the R3F `<Canvas>`. Camera, lights, GridHelper, OrbitControls, dispose(). Kept out of the component file so the keystone stays lean.
-- Added `web/components/previs-pgm-3d.js` (284 lines, keystone): mounts inside `.preview-panel__compose-cell--pgm`, draws a 2D/3D button, dynamically imports `three` + `three/addons/controls/OrbitControls.js` on first activation, wires the PGM video to a demo plane. IntersectionObserver and full disposal on exit.
+- Ported the Show Creator UV maths into `client/lib/previs-uv-mapper.js` (380 lines). Both `computeScreenUV` and `computePanelUV` are pure functions, covered by an in-file `__selfTest()` and runnable as `npm run smoke:previs-uv` (20/20 cases pass).
+- Ported `getMeshInfo` + material-texture-preserving cloning + mesh-tagging convention into `client/lib/previs-mesh-info.js` (297 lines). THREE is dependency-injected so nothing in this file forces the `three` dependency to load.
+- Added `client/lib/previs-video-texture.js` (205 lines): reuses the existing PGM `<video>` element, auto-upgrades between a 1×1 placeholder `DataTexture` and a live `THREE.VideoTexture`, with a `setSource()` hook for channel swaps.
+- Added `client/lib/previs-scene.js` (218 lines): vanilla-Three equivalent of the R3F `<Canvas>`. Camera, lights, GridHelper, OrbitControls, dispose(). Kept out of the component file so the keystone stays lean.
+- Added `client/components/previs-pgm-3d.js` (284 lines, keystone): mounts inside `.preview-panel__compose-cell--pgm`, draws a 2D/3D button, dynamically imports `three` + `three/addons/controls/OrbitControls.js` on first activation, wires the PGM video to a demo plane. IntersectionObserver and full disposal on exit.
 - Added vendor plumbing so the browser can resolve bare `three` specifiers without a bundler:
-  - `<script type="importmap">` in `web/index.html` mapping `three`, `three/`, `three/addons/`.
+  - `<script type="importmap">` in `client/index.html` mapping `three`, `three/`, `three/addons/`.
   - New `vendorDirs` option on `startHttpServer` + `/vendor/three/*` → `node_modules/three/*` mount wired up by `index.js::buildVendorDirs`.
   - Graceful handling when `three` isn't installed: clean 404 (not SPA fallback), warning log, toggle declines.
   - `module-registry.isLoaded(name)` helper added.
-- Updated `web/assets/modules/previs/entry.js` from a skeleton into the real controller that attaches/detaches the PGM 3D toggle as the preview panel re-renders (MutationObserver + polling for the initial mount).
+- Updated `client/assets/modules/previs/entry.js` from a skeleton into the real controller that attaches/detaches the PGM 3D toggle as the preview panel re-renders (MutationObserver + polling for the initial mount).
 
 **Status:** Phase 1 scene plumbing is done. With `HIGHASCG_PREVIS=1` + `three` installed, the PGM cell gains a 2D/3D button that, on click, renders a flat demo screen carrying the live PGM video texture. The path from real glTF stage → mapped screens is the next focus.
 
@@ -448,12 +448,12 @@ loader.load(url, (gltf) => {
 ### 2026-04-21 (evening) — Agent (Phase 2 model import landed)
 
 **Work Done:**
-- Added `web/lib/previs-model-loader.js` (274 lines) with `loadModelFromUrl` / `loadModelFromFile` / `loadModelFromArrayBuffer` + `disposeModel`. Performs prep (shadows + texture-preserving material clone), normalises to a 10 m max extent, centres on origin, places on floor, and returns `meshInfos[]`, `normalizationFactor`, `originalBox`. `three` is dependency-injected so the module stays valid without the optional install.
+- Added `client/lib/previs-model-loader.js` (274 lines) with `loadModelFromUrl` / `loadModelFromFile` / `loadModelFromArrayBuffer` + `disposeModel`. Performs prep (shadows + texture-preserving material clone), normalises to a 10 m max extent, centres on origin, places on floor, and returns `meshInfos[]`, `normalizationFactor`, `originalBox`. `three` is dependency-injected so the module stays valid without the optional install.
 - Added `src/previs/routes-models.js` (269 lines) and wired it through `src/previs/register.js`. Full REST CRUD for glTF/OBJ/FBX at `/api/previs/models`: list, streaming busboy upload (100 MB cap, extension allow-list), download with correct MIME + `Content-Disposition`, and delete. Records persist under the shared `persistence` key `previs.models`; binaries land at `<repo>/.highascg-previs/models/<id>.<ext>`. Verified live: upload → list → byte-exact download → delete cleans record + file; 404 on unknown id, 415 on bad extension.
 - Relaxed `src/server/http-server.js` raw-body handling: any request with `Content-Type: multipart/*` skips the body concatenation so downstream module handlers (busboy in previs) can own the stream. Previously only `/api/ingest/upload` was exempt.
-- Added `web/components/previs-pgm-3d-toolbar.js` (150 lines) — self-contained factory for the top-left "Load model… / Clear / status" toolbar plus the full-overlay drop-zone backdrop. No Three.js dependency; works in tests.
-- Added `web/lib/previs-scene-model.js` (221 lines) — owns the imported-model slot in a previs scene. Adds/removes the model root, picks a screen mesh (pre-tagged first, else largest vertical surface, else keeps the demo plane), swaps its material for a `MeshBasicMaterial` bound to the shared `videoTexture`, restores the original on unload, and disposes cleanly.
-- Rewired `web/components/previs-pgm-3d.js` (397 lines) to delegate the scene slot to `createPrevisSceneModel`, attach the toolbar + drop-zone, handle dragenter/over/leave/drop with file-type gating, parse the file in-browser, swap the demo plane for the real model, and `POST /api/previs/models` in the background so the model survives a reload. `ensureThreeLoaded` now also resolves `GLTFLoader` from `three/addons/loaders/GLTFLoader.js`.
+- Added `client/components/previs-pgm-3d-toolbar.js` (150 lines) — self-contained factory for the top-left "Load model… / Clear / status" toolbar plus the full-overlay drop-zone backdrop. No Three.js dependency; works in tests.
+- Added `client/lib/previs-scene-model.js` (221 lines) — owns the imported-model slot in a previs scene. Adds/removes the model root, picks a screen mesh (pre-tagged first, else largest vertical surface, else keeps the demo plane), swaps its material for a `MeshBasicMaterial` bound to the shared `videoTexture`, restores the original on unload, and disposes cleanly.
+- Rewired `client/components/previs-pgm-3d.js` (397 lines) to delegate the scene slot to `createPrevisSceneModel`, attach the toolbar + drop-zone, handle dragenter/over/leave/drop with file-type gating, parse the file in-browser, swap the demo plane for the real model, and `POST /api/previs/models` in the background so the model survives a reload. `ensureThreeLoaded` now also resolves `GLTFLoader` from `three/addons/loaders/GLTFLoader.js`.
 
 **Status:** Phase 2 complete. With `HIGHASCG_PREVIS=1` + `three` installed, the operator can drag a `.glb` / `.gltf` onto the 3D PGM overlay (or click "Load model…"): the file is parsed in-browser, the demo plane is replaced with the real stage, the largest upright surface (or a pre-tagged mesh) picks up the live PGM texture, and a copy of the file is streamed to the server for persistence.
 
@@ -462,12 +462,12 @@ loader.load(url, (gltf) => {
 ### 2026-04-21 (late evening) — Agent (T1.3 state + Phase 3 inspector landed)
 
 **Work Done:**
-- **`web/lib/previs-state.js`** (298 lines): framework-free event-emitting store — models / activeModelId / tags / presets / UI toggles — persisted with a 250 ms-debounced `localStorage` write under `highascg.previs.state.v1`. Emits both a firehose `change` event and fine-grained `models:changed`, `active:changed`, `tags:changed`, `presets:changed`, `ui:changed` events. Covered by `tools/smoke-previs-state.mjs` (`npm run smoke:previs-state`) — upserts, removes, tag add/clear, preset add, UI patch, persistence round-trip.
-- **`web/lib/previs-scene-model.js`**: added `refreshBinding()`, `tagMeshAsScreen(mesh, tag)`, `untagMesh(mesh)`, and `setSelection(mesh | null)`. Selection is rendered as a `THREE.BoxHelper` with `depthTest: false` so it tracks the mesh transform for free. Material restoration from the previously-bound mesh happens before rebind, so the texture swap is clean.
-- **`web/lib/previs-scene.js`**: scene handle now exposes `grid`, `axes` (hidden by default), and `setWireframe(on)`. Dispose path extended to release the axes helper.
-- **`web/components/previs-mesh-inspector.js`** (307 lines): right-edge panel with three sections — Saved Models (list + Load + ✕ Delete), Current Model → Meshes (click to select, Set / Clear screen tag, live "(screen)" annotation), Display (grid / axes / wireframe toggles backed by state).
-- **`web/components/previs-pgm-3d-inspector-binder.js`** (201 lines): glue between the inspector, state store, scene-model host, and REST. Fetches `/api/previs/models` on entry, keeps a `meshByUuid` map for fast selection / tag lookups, loads saved models via `GET /api/previs/models/:id` + `loadModelFromArrayBuffer`, deletes via `DELETE /api/previs/models/:id`, and restores saved `userData['highascg.screen']` tags onto meshes after every model load.
-- **`web/components/previs-pgm-3d.js`**: wires the state store, instantiates the inspector binder on enter-3D, notifies it after local drag-drop imports and server uploads (so the active id is set as soon as the record arrives), and disposes cleanly on exit. "Clear" now tears down the model + active id + mesh cache coherently.
+- **`client/lib/previs-state.js`** (298 lines): framework-free event-emitting store — models / activeModelId / tags / presets / UI toggles — persisted with a 250 ms-debounced `localStorage` write under `highascg.previs.state.v1`. Emits both a firehose `change` event and fine-grained `models:changed`, `active:changed`, `tags:changed`, `presets:changed`, `ui:changed` events. Covered by `tools/smoke/smoke-previs-state.mjs` (`npm run smoke:previs-state`) — upserts, removes, tag add/clear, preset add, UI patch, persistence round-trip.
+- **`client/lib/previs-scene-model.js`**: added `refreshBinding()`, `tagMeshAsScreen(mesh, tag)`, `untagMesh(mesh)`, and `setSelection(mesh | null)`. Selection is rendered as a `THREE.BoxHelper` with `depthTest: false` so it tracks the mesh transform for free. Material restoration from the previously-bound mesh happens before rebind, so the texture swap is clean.
+- **`client/lib/previs-scene.js`**: scene handle now exposes `grid`, `axes` (hidden by default), and `setWireframe(on)`. Dispose path extended to release the axes helper.
+- **`client/components/previs-mesh-inspector.js`** (307 lines): right-edge panel with three sections — Saved Models (list + Load + ✕ Delete), Current Model → Meshes (click to select, Set / Clear screen tag, live "(screen)" annotation), Display (grid / axes / wireframe toggles backed by state).
+- **`client/components/previs-pgm-3d-inspector-binder.js`** (201 lines): glue between the inspector, state store, scene-model host, and REST. Fetches `/api/previs/models` on entry, keeps a `meshByUuid` map for fast selection / tag lookups, loads saved models via `GET /api/previs/models/:id` + `loadModelFromArrayBuffer`, deletes via `DELETE /api/previs/models/:id`, and restores saved `userData['highascg.screen']` tags onto meshes after every model load.
+- **`client/components/previs-pgm-3d.js`**: wires the state store, instantiates the inspector binder on enter-3D, notifies it after local drag-drop imports and server uploads (so the active id is set as soon as the record arrives), and disposes cleanly on exit. "Clear" now tears down the model + active id + mesh cache coherently.
 - Verified end-to-end again against the running server: `/api/previs/health`, `/api/previs/models` list/upload/delete paths still clean after the new routes were added, and the inspector-binder RESTclient uses them correctly.
 
 **Status:** Phase 3 core shipped — the operator can now import a model, flip the "screen" designation between meshes (with a cyan outline on the selected one), delete / reload models from the server, and everything survives a reload (active id + tags + UI toggles via `localStorage`; binaries + metadata via the server). Multi-stream (per-mesh source selector), camera presets, and the T5.x polish bits are still open.
@@ -476,15 +476,15 @@ loader.load(url, (gltf) => {
 
 **Completed:**
 
-- **`web/lib/previs-state.js` (378 lines)** — extended `DEFAULT_UI` / `mergeUiWithDefaults()` with scene + performance + layout fields: `backgroundColor`, `ambientIntensity`, `directionalIntensity`, `emissiveIntensity`, `pixelRatioCap` (1/2/4), `antialias`, `cameraFov`, `prvFractionWhen3d`. Every `setUI` patch runs through `mergeUiWithDefaults` so values stay clamped. New exports: `PREVIS_DEFAULT_UI`, `readMergedPrevisUiFromStorage()` (used by the module entry for the PRV split).
-- **`web/lib/previs-scene.js`** — `addDefaultLights` now takes optional intensities and returns `{ ambient, directional }`; handle exposes `lights` + `applySettings(patch)` for live background / lights / pixel ratio / FOV updates without rebuilding the renderer.
-- **`web/lib/previs-scene-model.js`** — `setEmissiveIntensity(n)` mutates the shared emissive config and all active screen materials + demo plane.
-- **`web/components/previs-settings-panel.js` (185 lines)** — collapsible `<details>` bottom-left (`Scene settings`) with colour picker + sliders + PRV % + AA note; writes through `state.setUI`.
-- **`web/components/previs-pgm-3d-toolbar.js`** — T5.2 saved-model `<select>` + `syncSavedModelSelect()`; toolbar `flex-wrap` + CSS for the dropdown.
-- **`web/components/previs-pgm-3d.js` (433 lines)** — `enter3D` reads merged `state.getUI()` into `createPrevisScene` / `createPrevisSceneModel`; subscribes to `UI` + `CHANGE` to apply scene settings, emissive, PRV dispatch, and refresh the toolbar model list; removes dead `dragEnterCount` assignment.
-- **`web/components/previs-pgm-3d-inspector-binder.js`** — mounts the settings panel before the inspector; exposes `loadSavedModelById` for the toolbar callback.
-- **`web/assets/modules/previs/entry.js`** — `onExpand` uses `readMergedPrevisUiFromStorage().prvFractionWhen3d` (clamped 0.05–0.5) instead of a hard-coded `0.2`.
-- **`web/styles/previs.css`** — toolbar model row + full **Scene settings** block.
+- **`client/lib/previs-state.js` (378 lines)** — extended `DEFAULT_UI` / `mergeUiWithDefaults()` with scene + performance + layout fields: `backgroundColor`, `ambientIntensity`, `directionalIntensity`, `emissiveIntensity`, `pixelRatioCap` (1/2/4), `antialias`, `cameraFov`, `prvFractionWhen3d`. Every `setUI` patch runs through `mergeUiWithDefaults` so values stay clamped. New exports: `PREVIS_DEFAULT_UI`, `readMergedPrevisUiFromStorage()` (used by the module entry for the PRV split).
+- **`client/lib/previs-scene.js`** — `addDefaultLights` now takes optional intensities and returns `{ ambient, directional }`; handle exposes `lights` + `applySettings(patch)` for live background / lights / pixel ratio / FOV updates without rebuilding the renderer.
+- **`client/lib/previs-scene-model.js`** — `setEmissiveIntensity(n)` mutates the shared emissive config and all active screen materials + demo plane.
+- **`client/components/previs-settings-panel.js` (185 lines)** — collapsible `<details>` bottom-left (`Scene settings`) with colour picker + sliders + PRV % + AA note; writes through `state.setUI`.
+- **`client/components/previs-pgm-3d-toolbar.js`** — T5.2 saved-model `<select>` + `syncSavedModelSelect()`; toolbar `flex-wrap` + CSS for the dropdown.
+- **`client/components/previs-pgm-3d.js` (433 lines)** — `enter3D` reads merged `state.getUI()` into `createPrevisScene` / `createPrevisSceneModel`; subscribes to `UI` + `CHANGE` to apply scene settings, emissive, PRV dispatch, and refresh the toolbar model list; removes dead `dragEnterCount` assignment.
+- **`client/components/previs-pgm-3d-inspector-binder.js`** — mounts the settings panel before the inspector; exposes `loadSavedModelById` for the toolbar callback.
+- **`client/assets/modules/previs/entry.js`** — `onExpand` uses `readMergedPrevisUiFromStorage().prvFractionWhen3d` (clamped 0.05–0.5) instead of a hard-coded `0.2`.
+- **`client/styles/previs.css`** — toolbar model row + full **Scene settings** block.
 - **Smoke:** `smoke:previs-state` extended with default-merge assertions; `smoke:previs-stream` + `smoke:previs-uv` still green.
 
 **Still open (at the time):** WO-30 Modules modal duplicate, UV mapping status, max video-texture cap, zones (WO-31) — see latest work log for subsequent completions.
@@ -495,8 +495,8 @@ loader.load(url, (gltf) => {
 
 **Completed:**
 
-- **Keystone split — dropzone extracted.** `web/components/previs-pgm-3d-dropzone.js` (174 lines) now owns all drag/drop plumbing (`dragenter`/`dragleave`/`dragover`/`drop` on the overlay), the file-picker callback, glTF parse via `previs-model-loader.js`, and the `POST /api/previs/models` upload pipeline. The keystone pulled back from **506 → 376 lines** and the coupling is now explicit: dropzone receives lazy accessors (`getToolbar`, `getModelHost`, `getThreeModulePromise`, `getInspectorBinder`) plus a `setCurrentModel` setter so the keystone remains the single source of truth for lifecycle.
-- **T5.4 styles — `web/styles/previs.css` (282 lines).** Rewrote the previous stub into a first-class BEM-ish module stylesheet. New classes: `.previs-pgm-toggle`, `.previs-pgm-3d-overlay`, `.previs-pgm-3d-toolbar(__button|__status|__file-input)`, `.previs-pgm-3d-dropzone(.is-visible)`, `.previs-pgm-3d-inspector(__section|__section-header|__body|__row|__row--tagged|__label|__label--active|__empty|__btn|__btn--ghost|__select|__input|__preset-row|__save-row)`. Includes hover states, disabled buttons, and focus-visible outline on the 3D overlay. Loaded automatically via `webStyles: ['/styles/previs.css']` in `src/previs/register.js`, so detaching the module cleanly removes the stylesheet.
+- **Keystone split — dropzone extracted.** `client/components/previs-pgm-3d-dropzone.js` (174 lines) now owns all drag/drop plumbing (`dragenter`/`dragleave`/`dragover`/`drop` on the overlay), the file-picker callback, glTF parse via `previs-model-loader.js`, and the `POST /api/previs/models` upload pipeline. The keystone pulled back from **506 → 376 lines** and the coupling is now explicit: dropzone receives lazy accessors (`getToolbar`, `getModelHost`, `getThreeModulePromise`, `getInspectorBinder`) plus a `setCurrentModel` setter so the keystone remains the single source of truth for lifecycle.
+- **T5.4 styles — `client/styles/previs.css` (282 lines).** Rewrote the previous stub into a first-class BEM-ish module stylesheet. New classes: `.previs-pgm-toggle`, `.previs-pgm-3d-overlay`, `.previs-pgm-3d-toolbar(__button|__status|__file-input)`, `.previs-pgm-3d-dropzone(.is-visible)`, `.previs-pgm-3d-inspector(__section|__section-header|__body|__row|__row--tagged|__label|__label--active|__empty|__btn|__btn--ghost|__select|__input|__preset-row|__save-row)`. Includes hover states, disabled buttons, and focus-visible outline on the 3D overlay. Loaded automatically via `webStyles: ['/styles/previs.css']` in `src/previs/register.js`, so detaching the module cleanly removes the stylesheet.
 - **Component refactor** — stripped inline styles from `previs-pgm-3d.js`, `previs-pgm-3d-toolbar.js`, `previs-pgm-3d-dropzone.js` (classes only), and the inspector (`previs-mesh-inspector.js` went 475 → 402 lines). The only remaining runtime style touches are state-class toggles (`classList.toggle('is-visible', …)` on the dropzone, `--tagged` / `--active` modifiers on inspector rows/labels).
 - **Phase 6 LED emissive glow — shipped.** `previs-scene-model.js` now creates all screen materials via a new `createScreenMaterial(THREE, texture, cfg)` helper. Default behaviour switches from `MeshBasicMaterial` to `MeshStandardMaterial` with `map = emissiveMap = binding.texture`, `emissive = 0xffffff`, `emissiveIntensity = 1.4`, `roughness = 0.9`, `metalness = 0`, and `toneMapped = false`. This makes the PGM screen "glow" convincingly under the scene's ambient+directional lights without washing out to pure white.
   - `applyTextureToScreenMaterial(material, tex, cfg)` keeps `map` + `emissiveMap` in lockstep whenever the underlying `VideoTexture` swaps between placeholder and live.
@@ -521,7 +521,7 @@ loader.load(url, (gltf) => {
 
 **Completed:**
 
-- **T4.2 keyboard shortcuts — shipped.** New `web/components/previs-pgm-3d-keyboard.js` (142 lines) attaches a single `keydown` listener to the 3D overlay (`overlay.tabIndex = 0`, `overlay.focus({ preventScroll: true })` is called at the end of `enter3D` so keys land immediately). Keys are ignored when the active element is an `INPUT` / `TEXTAREA` / `SELECT` / `[contenteditable]`, so the "Save view" field still works. Bindings:
+- **T4.2 keyboard shortcuts — shipped.** New `client/components/previs-pgm-3d-keyboard.js` (142 lines) attaches a single `keydown` listener to the 3D overlay (`overlay.tabIndex = 0`, `overlay.focus({ preventScroll: true })` is called at the end of `enter3D` so keys land immediately). Keys are ignored when the active element is an `INPUT` / `TEXTAREA` / `SELECT` / `[contenteditable]`, so the "Save view" field still works. Bindings:
   - `1-9` → `state.getPresets(activeModelId)[N-1]` → `sceneHandle.flyTo({ position, target, fov }, 500)`. Built-ins (`Front` / `Top` / `ISO`) stay button-only so operators can assign `1-9` to their own shots.
   - `F` → frame selected mesh. Uses `new THREE.Box3().setFromObject(mesh).getBoundingSphere(…)` to compute a radius; positions the camera along the current `(position − target)` direction at `radius / sin(fovRad/2)` so the mesh fills the view. Handles degenerate view direction and empty bounds (warn-and-skip).
   - `G` → toggles `sceneHandle.grid.visible` and persists via `state.setUI({ grid })`.
@@ -536,8 +536,8 @@ document.addEventListener('previs:pgm-mode-changed', (ev) => {
   else detachTrackingOverlay()
 })
 ```
-- **`web/lib/previs-scene-model.js`** — exposed `getSelection()` on the scene-model handle (returns the currently-selected mesh for the `F` shortcut). JSDoc updated.
-- **`web/components/previs-pgm-3d.js`** (now 506 lines): wires `createPrevisPgm3dKeyboard(…)` in `enter3D` after the inspector binder; disposes it first in `exit3D`. `emitModeChanged(boolean)` helper centralises the event dispatch with a try/catch guard. The `PGM_MODE_EVENT` constant is defined at module scope for easy reuse.
+- **`client/lib/previs-scene-model.js`** — exposed `getSelection()` on the scene-model handle (returns the currently-selected mesh for the `F` shortcut). JSDoc updated.
+- **`client/components/previs-pgm-3d.js`** (now 506 lines): wires `createPrevisPgm3dKeyboard(…)` in `enter3D` after the inspector binder; disposes it first in `exit3D`. `emitModeChanged(boolean)` helper centralises the event dispatch with a try/catch guard. The `PGM_MODE_EVENT` constant is defined at module scope for easy reuse.
 
 **Smoke:** `node --check` clean on all touched files; `npm run smoke:previs-state`, `smoke:previs-uv` (20/20), and `smoke:previs-stream` (19/19) all green. ReadLints clean.
 
@@ -548,11 +548,11 @@ document.addEventListener('previs:pgm-mode-changed', (ev) => {
 - **T4.1 Reset-view button** (low priority — `Front` built-in already doubles as one).
 - **T5.2 sidebar polish** (dedicated Import Model button, model-selector dropdown, grid/axes/wireframe toggles alongside the mesh list — much of this already lives in `previs-mesh-inspector.js`; just needs a pass for consistency with WO-30 module layout).
 - **T5.3 Settings section** (default lighting, AA quality, max video-texture resolution, default PGM ratio when flipping to 3D).
-- **T5.4 Styles** (`web/styles/previs.css` — currently inline in each component).
+- **T5.4 Styles** (`client/styles/previs.css` — currently inline in each component).
 - **Phase 6** (performance / polish) — screen-space outline shader, screen emissive glow, LOD, idle-pause heuristics.
 - **True per-channel sources** — unblocked once the streaming WO exposes Channel N / Input M `<video>` elements in the DOM. The stream manager will just need two more source entries; no other file changes.
 
-**Instructions for Next Agent:** `previs-pgm-3d.js` is now 506 lines, just over the 500-line budget. The obvious split is to extract the drag/drop + upload plumbing (`onDragEnter`/`onDragOver`/`onDrop`/`loadAndMountModel`/`uploadModelToServer`) into a new `web/components/previs-pgm-3d-dropzone.js` helper — that's ~90 lines today and cleanly decoupled from the scene lifecycle. After the split, keystone drops back under ~420 lines and gains room for the remaining Phase 5/6 items. Next functional pick is **T5.3 Settings** — the WO-30 Modules panel is already rendering a per-module "Open settings" button so the hook point exists. Default lighting intensity and background colour map directly to options already accepted by `createPrevisScene(opts)`. If you tackle Phase 6 first, the lowest-effort win is an emissive glow on screen meshes: in `bindMesh` switch from `MeshBasicMaterial` to `MeshStandardMaterial` with `emissive = 0xffffff`, `emissiveMap = binding.texture`, `emissiveIntensity = 1.5` — it immediately looks like LED.
+**Instructions for Next Agent:** `previs-pgm-3d.js` is now 506 lines, just over the 500-line budget. The obvious split is to extract the drag/drop + upload plumbing (`onDragEnter`/`onDragOver`/`onDrop`/`loadAndMountModel`/`uploadModelToServer`) into a new `client/components/previs-pgm-3d-dropzone.js` helper — that's ~90 lines today and cleanly decoupled from the scene lifecycle. After the split, keystone drops back under ~420 lines and gains room for the remaining Phase 5/6 items. Next functional pick is **T5.3 Settings** — the WO-30 Modules panel is already rendering a per-module "Open settings" button so the hook point exists. Default lighting intensity and background colour map directly to options already accepted by `createPrevisScene(opts)`. If you tackle Phase 6 first, the lowest-effort win is an emissive glow on screen meshes: in `bindMesh` switch from `MeshBasicMaterial` to `MeshStandardMaterial` with `emissive = 0xffffff`, `emissiveMap = binding.texture`, `emissiveIntensity = 1.5` — it immediately looks like LED.
 
 ---
 
@@ -561,14 +561,14 @@ document.addEventListener('previs:pgm-mode-changed', (ev) => {
 **Completed:**
 
 - **Per-mesh stream selector — shipped.** Every tagged mesh can now carry its own source (PGM or PRV — Channel N/Input M are plug-in-ready) and the inspector renders a per-row `<select>` instead of the old Set/Clear pair.
-- **New `web/lib/previs-stream-sources.js` (116 lines)** — `createPrevisStreamManager(THREE, sources)` exposes `acquire(id) / release(id) / refreshVideoSources() / listSources() / dispose()`. Refcounted per source, so N meshes on PGM share one `VideoTextureBinding` and get disposed together when the last one releases. Sources are defined as `{ id, label, findVideo: () => HTMLVideoElement | null }` so the manager stays decoupled from the DOM.
-- **`web/lib/previs-video-texture.js`** — added `binding.onTextureChanged(fn) → unsub` so consumers can react to placeholder ⇄ live swaps. `swapToLive` / `swapToPlaceholder` now emit both `onLiveChanged` and `onTextureChanged`. Added `findWebrtcVideoElement(stream, root)` + `findPrvVideoElement()` (back-compat: `findPgmVideoElement` still exported).
-- **`web/lib/previs-scene-model.js` — refactored (391 lines).** Single `screenMesh` / `screenMaterial` / `screenMeshOriginal` replaced by a per-mesh `Map<meshUuid, MeshBinding>` (each entry holds mesh, sourceId, material, originalMaterial, textureBinding, and an `unsubscribe` for the texture-change listener). New APIs: `setMeshSource(mesh, sourceId)`, `getMeshSource(uuid)`, `getBindings()`. `refreshBinding()` now reconciles the tag set against the bindings map — adds new, drops removed, switches source in-place — and shows / hides the demo plane based on whether any meshes are tagged. The auto-picker writes a tag with an explicit `source: defaultSourceId` so reload is a no-op.
+- **New `client/lib/previs-stream-sources.js` (116 lines)** — `createPrevisStreamManager(THREE, sources)` exposes `acquire(id) / release(id) / refreshVideoSources() / listSources() / dispose()`. Refcounted per source, so N meshes on PGM share one `VideoTextureBinding` and get disposed together when the last one releases. Sources are defined as `{ id, label, findVideo: () => HTMLVideoElement | null }` so the manager stays decoupled from the DOM.
+- **`client/lib/previs-video-texture.js`** — added `binding.onTextureChanged(fn) → unsub` so consumers can react to placeholder ⇄ live swaps. `swapToLive` / `swapToPlaceholder` now emit both `onLiveChanged` and `onTextureChanged`. Added `findWebrtcVideoElement(stream, root)` + `findPrvVideoElement()` (back-compat: `findPgmVideoElement` still exported).
+- **`client/lib/previs-scene-model.js` — refactored (391 lines).** Single `screenMesh` / `screenMaterial` / `screenMeshOriginal` replaced by a per-mesh `Map<meshUuid, MeshBinding>` (each entry holds mesh, sourceId, material, originalMaterial, textureBinding, and an `unsubscribe` for the texture-change listener). New APIs: `setMeshSource(mesh, sourceId)`, `getMeshSource(uuid)`, `getBindings()`. `refreshBinding()` now reconciles the tag set against the bindings map — adds new, drops removed, switches source in-place — and shows / hides the demo plane based on whether any meshes are tagged. The auto-picker writes a tag with an explicit `source: defaultSourceId` so reload is a no-op.
 - **Demo plane** also goes through the manager now (`streamManager.acquire('pgm')`) and subscribes via `onTextureChanged`, so the "no model loaded" screen flips to live video the instant PGM becomes playable. (Previously the demo plane kept showing the black placeholder until the user imported a model.)
-- **`web/components/previs-mesh-inspector.js` — UI**: when `getAvailableSources` is provided, rows render a `<select>` (options: `—`, `PGM`, `PRV`) with the current source pre-selected; picking `—` fires `onUntagMesh`, anything else fires `onSetMeshSource(uuid, sourceId)`. The "(screen)" suffix becomes "(PGM)" / "(PRV)" and the row still highlights cyan when tagged. Falls back to the old Set/Clear pair when sources aren't provided.
-- **`web/components/previs-pgm-3d-inspector-binder.js`** — added `getAvailableSources` passthrough, new `tagMeshWithSource(uuid, sourceId)` helper, new `onSetMeshSource` callback. `getMeshes` now reports `{ sourceId }` per row by querying `modelHost.getMeshSource(uuid)`. Persisted tags include the `source` field.
-- **`web/components/previs-pgm-3d.js`** — replaced the old `createPgmVideoTexture(pgmVideo, …)` call with `createPrevisStreamManager(THREE, [pgmSource, prvSource])`. Added a 1 s refresh timer that calls `streamManager.refreshVideoSources()` while 3D is active, so late-mounted `<video>` elements (e.g. when the preview panel remounts) are picked up automatically. `exit3D` disposes the stream manager instead of a single binding.
-- **Smoke test — `tools/smoke-previs-stream.mjs` + `npm run smoke:previs-stream`**: 19/19 assertions passing. Covers refcounted acquire/release, fresh binding after final release, unknown-source → null, `listSources` shape, `dispose` cascade. Plus scene-model integration with a minimal THREE shim: auto-pick creates exactly one binding, `setMeshSource` on a second mesh produces two bindings with different sources, source switching unbinds+rebinds, untag releases, and `dispose` clears everything.
+- **`client/components/previs-mesh-inspector.js` — UI**: when `getAvailableSources` is provided, rows render a `<select>` (options: `—`, `PGM`, `PRV`) with the current source pre-selected; picking `—` fires `onUntagMesh`, anything else fires `onSetMeshSource(uuid, sourceId)`. The "(screen)" suffix becomes "(PGM)" / "(PRV)" and the row still highlights cyan when tagged. Falls back to the old Set/Clear pair when sources aren't provided.
+- **`client/components/previs-pgm-3d-inspector-binder.js`** — added `getAvailableSources` passthrough, new `tagMeshWithSource(uuid, sourceId)` helper, new `onSetMeshSource` callback. `getMeshes` now reports `{ sourceId }` per row by querying `modelHost.getMeshSource(uuid)`. Persisted tags include the `source` field.
+- **`client/components/previs-pgm-3d.js`** — replaced the old `createPgmVideoTexture(pgmVideo, …)` call with `createPrevisStreamManager(THREE, [pgmSource, prvSource])`. Added a 1 s refresh timer that calls `streamManager.refreshVideoSources()` while 3D is active, so late-mounted `<video>` elements (e.g. when the preview panel remounts) are picked up automatically. `exit3D` disposes the stream manager instead of a single binding.
+- **Smoke test — `tools/smoke/smoke-previs-stream.mjs` + `npm run smoke:previs-stream`**: 19/19 assertions passing. Covers refcounted acquire/release, fresh binding after final release, unknown-source → null, `listSources` shape, `dispose` cascade. Plus scene-model integration with a minimal THREE shim: auto-pick creates exactly one binding, `setMeshSource` on a second mesh produces two bindings with different sources, source switching unbinds+rebinds, untag releases, and `dispose` clears everything.
 - **Live smoke**: server boots cleanly under `HIGHASCG_PREVIS=1`, `/api/previs/health` returns `phase-2`, and every new file serves with the expected symbols (`createPrevisStreamManager`, `setMeshSource`/`getMeshSource`, `onSetMeshSource`/`getAvailableSources`, `findPrvVideoElement`).
 
 **File budgets** (all under 500): scene-model 391, inspector 475, binder 273, keystone 446, stream-sources 116, video-texture 238.
@@ -592,10 +592,10 @@ document.addEventListener('previs:pgm-mode-changed', (ev) => {
   - A `[name input] [Save view]` row calls `sceneHandle.getCameraState()` on the active scene, captures `{ position, target, fov }`, and persists through `previs-state.addPreset(activeModelId, …)` (`localStorage`-backed, per-model). Saving is only enabled while a model is active — the hint "Load a model to save views." shows otherwise, since presets are per-model.
   - Each saved preset renders as a row with `Go` (animated recall via the same `flyTo`) and `✕` (`state.removePreset`). The label tooltip shows fov.
   - Transitions use cubic-ease-in-out over 500 ms. Position, OrbitControls target, and camera fov are all lerped together; `camera.updateProjectionMatrix()` is called every frame. A new `flyTo` overwrites any in-flight tween.
-- **`web/lib/previs-scene.js`**: added `getCameraState()` and `flyTo(to, durationMs)` to the scene handle; both wired into the handle's dispose path (in-flight tween is cancelled on teardown). The scene stays at 322 lines, within budget.
-- **`web/components/previs-mesh-inspector.js`**: +124 lines (431 total) to host the new `renderCameraPresets` block and its input/row UI; no Three.js coupling — it just calls through to injected callbacks.
-- **`web/components/previs-pgm-3d-inspector-binder.js`**: added `saveCurrentView(name)` / `recallPreset(id)` / `getBuiltinPreset(id)` helpers (252 lines). Built-in preset coordinates live here so the inspector UI stays framework-agnostic.
-- **T5.1 auto-expand — shipped.** `web/components/preview-canvas-panel.js` now listens for `document`-level `CustomEvent('previs:set-prv-pct', { detail: { value } })`. On 3D enter, `web/assets/modules/previs/entry.js` dispatches `value: 0.2` (PRV shrinks to 20%, PGM auto-expands to 80%); on 3D exit — or when the module detaches — it dispatches `value: null` which makes the panel re-read the persisted `kPrvPgmSplit` from `localStorage` and restore it. The override is never written back to storage so the drag-saved preference is preserved.
+- **`client/lib/previs-scene.js`**: added `getCameraState()` and `flyTo(to, durationMs)` to the scene handle; both wired into the handle's dispose path (in-flight tween is cancelled on teardown). The scene stays at 322 lines, within budget.
+- **`client/components/previs-mesh-inspector.js`**: +124 lines (431 total) to host the new `renderCameraPresets` block and its input/row UI; no Three.js coupling — it just calls through to injected callbacks.
+- **`client/components/previs-pgm-3d-inspector-binder.js`**: added `saveCurrentView(name)` / `recallPreset(id)` / `getBuiltinPreset(id)` helpers (252 lines). Built-in preset coordinates live here so the inspector UI stays framework-agnostic.
+- **T5.1 auto-expand — shipped.** `client/components/preview-canvas-panel.js` now listens for `document`-level `CustomEvent('previs:set-prv-pct', { detail: { value } })`. On 3D enter, `client/assets/modules/previs/entry.js` dispatches `value: 0.2` (PRV shrinks to 20%, PGM auto-expands to 80%); on 3D exit — or when the module detaches — it dispatches `value: null` which makes the panel re-read the persisted `kPrvPgmSplit` from `localStorage` and restore it. The override is never written back to storage so the drag-saved preference is preserved.
 - Live smoke: started the server with `HIGHASCG_PREVIS=1`, confirmed `/api/previs/health` reports `phase-2`, and verified all five touched files (`preview-canvas-panel.js`, `entry.js`, `previs-scene.js`, `previs-mesh-inspector.js`, `previs-pgm-3d-inspector-binder.js`) ship the new symbols to the browser. Existing smoke tests pass (`smoke:previs-state` green, `smoke:previs-uv` 20/20).
 
 **Still open:**
@@ -604,7 +604,7 @@ document.addEventListener('previs:pgm-mode-changed', (ev) => {
 - **T4.2 keyboard shortcuts** (`1-9` to recall preset by index, `F` to frame selection, `G` grid, `W` wireframe, `Esc` deselect).
 - **T5.1 event bus**: `previs:pgm-mode-changed` for WO-19 / WO-31 consumers.
 
-**Instructions for Next Agent:** Per-mesh streams is the natural next step. Refactor `web/lib/previs-scene-model.js` so `_screenBinding` becomes a `Map<meshUuid, { material, originalMaterial, texture, source }>`. Add a `setMeshSource(mesh, source)` method where `source` is one of `'pgm'`, `'prv'`, `'ch<N>'`, `'off'`. In `web/components/previs-pgm-3d.js`, the existing `createPgmVideoTexture` factory can be generalized — add a `findVideoElementForSource(source)` helper (selectors already exist: `[data-preview-webrtc="pgm"]`, `[data-preview-webrtc="prv"]`). The inspector row already has "Set"/"Clear" — add a `<select>` above them whose value is persisted on the tag (`mesh.userData['highascg.screen'].source = 'pgm'` etc.), and the binder rebinds on change. Keep files under 500 lines — if `previs-scene-model.js` grows past ~400, split the per-mesh binding logic into `previs-scene-model-bindings.js`. For T4.2 keyboard shortcuts, hook a single `keydown` listener on the overlay (only active when 3D is on) that reads `state.getPresets(activeModelId)` and indexes by number. `F` can use `THREE.Box3().setFromObject(selection)` + compute a camera position at `boundingSphere.radius * 2` along the current view direction, then `flyTo`.
+**Instructions for Next Agent:** Per-mesh streams is the natural next step. Refactor `client/lib/previs-scene-model.js` so `_screenBinding` becomes a `Map<meshUuid, { material, originalMaterial, texture, source }>`. Add a `setMeshSource(mesh, source)` method where `source` is one of `'pgm'`, `'prv'`, `'ch<N>'`, `'off'`. In `client/components/previs-pgm-3d.js`, the existing `createPgmVideoTexture` factory can be generalized — add a `findVideoElementForSource(source)` helper (selectors already exist: `[data-preview-webrtc="pgm"]`, `[data-preview-webrtc="prv"]`). The inspector row already has "Set"/"Clear" — add a `<select>` above them whose value is persisted on the tag (`mesh.userData['highascg.screen'].source = 'pgm'` etc.), and the binder rebinds on change. Keep files under 500 lines — if `previs-scene-model.js` grows past ~400, split the per-mesh binding logic into `previs-scene-model-bindings.js`. For T4.2 keyboard shortcuts, hook a single `keydown` listener on the overlay (only active when 3D is on) that reads `state.getPresets(activeModelId)` and indexes by number. `F` can use `THREE.Box3().setFromObject(selection)` + compute a camera position at `boundingSphere.radius * 2` along the current view direction, then `flyTo`.
 
 ---
 
@@ -612,13 +612,13 @@ document.addEventListener('previs:pgm-mode-changed', (ev) => {
 
 **Completed:**
 
-- **`web/lib/previs-video-texture.js`** — Optional `getMaxVideoLongEdge()` → `0` keeps `VideoTexture`; `> 0` uses `CanvasTexture` + per-frame `drawImage` via `binding.tick()`. `lastCapApplied` / `setSource` / `tick` coordinated so cap and source changes rebuild without infinite loops.
-- **`web/lib/previs-stream-sources.js`** — Third argument `{ getMaxVideoLongEdge }` passed into `createPgmVideoTexture`; new `tick()` (forwards to all bindings) and `getStreamStatuses()` (per-source `live` + `acquired`).
-- **`web/components/previs-pgm-3d.js`** — `videoTextureMaxToLongEdge(state.getUI().videoTextureMax)` wired into the stream manager; RAF loop calls `streamManager.tick()` before `render`; inspector binder receives `getStreamStatuses`; 1 s refresh timer also calls `inspectorBinder.refreshPipeline()`.
-- **`web/components/previs-settings-panel.js`** — **Video texture max** `<select>` (Auto / Native / 720p / 1080p).
-- **`web/components/previs-mesh-inspector.js`** — optional **Video streams** section; `refreshPipeline()` for lightweight updates.
-- **`web/styles/previs.css`** — pipeline row + badge classes.
-- **`tools/smoke-previs-stream.mjs`** — `CanvasTexture` on THREE shim; asserts `tick` / `getStreamStatuses`.
+- **`client/lib/previs-video-texture.js`** — Optional `getMaxVideoLongEdge()` → `0` keeps `VideoTexture`; `> 0` uses `CanvasTexture` + per-frame `drawImage` via `binding.tick()`. `lastCapApplied` / `setSource` / `tick` coordinated so cap and source changes rebuild without infinite loops.
+- **`client/lib/previs-stream-sources.js`** — Third argument `{ getMaxVideoLongEdge }` passed into `createPgmVideoTexture`; new `tick()` (forwards to all bindings) and `getStreamStatuses()` (per-source `live` + `acquired`).
+- **`client/components/previs-pgm-3d.js`** — `videoTextureMaxToLongEdge(state.getUI().videoTextureMax)` wired into the stream manager; RAF loop calls `streamManager.tick()` before `render`; inspector binder receives `getStreamStatuses`; 1 s refresh timer also calls `inspectorBinder.refreshPipeline()`.
+- **`client/components/previs-settings-panel.js`** — **Video texture max** `<select>` (Auto / Native / 720p / 1080p).
+- **`client/components/previs-mesh-inspector.js`** — optional **Video streams** section; `refreshPipeline()` for lightweight updates.
+- **`client/styles/previs.css`** — pipeline row + badge classes.
+- **`tools/smoke/smoke-previs-stream.mjs`** — `CanvasTexture` on THREE shim; asserts `tick` / `getStreamStatuses`.
 
 **Still open:** UV / virtual-canvas mapping editor, zones (WO-31).
 
@@ -630,12 +630,12 @@ document.addEventListener('previs:pgm-mode-changed', (ev) => {
 
 **Completed:**
 
-- **`web/lib/previs-state.js`** — `getSharedPrevisState()` so the PGM overlay and Application Settings share one store.
-- **`web/lib/optional-modules.js`** — `registerOptionalSettingsTab` / `getOptionalSettingsTabs`.
-- **`web/components/previs-settings-modal-pane.js`** — mounts `createPrevisSettingsPanel` with intro copy; details default `open`.
-- **`web/components/settings-modal.js`** — injects optional tabs before **Variables**; delegated tab clicks; lazy mount; `optionalDisposers` on close; `#settings-pane-previs` excluded from server autosave.
-- **`web/assets/modules/previs/entry.js`** — registers the **3D Previs** tab on load.
-- **`web/styles/previs.css`** — modal positioning overrides for `.previs-settings-modal-pane`.
+- **`client/lib/previs-state.js`** — `getSharedPrevisState()` so the PGM overlay and Application Settings share one store.
+- **`client/lib/optional-modules.js`** — `registerOptionalSettingsTab` / `getOptionalSettingsTabs`.
+- **`client/components/previs-settings-modal-pane.js`** — mounts `createPrevisSettingsPanel` with intro copy; details default `open`.
+- **`client/components/settings-modal.js`** — injects optional tabs before **Variables**; delegated tab clicks; lazy mount; `optionalDisposers` on close; `#settings-pane-previs` excluded from server autosave.
+- **`client/assets/modules/previs/entry.js`** — registers the **3D Previs** tab on load.
+- **`client/styles/previs.css`** — modal positioning overrides for `.previs-settings-modal-pane`.
 
 **Still open:** UV drag editor (`previs-uv-editor.js`), zones (WO-31).
 
@@ -663,15 +663,15 @@ document.addEventListener('previs:pgm-mode-changed', (ev) => {
 
 **Completed:**
 
-- **`web/lib/previs-texture-crop.js`** — `clampCanvasRegion`, `resolveCanvasRegionFromTag`, `applyVirtualCanvasRegionToTexture` (`offset` / `repeat`).
-- **`web/components/previs-uv-editor.js`** — drag-move + corner resize on a virtual-canvas aspect stage; `onLiveChange` (rAF) vs `onCommit` (pointer-up); **Use full canvas** reset.
-- **`web/components/previs-mesh-inspector.js`** — Screen mapping mounts the editor when callbacks exist; `computeScreenUV` uses `summary.canvasRegion` + `summary.virtualCanvas`; dispose previous editor to avoid leaked window listeners.
-- **`web/components/previs-pgm-3d-inspector-binder.js`** — `onCanvasRegionLive` / `onCanvasRegionCommit` / `onCanvasRegionReset`; **`tagMeshWithSource` merges prior tag** so `canvasRegion` is not wiped on source change.
-- **`web/lib/previs-scene-model.js`** — optional `getVirtualCanvas`; **`cloneDisplayTexture` + `syncDisplayTextureFromMaster`** so each bound mesh has independent crop; `refreshTextureCrop`; mapping summary includes `virtualCanvas` / `canvasRegion`.
-- **`web/components/previs-pgm-3d.js`** — passes `getVirtualCanvas`; `refreshTextureCrop` on UI changes.
-- **`web/styles/previs.css`** — UV editor BEM.
-- **`web/lib/previs-mesh-info.js`** — `ScreenTag.canvasRegion` + `source` in typedef.
-- **`tools/smoke-previs-texture-crop.mjs`** + **`npm run smoke:previs-texture-crop`**.
+- **`client/lib/previs-texture-crop.js`** — `clampCanvasRegion`, `resolveCanvasRegionFromTag`, `applyVirtualCanvasRegionToTexture` (`offset` / `repeat`).
+- **`client/components/previs-uv-editor.js`** — drag-move + corner resize on a virtual-canvas aspect stage; `onLiveChange` (rAF) vs `onCommit` (pointer-up); **Use full canvas** reset.
+- **`client/components/previs-mesh-inspector.js`** — Screen mapping mounts the editor when callbacks exist; `computeScreenUV` uses `summary.canvasRegion` + `summary.virtualCanvas`; dispose previous editor to avoid leaked window listeners.
+- **`client/components/previs-pgm-3d-inspector-binder.js`** — `onCanvasRegionLive` / `onCanvasRegionCommit` / `onCanvasRegionReset`; **`tagMeshWithSource` merges prior tag** so `canvasRegion` is not wiped on source change.
+- **`client/lib/previs-scene-model.js`** — optional `getVirtualCanvas`; **`cloneDisplayTexture` + `syncDisplayTextureFromMaster`** so each bound mesh has independent crop; `refreshTextureCrop`; mapping summary includes `virtualCanvas` / `canvasRegion`.
+- **`client/components/previs-pgm-3d.js`** — passes `getVirtualCanvas`; `refreshTextureCrop` on UI changes.
+- **`client/styles/previs.css`** — UV editor BEM.
+- **`client/lib/previs-mesh-info.js`** — `ScreenTag.canvasRegion` + `source` in typedef.
+- **`tools/smoke/smoke-previs-texture-crop.mjs`** + **`npm run smoke:previs-texture-crop`**.
 
 **Still open:** CanvasMapper-scale polish, irregular panels (**WO-31** zones).
 
@@ -683,11 +683,11 @@ document.addEventListener('previs:pgm-mode-changed', (ev) => {
 
 **Completed:**
 
-- **`web/lib/previs-state.js`** — `virtualCanvasWidth` / `virtualCanvasHeight` in `DEFAULT_UI` (1920×1080), merged with `clampInt` (64–8192).
-- **`web/components/previs-settings-panel.js`** — **Virtual canvas (px)** row (W×H number inputs); `Application Settings → 3D Previs` inherits the same panel.
-- **`web/components/previs-mesh-inspector.js`** — **Screen mapping** shows virtual canvas line + **UV preview** from `computeScreenUV` (full-canvas screen region vs centred video/content); distinguishes runtime UV0 from preview math.
-- **`web/styles/previs.css`** — compact number inputs for virtual canvas.
-- **`tools/smoke-previs-state.mjs`** — asserts defaults + clamp.
+- **`client/lib/previs-state.js`** — `virtualCanvasWidth` / `virtualCanvasHeight` in `DEFAULT_UI` (1920×1080), merged with `clampInt` (64–8192).
+- **`client/components/previs-settings-panel.js`** — **Virtual canvas (px)** row (W×H number inputs); `Application Settings → 3D Previs` inherits the same panel.
+- **`client/components/previs-mesh-inspector.js`** — **Screen mapping** shows virtual canvas line + **UV preview** from `computeScreenUV` (full-canvas screen region vs centred video/content); distinguishes runtime UV0 from preview math.
+- **`client/styles/previs.css`** — compact number inputs for virtual canvas.
+- **`tools/smoke/smoke-previs-state.mjs`** — asserts defaults + clamp.
 - **`docs/MANUAL_INSTALL.md`** — §9.2.1 optional `three`, `npm run install:previs`, `HIGHASCG_PREVIS=1` / `config.features.previs3d`.
 
 **Still open:** UV drag editor (`previs-uv-editor.js`), zones (WO-31).

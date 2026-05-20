@@ -90,7 +90,7 @@ The following are **not** deferred features and **must not** be implemented unde
 | Date | Agent / role | Summary |
 |------|----------------|--------|
 | 2026-05-15 | — | WO created from product workflow description; linked design doc added under `docs/`. |
-| 2026-05-15 | Agent | Graph `gpu_out` ← `dst_in_*`: `casparMode` for OS layout prefers bound destination `videoMode` unless `screen_N_force_os_resolution` (Override) is on; stream edges no longer infer a PGM screen binding. Topology-derived WxH skipped when Override is on; inferred refresh used when `os_rate` unset. Added `npm run test:os-layout-w40` (`tools/smoke-os-layout-w40.js`). |
+| 2026-05-15 | Agent | Graph `gpu_out` ← `dst_in_*`: `casparMode` for OS layout prefers bound destination `videoMode` unless `screen_N_force_os_resolution` (Override) is on; stream edges no longer infer a PGM screen binding. Topology-derived WxH skipped when Override is on; inferred refresh used when `os_rate` unset. Added `npm run test:os-layout-w40` (`tools/smoke/smoke-os-layout-w40.js`). |
 | 2026-05-15 | Agent | Documented implementation method in repo `docs/reference/xrandr-gpu-screen-mapping.md` (screen `N` resolution, apply-os + persistence, override + explicit `screen_N_os_mode`); linked from `docs/reference/GPU_SCREEN_CONSUMER_AND_XRANDR.md`. |
 
 ### Instructions for next agent

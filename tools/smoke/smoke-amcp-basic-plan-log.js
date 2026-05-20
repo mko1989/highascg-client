@@ -2,7 +2,7 @@
 
 const test = require('node:test')
 const assert = require('node:assert/strict')
-const { AmcpBasic } = require('../src/caspar/amcp-basic')
+const { AmcpBasic } = require('../../src/caspar/amcp-basic')
 
 function createBasicHarness() {
 	const sent = []

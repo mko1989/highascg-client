@@ -5,7 +5,7 @@
   "caspar_global_portaudio": true,
   "caspar_portaudio_host_api": "auto",
   "transitionModel": "switcher_bus",
-  "screen_count": 1,
+  "screen_count": 2,
   "screen_1_mode": "720p5000",
   "screen_1_stretch": "none",
   "screen_1_windowed": true,

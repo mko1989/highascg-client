@@ -32,7 +32,7 @@ Defaults live in `config/default.js`. Override with environment variables:
 | `OSC_LISTEN_PORT` | OSC UDP port (default `6251`; Caspar `<default-port>` is typically `6250`) |
 | `OSC_BIND_ADDRESS` | OSC bind address (default `0.0.0.0`) |
 | `HIGHASCG_OSC_WS_DELTA` | `1` / `true` — WebSocket `osc` messages send partial `{ delta: true, channels: { … } }` per throttle (merge client-side); default full snapshot each emit |
-| `CASPAR_ARM_FILE` | Path touched when “arming” staged Caspar startup (default `/home/casparcg/highascg/data/caspar-armed`; same path as `tools/casparcg-staged-start.sh`) |
+| `CASPAR_ARM_FILE` | Path touched when “arming” staged Caspar startup (default `/home/casparcg/highascg/data/caspar-armed`; same path as `tools/runtime/casparcg-staged-start.sh`) |
 
 CLI flags (see `node index.js --help`): `--port`, `--caspar-host`, `--caspar-port`, `--bind`, `--no-caspar` (Caspar-dependent AMCP routes return **503**; **settings**, **audio device list**, `/api/streams`, and **streaming toggle** still work), `--no-osc` (disable OSC UDP), `--ws-broadcast-ms`.
 
@@ -58,7 +58,7 @@ CasparCG should send OSC over UDP (see **`docs/osc-integration.md`**). HighAsCG 
 
 On a playout machine you can start **media scanner** and **HighAsCG** first, change or upload Caspar config, then **arm** Caspar so the supervisor script starts `casparcg-server`.
 
-- Shell helpers: `tools/casparcg-staged-start.sh`, `tools/start-highascg.sh` — see **`tools/README.md`**.
+- Shell helpers: `tools/runtime/casparcg-staged-start.sh`, `tools/runtime/start-highascg.sh` — see **`tools/README.md`**.
 - Default ready file: `/home/casparcg/highascg/data/caspar-armed` (override with **`CASPAR_ARM_FILE`** on HighAsCG and the same variable for the bash script if you keep paths in sync).
 - HTTP (no Caspar required): **`GET /api/system/caspar-arm`** (status), **`POST /api/system/caspar-arm`** (create ready file), **`DELETE /api/system/caspar-arm`** (remove it).
 
@@ -93,7 +93,7 @@ Migration notes and file mapping: `work/01_WO_ANALYZE_MODULE.md`, `work/02_WO_MI
 ## Verify
 
 ```bash
-node tools/verify-w02-structure.js
+npm run verify:structure
 find src client -name "*.js" | xargs wc -l | sort -n
 ```
 
@@ -101,7 +101,7 @@ With the server running (`npm start` or `node index.js --port 8080`), in another
 
 ```bash
 npm run smoke -- 8080
-# or: node tools/http-smoke.js 8080
+# or: node tools/smoke/http-smoke.js 8080
 # Other checks (no Caspar / optional):
 # npm run smoke:companion-press
 # npm run smoke:streaming-ch 8080

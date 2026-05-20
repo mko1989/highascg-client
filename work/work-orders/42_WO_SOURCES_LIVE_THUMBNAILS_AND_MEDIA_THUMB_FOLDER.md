@@ -17,11 +17,11 @@
 
 ### 1.1 Live source thumbnails in the Sources browser
 
-Operators need **small list thumbnails for live sources** (NDI, browser, routed inputs, extra live entries) in the **Sources** panel **Live** tab, visually consistent with **media** rows (`source-item__thumbnail` in [`web/components/sources-panel-media.js`](../web/components/sources-panel-media.js)).
+Operators need **small list thumbnails for live sources** (NDI, browser, routed inputs, extra live entries) in the **Sources** panel **Live** tab, visually consistent with **media** rows (`source-item__thumbnail` in [`client/components/sources-panel-media.js`](../client/components/sources-panel-media.js)).
 
 Thumbnail content must come from **where the live source is actually on air**: a **Caspar channel + layer** (or full-channel still if product accepts channel-only `PRINT` and a single dominant layer). Behaviour:
 
-1. **Prefer an explicit binding** when the operator has already pointed the source at a preview/route channel (today: `thumbnailChannel` on extra live sources and similar metadata — see [`web/lib/thumbnail-url.js`](../web/lib/thumbnail-url.js), [`web/components/sources-panel-live-render.js`](../web/components/sources-panel-live-render.js)).
+1. **Prefer an explicit binding** when the operator has already pointed the source at a preview/route channel (today: `thumbnailChannel` on extra live sources and similar metadata — see [`client/lib/thumbnail-url.js`](../client/lib/thumbnail-url.js), [`client/components/sources-panel-live-render.js`](../client/components/sources-panel-live-render.js)).
 2. **If the source is not playing anywhere yet**, the system **waits** (bounded timeout, clear UI state — e.g. spinner or “waiting for signal”) until Caspar reports that **this** producer (same URI / same logical source id) is **active on some channel-layer** (any channel, e.g. 1 or 8, any layer — discover via `INFO` / layer XML / existing query cycle data — exact mechanism is an implementation task).
 3. **When play is detected**, perform **one** still capture from that channel (and layer if AMCP supports it — see §3), **store** it as the thumbnail for **that live source identity** (not only keyed by channel number — channel reuse must not show the wrong still for a different source).
 4. After a successful auto capture, set a flag meaning **“does not need another thumbnail until the operator manually reloads from the Sources browser”** — no continuous polling / no repeated `PRINT` spam. In the UI, show a **small looping-arrow (reload) control** on that live row; manual reload clears the flag and re-runs the wait → capture pipeline (with optional `force`).
@@ -58,7 +58,7 @@ Caspar **`PRINT`** and any **HQ / generated stills** that land under the **media
 ### 2.3 Media folder hygiene
 
 - [ ] **T42.8** New config key(s): e.g. `media_thumbnail_subdir` / `caspar_print_subdir` (exact names at implementation) — default to the conventional hidden-style folder; documented in [`config/defaults.js`](../src/config/defaults.js) + settings if operator-visible.
-- [ ] **T42.9** Media browser tree builder in [`web/components/sources-panel-media.js`](../web/components/sources-panel-media.js) (and any CLS-driven list) **filters** the reserved folder name unless “show hidden” is on.
+- [ ] **T42.9** Media browser tree builder in [`client/components/sources-panel-media.js`](../client/components/sources-panel-media.js) (and any CLS-driven list) **filters** the reserved folder name unless “show hidden” is on.
 - [ ] **T42.10** Migration: one-time optional move of existing loose `YYYYMMDDTHHMMSS.png` print scratch files from media root into the subfolder **or** delete if already copied to `data/live-thumbnails` — script or startup log only; do not delete user-named PNGs.
 
 ### 2.4 Tests
@@ -72,7 +72,7 @@ Caspar **`PRINT`** and any **HQ / generated stills** that land under the **media
 
 - **Current code:** `PRINT` is channel-scoped in [`src/caspar/amcp-basic.js`](../src/caspar/amcp-basic.js) (`print(channel)`). Layer-aware capture may require AMCP string extension and Caspar version gate.
 - **Current cache:** per-channel files `ch-${channel}.png` in [`src/media/live-thumbnail-cache.js`](../src/media/live-thumbnail-cache.js) — insufficient for “same channel, different source”; WO requires **per live source** file or metadata mapping.
-- **Client helpers:** [`web/lib/thumbnail-url.js`](../web/lib/thumbnail-url.js) today builds `/api/thumbnail/live/${ch}` — may need `/api/thumbnail/live-source` or query param `source=` with encoding rules.
+- **Client helpers:** [`client/lib/thumbnail-url.js`](../client/lib/thumbnail-url.js) today builds `/api/thumbnail/live/${ch}` — may need `/api/thumbnail/live-source` or query param `source=` with encoding rules.
 - **Osc / state:** If layer occupancy is already parsed elsewhere (preview canvas, query cycle), **reuse**; avoid duplicate AMCP storms — coordinate with [`src/utils/query-cycle.js`](../src/utils/query-cycle.js) / periodic sync.
 
 ---

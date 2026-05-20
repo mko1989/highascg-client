@@ -2,8 +2,8 @@
 
 const test = require('node:test')
 const assert = require('node:assert/strict')
-const { buildClipCommandPlan, serializeClipCommandPlan } = require('../src/caspar/amcp-command-plan')
-const { msToFrames, normalizeTransitionForAmcp, diffCasparLayerPlan } = require('../src/caspar/amcp-layer-diff-plan')
+const { buildClipCommandPlan, serializeClipCommandPlan } = require('../../src/caspar/amcp-command-plan')
+const { msToFrames, normalizeTransitionForAmcp, diffCasparLayerPlan } = require('../../src/caspar/amcp-layer-diff-plan')
 
 test('serialize LOADBG with MIX transition', () => {
 	const plan = buildClipCommandPlan('LOADBG', 1, 10, 'AMB/template.mp4', {

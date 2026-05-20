@@ -48,7 +48,7 @@ CasparCG / HighAsCG must already be configured to use **`/home/casparcg/highascg
 
 ## Current State
 
-- Settings modal: **`web/components/settings-modal-templates.js`** — tab button `Media (USB)` (`data-tab="media-usb"`), pane id `settings-pane-media-usb` with USB ingest fields including **CasparCG Media Path** text input (`#set-local-media-path`).
+- Settings modal: **`client/components/settings-modal-templates.js`** — tab button `Media (USB)` (`data-tab="media-usb"`), pane id `settings-pane-media-usb` with USB ingest fields including **CasparCG Media Path** text input (`#set-local-media-path`).
 - This WO introduces **additional** persistence keys (e.g. `media_mount_enabled`, `media_mount_uuid`) in `config/default.js` + `routes-settings.js` / modal collect+hydrate — exact names chosen at implementation time and documented here when merged.
 - No server API today enumerates **unmounted** partitions for operator mount from Web UI.
 
@@ -114,8 +114,8 @@ Order (must match Linux expectations):
 
 | Concern | File / area |
 |---------|-------------|
-| Settings tab label + pane structure | `web/components/settings-modal-templates.js` |
-| Tab switching / collect / hydrate | `web/components/settings-modal.js`, `settings-modal-logic.js` (or equivalents) |
+| Settings tab label + pane structure | `client/components/settings-modal-templates.js` |
+| Tab switching / collect / hydrate | `client/components/settings-modal.js`, `settings-modal-logic.js` (or equivalents) |
 | New API routes | `src/api/routes-system-storage.js` [NEW] or extend existing system routes |
 | Block device listing | `src/system/block-devices.js` [NEW] |
 | Mount orchestration | `src/system/media-partition-mount.js` [NEW] |
@@ -205,7 +205,7 @@ Marked implementation tasks **T38.1–T38.13** as done per landed code/API/UI/he
 
 ### 2026-05-15 — Agent (WO-38 T38.5 + lsblk key casing)
 
-**Work done:** **`npm run smoke:media-mount`** — `tools/smoke-media-mount-lsblk.js` + fixture **`tools/fixtures/lsblk-w38-partitions.json`** covers **`parseLsblkJsonForPartitionPicker`** (**`src/system/block-devices.js`**). **`listBlockPartitionsForPicker`** accepts real **`lsblk -J`** lowercase keys (and uppercase for compatibility).
+**Work done:** **`npm run smoke:media-mount`** — `tools/smoke/smoke-media-mount-lsblk.js` + fixture **`tools/smoke/fixtures/lsblk-w38-partitions.json`** covers **`parseLsblkJsonForPartitionPicker`** (**`src/system/block-devices.js`**). **`listBlockPartitionsForPicker`** accepts real **`lsblk -J`** lowercase keys (and uppercase for compatibility).
 
 **Repair:** **`usb-drives.js`** re-export **`parseLsblkJson`** now passes **`encodeDriveId`** → **`npm run smoke:usb-lsblk`** passes.
 
@@ -219,7 +219,7 @@ Marked implementation tasks **T38.1–T38.13** as done per landed code/API/UI/he
 
 ### 2026-05-17 — Agent (WO-38 mount point → `media/drive`)
 
-**Work done:** WO-38 fixed mount moved from **`/home/casparcg/highascg/media`** to **`/home/casparcg/highascg/media/drive`** in **`scripts/highascg-media-mount.sh`**, **`src/system/media-partition-mount.js`**, **`src/config/defaults.js`** (comment), **`scripts/sudoers.d/highascg-media-mount`** (comment), **`scripts/install-phase4.sh`** (mkdir), **`tools/live-usb/ensure-empty-live-usb-dirs.sh`**, Settings UI copy (**`web/components/settings-modal-templates.js`**, **`settings-modal.js`**), **`docs/HIGHASCG_PASSWORDLESS_SUDO.md`**, **`docs/MANUAL_INSTALL.md`**, **`docs/LIVE_USB_IMAGE.md`**, **`tools/live-usb/HIGHASCG_FOLDER_USB_PARTITION.md`**, **`work/38_WO_…`**, **`work/47_WO_…`**.
+**Work done:** WO-38 fixed mount moved from **`/home/casparcg/highascg/media`** to **`/home/casparcg/highascg/media/drive`** in **`scripts/highascg-media-mount.sh`**, **`src/system/media-partition-mount.js`**, **`src/config/defaults.js`** (comment), **`scripts/sudoers.d/highascg-media-mount`** (comment), **`scripts/install-phase4.sh`** (mkdir), **`tools/eggs/live-usb/ensure-empty-live-usb-dirs.sh`**, Settings UI copy (**`client/components/settings-modal-templates.js`**, **`settings-modal.js`**), **`docs/HIGHASCG_PASSWORDLESS_SUDO.md`**, **`docs/MANUAL_INSTALL.md`**, **`docs/LIVE_USB_IMAGE.md`**, **`tools/eggs/live-usb/HIGHASCG_FOLDER_USB_PARTITION.md`**, **`work/38_WO_…`**, **`work/47_WO_…`**.
 
 **Rationale:** Keeps the Caspar media root at **`…/media`** while mounting the extra volume **inside** it as **`drive/`**, so other content under **`media/`** is not replaced by the mount.
 
