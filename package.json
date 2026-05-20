@@ -51,6 +51,8 @@
 		"release:github-server:dry": "bash tools/release/make-github-release-server.sh --dry-run",
 		"release:github-client": "bash client/tools/release/make-github-release-client.sh",
 		"release:github-client:dry": "bash client/tools/release/make-github-release-client.sh --dry-run",
+		"release:github-app": "bash deprecated/tools/release/make-dev-github-release.sh --app-only",
+		"release:github-app:dry": "bash deprecated/tools/release/make-dev-github-release.sh --app-only --dry-run",
 		"eggs:prepare": "sudo bash tools/eggs/live-usb/prepare-eggs-clone-with-exfat.sh",
 		"eggs:build": "sudo bash tools/eggs/live-usb/build-highascg-egg.sh"
 	},
