@@ -2,6 +2,10 @@
 
 HighAsCG is a Node.js control and configuration service built around CasparCG. It runs its own HTTP + WebSocket server, connects to CasparCG over AMCP, and allows to play looks / scenes / timeline / multiview on connected displays from a browser user interface.
 
+**This repository is the source tree for everything that goes into the [live ISO](docs/ISO_CONTENTS.md)** (Ubuntu, NVIDIA/DeckLink stack, CasparCG, installer, systemd units, and the Node server under `src/`). The hybrid image is built from this checkout on the eggs host; WO‑47 then loads the full app from exFAT (`sim/highascg`) using release tarballs produced from the same repo.
+
+**Browser UI (client):** operator-facing HTML/CSS/JS lives in [`client/`](client/) in this repo ([`client/README.md`](client/README.md)). Production bundles are built with `npm run build:client` → `dist-web/`. Split client-only GitHub releases use `npm run release:github-client` (see [`docs/DEV_RELEASE_GITHUB.md`](docs/DEV_RELEASE_GITHUB.md)).
+
 ## Requirements
 
 - **Node.js** ≥ 20 (LTS **20** or **22** recommended; Ubuntu’s `apt install nodejs` is often **18** — too old; use [NodeSource](https://github.com/nodesource/distributions) or see `.nvmrc` for local dev)
