@@ -34,6 +34,7 @@
 		}
 		o = String(o || '').replace(/\/$/, '');
 		if (!o) return;
+		window.__HIGHASCG_API_ORIGIN__ = o;
 		function vp(p) { return o + p; }
 		var map = {
 			imports: {

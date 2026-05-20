@@ -22,6 +22,37 @@ const server = http.createServer((req, res) => {
   const parsedUrl = url.parse(req.url)
   let pathname = parsedUrl.pathname
   
+  // Transparent proxy for backend-hosted assets & APIs to prevent missing functionality
+  if (pathname.startsWith('/api/') || pathname.startsWith('/vendor/') || pathname.startsWith('/template/') || pathname.startsWith('/templates/')) {
+    try {
+      const targetUrl = new URL(req.url, webuiApiOrigin)
+      const proxyReq = http.request({
+        hostname: targetUrl.hostname,
+        port: targetUrl.port || 80,
+        path: targetUrl.pathname + (parsedUrl.search || ''),
+        method: req.method,
+        headers: {
+          ...req.headers,
+          host: targetUrl.host
+        }
+      }, (proxyRes) => {
+        res.writeHead(proxyRes.statusCode, proxyRes.headers)
+        proxyRes.pipe(res)
+      })
+      
+      proxyReq.on('error', (err) => {
+        res.statusCode = 502
+        res.end(`Proxy error: ${err.message}`)
+      })
+      
+      req.pipe(proxyReq)
+    } catch (err) {
+      res.statusCode = 500
+      res.end(`Proxy failed: ${err.message}`)
+    }
+    return
+  }
+  
   if (pathname === '/' || pathname === '') {
     pathname = '/index.html'
   }
