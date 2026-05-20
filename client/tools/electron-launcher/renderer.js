@@ -148,9 +148,13 @@ function getTargetUrl() {
   return `http://${ip}:${port}/`
 }
 
+function getWebuiUrl() {
+  return 'http://localhost:3000/'
+}
+
 function updateWebuiButton() {
   if (btnOpenWebui) {
-    btnOpenWebui.textContent = `Open Web UI (${getTargetUrl()})`
+    btnOpenWebui.textContent = `Open Web UI (${getWebuiUrl()})`
   }
 }
 
@@ -161,6 +165,7 @@ function syncInputs(source, target) {
       if (target.value !== source.value) {
         target.value = source.value
         updateWebuiButton()
+        ipcRenderer.send('update-api-origin', getTargetUrl())
       }
     }
     source.addEventListener('input', handleInput)
@@ -210,6 +215,7 @@ setInterval(checkServerConnection, 3000)
 
 // Initial update to reflect default inputs
 updateWebuiButton()
+ipcRenderer.send('update-api-origin', getTargetUrl())
 
 function appendLog(text) {
   if (terminalOutput.textContent === '[Idle] Simulation has not been started. Select configurations and hit \'Start Simulation\'.' || 
@@ -283,12 +289,12 @@ ipcRenderer.on('sim-status', (event, status) => {
 // Web UI opener trigger
 if (btnOpenWebui) {
   btnOpenWebui.addEventListener('click', () => {
-    ipcRenderer.send('open-external-url', getTargetUrl())
+    ipcRenderer.send('open-external-url', getWebuiUrl())
   })
 }
 if (headerBtnOpenWebui) {
   headerBtnOpenWebui.addEventListener('click', () => {
-    ipcRenderer.send('open-external-url', getTargetUrl())
+    ipcRenderer.send('open-external-url', getWebuiUrl())
   })
 }
 

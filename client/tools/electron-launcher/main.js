@@ -3,6 +3,83 @@ const path = require('path')
 const fs = require('fs')
 const os = require('os')
 const { spawn, execFileSync } = require('child_process')
+const http = require('http')
+const url = require('url')
+
+let webuiApiOrigin = 'http://127.0.0.1:4200' // Default fallback
+
+// IPC Handler to keep track of the active connection API origin
+ipcMain.on('update-api-origin', (event, origin) => {
+  webuiApiOrigin = origin
+  console.log('[Electron Main] WebUI API Origin updated to:', webuiApiOrigin)
+})
+
+// WebUI Static Server served directly by client/launcher backend
+const PORT = 3000
+const distWebPath = path.resolve(__dirname, 'dist-web')
+
+const server = http.createServer((req, res) => {
+  const parsedUrl = url.parse(req.url)
+  let pathname = parsedUrl.pathname
+  
+  if (pathname === '/' || pathname === '') {
+    pathname = '/index.html'
+  }
+  
+  let filePath = path.join(distWebPath, pathname)
+  if (!filePath.startsWith(distWebPath)) {
+    res.statusCode = 403
+    res.end('Forbidden')
+    return
+  }
+  
+  fs.stat(filePath, (err, stats) => {
+    if (err || !stats.isFile()) {
+      // Single Page App routing fallback
+      filePath = path.join(distWebPath, 'index.html')
+    }
+    
+    fs.readFile(filePath, (err, data) => {
+      if (err) {
+        res.statusCode = 500
+        res.end(`Error reading file: ${err.message}`)
+        return
+      }
+      
+      const ext = path.extname(filePath).toLowerCase()
+      let contentType = 'text/plain'
+      if (ext === '.html') contentType = 'text/html'
+      else if (ext === '.js') contentType = 'application/javascript'
+      else if (ext === '.css') contentType = 'text/css'
+      else if (ext === '.json') contentType = 'application/json'
+      else if (ext === '.png') contentType = 'image/png'
+      else if (ext === '.jpg' || ext === '.jpeg') contentType = 'image/jpeg'
+      else if (ext === '.svg') contentType = 'image/svg+xml'
+      else if (ext === '.ico') contentType = 'image/x-icon'
+      else if (ext === '.woff') contentType = 'font/woff'
+      else if (ext === '.woff2') contentType = 'font/woff2'
+      else if (ext === '.ttf') contentType = 'font/ttf'
+      
+      res.setHeader('Content-Type', contentType)
+      
+      if (ext === '.html') {
+        let htmlContent = data.toString('utf8')
+        // Dynamically inject the active API server origin into meta tag
+        htmlContent = htmlContent.replace(
+          /<meta name="highascg-api-origin" content="[^"]*">/,
+          `<meta name="highascg-api-origin" content="${webuiApiOrigin}">`
+        )
+        res.end(htmlContent)
+      } else {
+        res.end(data)
+      }
+    })
+  })
+})
+
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`[Electron Main] WebUI Static Server listening on http://localhost:${PORT}`)
+})
 
 let mainWindow = null
 let simProcess = null
@@ -65,6 +142,7 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   cleanupSimulation()
+  server.close()
   if (process.platform !== 'darwin') {
     app.quit()
   }
