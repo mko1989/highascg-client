@@ -22,7 +22,7 @@ run() {
 }
 
 echo "==> Eggs dev host cleanup: $ROOT"
-echo "    Layout: server at repo root (src/, index.js, tools/, …); UI only in frontend/"
+echo "    Layout: server at repo root (src/, index.js, tools/, …); UI only in client/"
 
 # Accidental nested backend/ from partial migration
 if [[ -d "$ROOT/backend" ]]; then
@@ -39,9 +39,9 @@ done
 
 [[ -d "$ROOT/.git_nested_backup" ]] && { echo "==> Remove .git_nested_backup"; run rm -rf "$ROOT/.git_nested_backup"; }
 
-# Regenerable UI build output (keep frontend/ sources)
+# Regenerable UI build output (keep client/ sources)
 if [[ -d "$ROOT/dist-web" ]]; then
-	echo "==> Remove dist-web/ (rebuild: npm run build:frontend)"
+	echo "==> Remove dist-web/ (rebuild: npm run build:client)"
 	run rm -rf "$ROOT/dist-web"
 fi
 
@@ -62,5 +62,13 @@ for dir in examples samples scratch; do
 	run rm -rf "$ROOT/$dir"
 done
 
-echo "==> Done. Kept: src/, frontend/, node_modules/, config/, tools/, scripts/, highascg.config.json"
+# Old split-repo checkouts (rsync + separate gh repos — not used for eggs)
+for stale in /home/casparcg/highascg-server /home/casparcg/highascg-frontend; do
+	if [[ -d "$stale" ]]; then
+		echo "==> Remove stale split checkout: $stale"
+		run rm -rf "$stale"
+	fi
+done
+
+echo "==> Done. Kept: src/, client/, node_modules/, config/, tools/, scripts/, highascg.config.json"
 echo "    Verify: node tools/verify-w02-structure.js"

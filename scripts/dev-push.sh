@@ -36,9 +36,9 @@
 #
 # `highascg.config.json` is excluded so the server copy is not overwritten.
 #
-# Backend / frontend layout: ships src/ (server at repo root), frontend/, and dist-web/ when built.
-#   DEPLOY_BUILD_FRONTEND=1   run `npm run build:frontend` before tar (omit frontend/ if dist-web exists)
-#   ARCHIVE_INCLUDE_FRONTEND_SOURCES=1   keep frontend/ even when dist-web/ is present
+# Backend / frontend layout: ships src/ (server at repo root), client/, and dist-web/ when built.
+#   DEPLOY_BUILD_CLIENT=1   run `npm run build:client` before tar (omit client/ if dist-web exists)
+#   ARCHIVE_INCLUDE_CLIENT_SOURCES=1   keep client/ even when dist-web/ is present
 
 set -euo pipefail
 
@@ -118,12 +118,12 @@ fi
 
 export COPYFILE_DISABLE=1
 
-archive_common_build_frontend_if_requested "$ROOT"
+archive_common_build_client_if_requested "$ROOT"
 local_excludes=()
 archive_common_deploy_tar_excludes local_excludes
-archive_common_apply_frontend_packaging_rules "$ROOT" local_excludes
+archive_common_apply_client_packaging_rules "$ROOT" local_excludes
 
-echo "→ tar → $TMP (src/ at root + dist-web/; frontend/ sources=${ARCHIVE_INCLUDE_FRONTEND_SOURCES:-0})"
+echo "→ tar → $TMP (src/ at root + dist-web/; client/ sources=${ARCHIVE_INCLUDE_CLIENT_SOURCES:-0})"
 tar czf "$TMP" "${local_excludes[@]}" .
 
 PATH_Q=$(printf '%q' "$DEPLOY_PATH")
@@ -174,4 +174,4 @@ if ! "${SSH_BASE[@]}" "${SSH_TTY[@]}" "${SSH_OPTS[@]}" "$REMOTE" "$REMOTE_VERIFY
 fi
 
 echo "→ done: ${REMOTE}:${DEPLOY_PATH} — run npm install (or npm ci) when package.json / lockfile changed."
-echo "   UI: dist-web/ if deployed; else unbundled frontend/. Set DEPLOY_BUILD_FRONTEND=1 to refresh dist-web/ on deploy."
+echo "   UI: dist-web/ if deployed; else unbundled client/. Set DEPLOY_BUILD_CLIENT=1 to refresh dist-web/ on deploy."

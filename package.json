@@ -7,10 +7,10 @@
 	"scripts": {
 		"start": "node index.js",
 		"dev": "node --watch index.js",
-		"dev:frontend": "vite",
-		"build:frontend": "vite build",
+		"dev:client": "vite",
+		"build:client": "vite build",
 		"deploy:dev": "bash scripts/dev-push.sh",
-		"deploy:dev:frontend": "DEPLOY_BUILD_FRONTEND=1 bash scripts/dev-push.sh",
+		"deploy:dev:client": "DEPLOY_BUILD_CLIENT=1 bash scripts/dev-push.sh",
 		"clean:eggs-host": "bash scripts/clean-eggs-dev-host.sh",
 		"smoke": "node tools/http-smoke.js",
 		"smoke:caspar": "node tools/smoke-caspar.js",
@@ -53,8 +53,8 @@
 		"release:github-app:dry": "bash tools/release/make-dev-github-release.sh --app-only --dry-run",
 		"release:github-server": "bash tools/release/make-github-release-server.sh",
 		"release:github-server:dry": "bash tools/release/make-github-release-server.sh --dry-run",
-		"release:github-frontend": "bash tools/release/make-github-release-frontend.sh",
-		"release:github-frontend:dry": "bash tools/release/make-github-release-frontend.sh --dry-run",
+		"release:github-client": "bash tools/release/make-github-release-client.sh",
+		"release:github-client:dry": "bash tools/release/make-github-release-client.sh --dry-run",
 		"smoke:wo47-manifest": "node tools/smoke-wo47-manifest.mjs"
 	},
 	"engines": {

@@ -5,7 +5,7 @@
  * Usage: `npm run smoke:previs-state`.
  */
 
-import { createPrevisState, PREVIS_STATE_EVENTS } from '../frontend/lib/previs-state.js'
+import { createPrevisState, PREVIS_STATE_EVENTS } from '../client/lib/previs-state.js'
 
 class MemStorage {
 	constructor() { this.map = new Map() }

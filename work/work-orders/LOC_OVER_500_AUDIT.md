@@ -89,7 +89,7 @@
 | 1599 | `companion-surface-chinese-controller/highpass-controller/st7789_mpy-master/examples/mono_fonts/inconsolata_64.py` |
 | 1400 | `companion-module-highpass-accompaniment_v2/gui/ui/waveformExpanded.js` |
 | 1399 | `companion-module-highpass-accompaniment_v2/accompaniment-v2-backend/src/renderer/ui/waveformExpanded.js` |
-| 1399 | `companion-module-highpass-accompaniment_v2/accompaniment-v2-backend/src/frontend/ui/waveformExpanded.js` |
+| 1399 | `companion-module-highpass-accompaniment_v2/accompaniment-v2-backend/src/client/ui/waveformExpanded.js` |
 | 1399 | `companion-module-highpass-accompaniment_v2/original_electron_app/src/renderer/ui/waveformExpanded.js` |
 | 1399 | `companion-module-highpass-accompaniment_v2/pkg/gui/ui/waveformExpanded.js` |
 | 1315 | `companion-module-avonic-cm93/src/actions.js` |
@@ -97,7 +97,7 @@
 | 1230 | `companion-module-highpass-accompaniment-builtin/companion-module-highpass-countdown/src/timer.js` |
 | 1230 | `companion-module-base-main/src/internal/__tests__/feedback.spec.ts` |
 | 1230 | `companion-module-highpass-countdown/src/timer.js` |
-| 1209 | `companion-module-highpass-accompaniment_v2/accompaniment-v2-backend/src/frontend/ui/waveformControls.js` |
+| 1209 | `companion-module-highpass-accompaniment_v2/accompaniment-v2-backend/src/client/ui/waveformControls.js` |
 | 1209 | `companion-module-highpass-accompaniment_v2/gui/ui/waveformControls.js` |
 | 1209 | `companion-module-highpass-accompaniment_v2/pkg/gui/ui/waveformControls.js` |
 | 1155 | `companion-module-avonic-cm93/companion-module-generic-onvif-main/src/actions.js` |
@@ -123,11 +123,11 @@
 | 882 | `companion-module-highpass-accompaniment_v2/accompaniment-v2-backend/src/renderer/ui/waveformControls.js` |
 | 882 | `companion-module-highpass-accompaniment_v2/original_electron_app/src/renderer/ui/waveformControls.js` |
 | 835 | `companion-module-novastar-splicer-main/src/actions.js` |
-| 821 | `companion-module-highpass-accompaniment_v2/accompaniment-v2-backend/src/frontend/audio/audioController.js` |
+| 821 | `companion-module-highpass-accompaniment_v2/accompaniment-v2-backend/src/client/audio/audioController.js` |
 | 821 | `companion-module-highpass-accompaniment_v2/pkg/gui/audio/audioController.js` |
 | 820 | `companion-surface-highpass-controller/highpass_controller/st7789_mpy-master/lib/axp202c.py` |
 | 820 | `companion-surface-chinese-controller/highpass-controller/st7789_mpy-master/lib/axp202c.py` |
-| 815 | `companion-module-highpass-accompaniment_v2/accompaniment-v2-backend/src/frontend/ui/cueGrid.js` |
+| 815 | `companion-module-highpass-accompaniment_v2/accompaniment-v2-backend/src/client/ui/cueGrid.js` |
 | 815 | `companion-module-highpass-accompaniment_v2/pkg/gui/ui/cueGrid.js` |
 | 808 | `companion-module-casparcg-server/Caspar_amcp_guide/_themes/basic/static/websupport.js` |
 | 808 | `companion-module-casparcg-server/Caspar_amcp_guide/_themes/default/basic/static/websupport.js` |
@@ -144,7 +144,7 @@
 | 736 | `companion-module-highpass-accompaniment_v2/accompaniment-v2-backend/src/backend/websocketManager.js` |
 | 723 | `companion-module-pixelhue-switcher-main 2/src/actions.ts` |
 | 720 | `companion-module-highpass-accompaniment_v2/gui/ui/waveformCore.js` |
-| 718 | `companion-module-highpass-accompaniment_v2/accompaniment-v2-backend/src/frontend/ui/waveformCore.js` |
+| 718 | `companion-module-highpass-accompaniment_v2/accompaniment-v2-backend/src/client/ui/waveformCore.js` |
 | 718 | `companion-module-highpass-accompaniment_v2/pkg/gui/ui/waveformCore.js` |
 | 716 | `companion-module-resolume-arena-master/src/domain/layer-groups/layer-group-util.ts` |
 | 706 | `companion-module-roland-vr400uhd/src/module-api/base.ts` |
@@ -172,13 +172,13 @@
 | 615 | `companion-module-highpass-accompaniment_v2/accompaniment-v2-backend/src/renderer/ui/sidebars.js` |
 | 615 | `companion-module-highpass-accompaniment_v2/gui/audio/audioPlaybackCore.js` |
 | 606 | `companion-module-highpass-accompaniment_v2/original_electron_app/src/renderer/ui/appConfigUI.js` |
-| 602 | `companion-module-highpass-accompaniment_v2/accompaniment-v2-backend/src/frontend/audio/audioPlaybackCore.js` |
+| 602 | `companion-module-highpass-accompaniment_v2/accompaniment-v2-backend/src/client/audio/audioPlaybackCore.js` |
 | 602 | `companion-module-highpass-accompaniment_v2/pkg/gui/audio/audioPlaybackCore.js` |
 | 602 | `companion-module-novastar-controller-master/actions.js` |
 | 598 | `companion-module-casparcg-server/src/actions.js` |
 | 595 | `companion-module-highpass-accompaniment_v2/accompaniment-v2-backend/src/renderer/audioPlaybackCore.js` |
-| 595 | `companion-module-highpass-accompaniment_v2/accompaniment-v2-backend/src/frontend/ui.js` |
-| 595 | `companion-module-highpass-accompaniment_v2/accompaniment-v2-backend/src/frontend/ui/appConfigUI.js` |
+| 595 | `companion-module-highpass-accompaniment_v2/accompaniment-v2-backend/src/client/ui.js` |
+| 595 | `companion-module-highpass-accompaniment_v2/accompaniment-v2-backend/src/client/ui/appConfigUI.js` |
 | 595 | `companion-module-highpass-accompaniment_v2/pkg/gui/ui.js` |
 | 595 | `companion-module-highpass-accompaniment_v2/pkg/gui/ui/appConfigUI.js` |
 | 592 | `companion-module-casparcg-server/src/config-fields.js` |
@@ -207,7 +207,7 @@
 | 535 | `companion-module-highpass-countdown/pkg/script.js` |
 | 533 | `companion-surface-highpass-controller/highpass_controller/st7789_mpy-master/fonts/vector/gothita.py` |
 | 533 | `companion-surface-chinese-controller/highpass-controller/st7789_mpy-master/fonts/vector/gothita.py` |
-| 532 | `companion-module-highpass-accompaniment_v2/accompaniment-v2-backend/src/frontend/audio/audioPlaybackPlaylist.js` |
+| 532 | `companion-module-highpass-accompaniment_v2/accompaniment-v2-backend/src/client/audio/audioPlaybackPlaylist.js` |
 | 532 | `companion-module-highpass-accompaniment_v2/gui/audio/audioPlaybackPlaylist.js` |
 | 532 | `companion-module-highpass-accompaniment_v2/pkg/gui/audio/audioPlaybackPlaylist.js` |
 | 529 | `companion-module-bosch-dcn/BoschDcnBridge/BridgeService.Discussion.cs` |

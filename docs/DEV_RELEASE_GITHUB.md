@@ -6,7 +6,7 @@ Use this flow when you have a **build host or workstation** running the repo (ty
 - **Alpha / app-only (usual)** — tarball only for **exFAT modular** updates: **`npm run release:github-app`** — no eggs/ISO, Git tag defaults to **`alpha_<date>_<time>Z`**, **`node_modules` included** by default (same archive as the full path).
 - **Split server + frontend (modular)** — two smaller prereleases on the same stick path:
   - **`npm run release:github-server`** → `highascg-server_<UTC>.tar.gz` (tag `server_…`)
-  - **`npm run release:github-frontend`** → `highascg-frontend_<UTC>.tar.gz` (tag `frontend_…`, Vite build → `dist-web/`)
+  - **`npm run release:github-client`** → `highascg-client_<UTC>.tar.gz` (tag `client_…`, Vite build → `dist-web/`)
 
 Extract both into the same **`sim/highascg`** directory. The backend serves **`dist-web/`** when present.
 
@@ -24,13 +24,13 @@ Extract both into the same **`sim/highascg`** directory. The backend serves **`d
 |-------|----------------|
 | `dist/highascg_<UTC>.tar.gz` | `tar -czf` of the repo (`src/` at root + built **`dist-web/`** on app-only). **Default archive includes `node_modules`** unless you pass `--zip-exclude-node-modules`. |
 
-**Alpha** run (`npm run release:github-app` / `--app-only`): **only** the tarball above — no ISO upload; runs **`npm run build:frontend`** first; omits **`frontend/`** sources unless `--with-frontend-sources`. Tag defaults to **`alpha_YYYY-MM-DD_HHMMSSZ`**.
+**Alpha** run (`npm run release:github-app` / `--app-only`): **only** the tarball above — no ISO upload; runs **`npm run build:client`** first; omits **`client/`** sources unless `--with-client-sources`. Tag defaults to **`alpha_YYYY-MM-DD_HHMMSSZ`**.
 
 GitHub Releases have a soft **per-asset ~2 GiB** limit. If the tarball or ISO is too large, use `--zip-exclude-node-modules` and run `npm ci` inside `sim/highascg` after extract (legacy flag name still applies to the bundle).
 
 ### Why is the **server** tarball so big?
 
-The **server** asset (`release:github-server`) is backend-only — it does **not** include `frontend/` or `dist-web/`. Size still adds up because:
+The **server** asset (`release:github-server`) is backend-only — it does **not** include `client/` or `dist-web/`. Size still adds up because:
 
 | Component | Typical share |
 |-----------|----------------|
@@ -39,7 +39,7 @@ The **server** asset (`release:github-server`) is backend-only — it does **not
 | **`src/`** | Node orchestrator, APIs, Caspar client (repo root). |
 | **`scripts/`**, **`config/`**, **`template/`** | Install helpers and Caspar templates. |
 
-The **frontend** tarball is small (only `dist-web/` after Vite). **`release:github-app`** builds `dist-web/` by default and omits `frontend/` sources unless you pass `--with-frontend-sources`.
+The **frontend** tarball is small (only `dist-web/` after Vite). **`release:github-app`** builds `dist-web/` by default and omits `client/` sources unless you pass `--with-client-sources`.
 
 Shared rules: [`scripts/archive-common.sh`](../scripts/archive-common.sh) (used by deploy + release scripts).
 
@@ -63,16 +63,16 @@ npm run release:github-app
 
 ```bash
 npm run release:github-server:dry
-npm run release:github-frontend:dry
+npm run release:github-client:dry
 npm run release:github-server
-npm run release:github-frontend
+npm run release:github-client
 ```
 
 On the stick (same mount as monolith):
 
 ```bash
 tar -xzf highascg-server_<stamp>.tar.gz -C <mount>/sim/highascg
-tar -xzf highascg-frontend_<stamp>.tar.gz -C <mount>/sim/highascg
+tar -xzf highascg-client_<stamp>.tar.gz -C <mount>/sim/highascg
 ```
 
 Server-only API: `HIGHASCG_HEADLESS=true`. Custom UI path: `HIGHASCG_WEB_DIR=/path/to/dist-web`.

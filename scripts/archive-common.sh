@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Shared paths and tar/rsync excludes for src/ (root) + frontend/ + dist-web/ layout.
+# Shared paths and tar/rsync excludes for src/ (root) + client/ + dist-web/ layout.
 # Source from deploy and release scripts (do not execute directly).
 #
 # Layout:
-#   src/         — Node server (repo root) (API, Caspar, config generation)
-#   frontend/    — Unbundled ES module UI (dev / fallback)
+#   src/         — Node server (repo root)
+#   client/      — Browser UI sources (ES modules)
 #   dist-web/    — Vite production bundle (preferred at runtime when present)
 #   index.js     — Server entry
 #
@@ -15,7 +15,7 @@ archive_common_repo_root() {
 	(cd "$(dirname "$script")/.." && pwd)
 }
 
-# Explicit members for server-only GitHub tarball (no frontend/ sources).
+# Explicit members for server-only GitHub tarball (no client/ sources).
 archive_common_server_tar_members() {
 	local -n _out=$1
 	_out=(
@@ -83,16 +83,16 @@ archive_common_deploy_tar_excludes() {
 	archive_common_bulk_tar_excludes _ex
 }
 
-# Omit frontend/ dev tree when shipping a built dist-web/ (or server-only).
-archive_common_exclude_frontend_sources() {
+# Omit client/ dev tree when shipping a built dist-web/ (or server-only).
+archive_common_exclude_client_sources() {
 	local -n _ex=$1
-	_ex+=(--exclude=./frontend)
+	_ex+=(--exclude=./client)
 }
 
-# Run Vite when DEPLOY_BUILD_FRONTEND=1 or RELEASE_BUILD_FRONTEND=1 (default 0).
-archive_common_build_frontend_if_requested() {
+# Run Vite when DEPLOY_BUILD_CLIENT=1 or RELEASE_BUILD_CLIENT=1 (default 0).
+archive_common_build_client_if_requested() {
 	local root="$1"
-	if [[ "${DEPLOY_BUILD_FRONTEND:-0}" != "1" && "${RELEASE_BUILD_FRONTEND:-0}" != "1" ]]; then
+	if [[ "${DEPLOY_BUILD_CLIENT:-0}" != "1" && "${RELEASE_BUILD_CLIENT:-0}" != "1" ]]; then
 		return 0
 	fi
 	if [[ ! -f "${root}/package.json" ]]; then
@@ -100,18 +100,18 @@ archive_common_build_frontend_if_requested() {
 		return 1
 	fi
 	echo "==> Vite production build (dist-web/)"
-	(cd "$root" && npm run build:frontend)
+	(cd "$root" && npm run build:client)
 }
 
-# After build: exclude frontend/ unless ARCHIVE_INCLUDE_FRONTEND_SOURCES=1.
-archive_common_apply_frontend_packaging_rules() {
+# After build: exclude client/ unless ARCHIVE_INCLUDE_CLIENT_SOURCES=1.
+archive_common_apply_client_packaging_rules() {
 	local root="$1"
 	local -n _ex=$2
-	if [[ "${ARCHIVE_INCLUDE_FRONTEND_SOURCES:-0}" == "1" ]]; then
+	if [[ "${ARCHIVE_INCLUDE_CLIENT_SOURCES:-0}" == "1" ]]; then
 		return 0
 	fi
 	if [[ -f "${root}/dist-web/index.html" ]]; then
-		archive_common_exclude_frontend_sources _ex
+		archive_common_exclude_client_sources _ex
 	fi
 }
 
@@ -122,7 +122,7 @@ archive_common_print_size_hints() {
 	echo "      • node_modules/ (runtime deps; use --zip-exclude-node-modules + npm ci on target)"
 	echo "      • tools/ (live-usb, release, stick-tools, smokes — full tree shipped)"
 	echo "      • src/ (orchestrator + APIs at repo root)"
-	echo "    UI is a separate asset: npm run release:github-frontend → dist-web/"
+	echo "    UI is a separate asset: npm run release:github-client → dist-web/"
 	if [[ -n "$archive_path" && -f "$archive_path" ]]; then
 		echo "    This archive: $(du -h "$archive_path" | cut -f1)  $archive_path"
 	fi

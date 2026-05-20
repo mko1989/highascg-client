@@ -3,11 +3,11 @@
 const fs = require('fs')
 const path = require('path')
 
-/** Repo root (parent of `src/`). Server lives here; UI is `frontend/` or `dist-web/`. */
+/** Repo root (parent of `src/`). Server lives here; UI is `client/` or `dist-web/`. */
 const REPO_ROOT = path.join(__dirname, '..')
 
 /**
- * Directory served as static UI: `HIGHASCG_WEB_DIR`, else `dist-web/` if built, else `frontend/`.
+ * Directory served as static UI: `HIGHASCG_WEB_DIR`, else `dist-web/` if built, else `client/`.
  * @param {string} [repoRoot]
  * @returns {string}
  */
@@ -19,7 +19,7 @@ function resolveWebDir(repoRoot = REPO_ROOT) {
 	if (fs.existsSync(path.join(distWeb, 'index.html'))) {
 		return distWeb
 	}
-	return path.join(repoRoot, 'frontend')
+	return path.join(repoRoot, 'client')
 }
 
 module.exports = { REPO_ROOT, resolveWebDir }

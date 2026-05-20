@@ -13,7 +13,7 @@
 #   DEPLOY_SSH_CONTROL optional ControlMaster socket path
 #
 # `highascg.config.json` is excluded from the tarball (same as dev-push.sh).
-# See dev-push.sh for DEPLOY_BUILD_FRONTEND / ARCHIVE_INCLUDE_FRONTEND_SOURCES.
+# See dev-push.sh for DEPLOY_BUILD_CLIENT / ARCHIVE_INCLUDE_CLIENT_SOURCES.
 
 set -euo pipefail
 
@@ -78,10 +78,10 @@ fi
 
 export COPYFILE_DISABLE=1
 
-archive_common_build_frontend_if_requested "$ROOT"
+archive_common_build_client_if_requested "$ROOT"
 local_excludes=()
 archive_common_deploy_tar_excludes local_excludes
-archive_common_apply_frontend_packaging_rules "$ROOT" local_excludes
+archive_common_apply_client_packaging_rules "$ROOT" local_excludes
 
 echo "→ tar → $TMP"
 tar czf "$TMP" "${local_excludes[@]}" .

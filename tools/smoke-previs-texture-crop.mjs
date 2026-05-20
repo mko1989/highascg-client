@@ -7,7 +7,7 @@ import {
 	applyVirtualCanvasRegionToTexture,
 	clampCanvasRegion,
 	resolveCanvasRegionFromTag,
-} from '../frontend/lib/previs-texture-crop.js'
+} from '../client/lib/previs-texture-crop.js'
 
 const failures = []
 function assert(cond, msg) {

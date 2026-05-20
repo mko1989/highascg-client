@@ -8,7 +8,7 @@
 #   bash scripts/live-sync.sh pull
 #   bash scripts/live-sync.sh pull --delete           # mirror server (removes Mac-only extra files)
 #
-# Includes: src/ (server at repo root), frontend/, dist-web/ (if present), template/, docs/, work/, tools/, etc.
+# Includes: src/ (server at repo root), client/, dist-web/ (if present), template/, docs/, work/, tools/, etc.
 # Excludes: node_modules, large vendor clones, local env — see scripts/live-rsync-excludes.txt
 #
 # Same Node env: commit .nvmrc; on each machine after lockfile change: npm ci

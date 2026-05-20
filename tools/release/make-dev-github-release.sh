@@ -12,9 +12,9 @@
 #   --quick-iso                 eggs produce only (see make-dev-github-release-iso-quick.sh).
 #   --full-iso                  Full build-highascg-egg.sh (default when building ISO).
 #   --dry-run                   Print tag/ISO/archive/release notes only; no sudo/gh/tar upload.
-#   --app-only                  No ISO / no eggs — publish stick tarball (default tag alpha_<date_time>Z). Builds dist-web/ and omits frontend/ sources unless --with-frontend-sources.
-#   --no-build-frontend         Skip Vite build (app-only / monolith; ships frontend/ sources unless dist-web already exists).
-#   --with-frontend-sources     Include frontend/ in tarball even when dist-web/ is present.
+#   --app-only                  No ISO / no eggs — publish stick tarball (default tag alpha_<date_time>Z). Builds dist-web/ and omits client/ sources unless --with-client-sources.
+#   --no-build-client         Skip Vite build (app-only / monolith; ships client/ sources unless dist-web already exists).
+#   --with-client-sources     Include client/ in tarball even when dist-web/ is present.
 #   --tag NAME                  Override auto tag (default: dev-<UTC> full run, alpha_<…> when --app-only).
 #   --replace                   Delete existing release+tag before create.
 #   --zip-with-git              Include .git in the tarball (flag name kept from zip era).
@@ -49,8 +49,8 @@ ZIP_EXCLUDE_NODE_MODULES=0
 OUT_DIR=""
 REPLACE_RELEASE=0
 APP_ONLY=0
-RELEASE_BUILD_FRONTEND=0
-NO_BUILD_FRONTEND=0
+RELEASE_BUILD_CLIENT=0
+NO_BUILD_CLIENT=0
 
 usage() {
 	sed -n '2,/^# Documentation:/p' "$0" | sed '/^$/d' | sed '/^# Documentation:/d' | sed 's/^# \{0,1\}//'
@@ -63,10 +63,10 @@ while [[ $# -gt 0 ]]; do
 	--app-only)
 		APP_ONLY=1
 		SKIP_ISO=1
-		RELEASE_BUILD_FRONTEND=1
+		RELEASE_BUILD_CLIENT=1
 		;;
-	--no-build-frontend) NO_BUILD_FRONTEND=1 ;;
-	--with-frontend-sources) ARCHIVE_INCLUDE_FRONTEND_SOURCES=1 ;;
+	--no-build-client) NO_BUILD_CLIENT=1 ;;
+	--with-client-sources) ARCHIVE_INCLUDE_CLIENT_SOURCES=1 ;;
 	--no-iso) SKIP_ISO=1 ;;
 	--quick-iso | --minimal-iso) FULL_ISO_BUILD=0 ;;
 	--full-iso) FULL_ISO_BUILD=1 ;;
@@ -93,8 +93,8 @@ while [[ $# -gt 0 ]]; do
 	shift || true
 done
 
-[[ "$NO_BUILD_FRONTEND" -eq 1 ]] && RELEASE_BUILD_FRONTEND=0
-export RELEASE_BUILD_FRONTEND ARCHIVE_INCLUDE_FRONTEND_SOURCES
+[[ "$NO_BUILD_CLIENT" -eq 1 ]] && RELEASE_BUILD_CLIENT=0
+export RELEASE_BUILD_CLIENT ARCHIVE_INCLUDE_CLIENT_SOURCES
 
 STAMP="$(date -u +%Y-%m-%dT%H%M%SZ)"
 ZIP_BASENAME="highascg_${STAMP}"
@@ -186,17 +186,17 @@ fi
 ARCHIVE_PATH="${DIST}/${ZIP_BASENAME}.tar.gz"
 
 build_archive() {
-	archive_common_build_frontend_if_requested "$REPO_ROOT"
+	archive_common_build_client_if_requested "$REPO_ROOT"
 	local -a excludes=()
 	[[ "$ZIP_WITH_GIT" -eq 0 ]] && excludes+=(--exclude="./.git")
 	[[ "$ZIP_WITH_WORK" -eq 0 ]] && excludes+=(--exclude="./work")
 	[[ "$ZIP_EXCLUDE_NODE_MODULES" -eq 1 ]] && excludes+=(--exclude="./node_modules")
 	archive_common_bulk_tar_excludes excludes
-	archive_common_apply_frontend_packaging_rules "$REPO_ROOT" excludes
+	archive_common_apply_client_packaging_rules "$REPO_ROOT" excludes
 
 	if [[ "$DRY_RUN" -eq 1 ]]; then
-		echo "[dry-run] would create $ARCHIVE_PATH from $REPO_ROOT (git=$ZIP_WITH_GIT work=$ZIP_WITH_WORK nm_excl=$ZIP_EXCLUDE_NODE_MODULES build_fe=$RELEASE_BUILD_FRONTEND)"
-		echo "[dry-run] layout: src/ at root + dist-web/ (if built); frontend/ sources=${ARCHIVE_INCLUDE_FRONTEND_SOURCES:-0}"
+		echo "[dry-run] would create $ARCHIVE_PATH from $REPO_ROOT (git=$ZIP_WITH_GIT work=$ZIP_WITH_WORK nm_excl=$ZIP_EXCLUDE_NODE_MODULES build_client=$RELEASE_BUILD_CLIENT)"
+		echo "[dry-run] layout: src/ at root + dist-web/ (if built); client/ sources=${ARCHIVE_INCLUDE_CLIENT_SOURCES:-0}"
 		echo "[dry-run] excludes media/, dist/, bin/, lib/, logs, local config — includes node_modules by default"
 		return 0
 	fi
@@ -249,7 +249,7 @@ Portable HighAsCG drop for **exFAT-first / modular workflows** (no Eggs ISO in t
 |-------|---------|
 | \`${ZIP_BASENAME}.tar.gz\` | Extract to \`HIGHASCGEXF/sim/highascg\`: \`mkdir -p … && tar -xzf … -C …\`. ${ZIP_NOTE} |
 
-Includes **\`dist-web/\`** (Vite UI) by default; \`frontend/\` dev sources omitted unless built with \`--with-frontend-sources\`. API-only: pair with \`release:github-server\` + \`HIGHASCG_HEADLESS=true\`, or use split \`release:github-frontend\`.
+Includes **\`dist-web/\`** (Vite UI) by default; \`client/\` dev sources omitted unless built with \`--with-client-sources\`. API-only: pair with \`release:github-server\` + \`HIGHASCG_HEADLESS=true\`, or use split \`release:github-client\`.
 
 Combine with your existing live USB image when ready; rebuild ISO / Eggs only when needed: \`npm run release:dev-github\`.
 

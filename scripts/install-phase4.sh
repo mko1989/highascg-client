@@ -245,8 +245,8 @@ if [ "$SHOULD_DEPLOY_HIGHASCG" = true ]; then
 
     cd /home/casparcg/highascg
     sudo -u "$USER_CASPAR" npm install --omit=dev
-    # Production UI: unbundled frontend/ (ES modules). Optional Vite bundle:
-    #   sudo -u "$USER_CASPAR" npm install --include=dev && npm run build:frontend
+    # Production UI: unbundled client/ (ES modules). Optional Vite bundle:
+    #   sudo -u "$USER_CASPAR" npm install --include=dev && npm run build:client
     # Runtime prefers dist-web/ when index.html exists (see src/repo-paths.js).
 
     if [ ! -f /home/casparcg/highascg/highascg.config.json ] && [ -f /home/casparcg/highascg/highascg.config.example.json ]; then

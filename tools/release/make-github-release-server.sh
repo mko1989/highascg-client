@@ -111,7 +111,7 @@ Backend + runtime tree for **\`sim/highascg\`** (no browser UI in this asset).
 
 ${NM_NOTE}
 
-Pair with a **frontend** release (\`highascg-frontend_*.tar.gz\`) for the UI, or run API-only with \`HIGHASCG_HEADLESS=true\`.
+Pair with a **frontend** release (\`highascg-client_*.tar.gz\`) for the UI, or run API-only with \`HIGHASCG_HEADLESS=true\`.
 
 **Start:** \`node index.js\` (shim) or \`node index.js\`
 

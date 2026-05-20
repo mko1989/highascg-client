@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Frontend (Vite dist-web) GitHub prerelease — static UI only, no server / ISO.
+# Client (Vite dist-web) GitHub prerelease — static UI only, no server / ISO.
 #
 # Usage (repo root):
-#   npm run release:github-frontend
-#   npm run release:github-frontend:dry
-#   ./tools/release/make-github-release-frontend.sh [--dry-run] [--replace] [--tag NAME] [--no-build]
+#   npm run release:github-client
+#   npm run release:github-client:dry
+#   ./tools/release/make-github-release-client.sh [--dry-run] [--replace] [--tag NAME] [--no-build]
 #
 set -euo pipefail
 
@@ -48,12 +48,12 @@ done
 
 STAMP="$(release_lib_stamp)"
 if [[ -z "${TAG}" ]]; then
-	TAG="frontend_$(release_lib_stamp_tag "$STAMP")"
+	TAG="client_$(release_lib_stamp_tag "$STAMP")"
 fi
 
 DIST="${OUT_DIR:-${REPO_ROOT}/dist}"
 DIST_WEB="${REPO_ROOT}/dist-web"
-ARCHIVE_BASENAME="highascg-frontend_${STAMP}"
+ARCHIVE_BASENAME="highascg-client_${STAMP}"
 ARCHIVE_PATH="${DIST}/${ARCHIVE_BASENAME}.tar.gz"
 mkdir -p "$DIST"
 
@@ -62,20 +62,20 @@ if [[ "$DRY_RUN" -eq 0 ]]; then
 	release_lib_check_gh
 fi
 
-build_frontend_dist() {
+build_client_dist() {
 	if [[ "$SKIP_BUILD" -eq 1 ]]; then
 		echo "==> Skipping Vite build (--no-build)"
 		return 0
 	fi
 	if [[ "$DRY_RUN" -eq 1 ]]; then
-		echo "[dry-run] would run: npm run build:frontend"
+		echo "[dry-run] would run: npm run build:client"
 		return 0
 	fi
 	echo "==> Vite production build (dist-web/)"
-	(cd "$REPO_ROOT" && npm run build:frontend)
+	(cd "$REPO_ROOT" && npm run build:client)
 }
 
-build_frontend_archive() {
+build_client_archive() {
 	if [[ "$DRY_RUN" -eq 1 ]]; then
 		echo "[dry-run] would pack dist-web/ → $ARCHIVE_PATH"
 		return 0
@@ -90,14 +90,14 @@ build_frontend_archive() {
 	echo "==> Ready: $(du -h "$ARCHIVE_PATH" | cut -f1)  $ARCHIVE_PATH"
 }
 
-build_frontend_dist
-build_frontend_archive
+build_client_dist
+build_client_archive
 
 NOTES="$(mktemp)"
 trap 'rm -f "$NOTES"' EXIT
 
 cat >"$NOTES" <<EOF
-## HighAsCG frontend (${STAMP})
+## HighAsCG client (${STAMP})
 
 Vite production bundle (\`dist-web/\`) for **\`sim/highascg\`**.
 
@@ -105,7 +105,7 @@ Vite production bundle (\`dist-web/\`) for **\`sim/highascg\`**.
 |-------|---------|
 | \`${ARCHIVE_BASENAME}.tar.gz\` | \`tar -xzf … -C <mount>/sim/highascg\` (creates \`dist-web/\`) |
 
-The server auto-serves \`dist-web/\` when present (over \`frontend/\` sources). Override with \`HIGHASCG_WEB_DIR\`.
+The server auto-serves \`dist-web/\` when present (over \`client/\` sources). Override with \`HIGHASCG_WEB_DIR\`.
 
 Requires a matching **server** release on the same stick or host.
 
@@ -119,7 +119,7 @@ if [[ "$DRY_RUN" -eq 1 ]]; then
 	exit 0
 fi
 
-release_lib_check_asset_size "frontend tarball" "$ARCHIVE_PATH"
+release_lib_check_asset_size "client tarball" "$ARCHIVE_PATH"
 release_lib_ensure_release_tag "$REPO_ROOT" "$TAG" "$REPLACE_RELEASE"
 release_lib_create_prerelease "$REPO_ROOT" "$TAG" "Frontend ${STAMP}" "$NOTES" "$ARCHIVE_PATH"
 echo "Local tarball: $ARCHIVE_PATH"

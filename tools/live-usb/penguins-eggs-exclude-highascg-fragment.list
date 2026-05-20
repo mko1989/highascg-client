@@ -22,8 +22,8 @@ home/casparcg/highascg/src
 home/casparcg/highascg/src/*
 home/casparcg/highascg/tools
 home/casparcg/highascg/tools/*
-home/casparcg/highascg/frontend
-home/casparcg/highascg/frontend/*
+home/casparcg/highascg/client
+home/casparcg/highascg/client/*
 home/casparcg/highascg/dist-web
 home/casparcg/highascg/dist-web/*
 home/casparcg/highascg/work

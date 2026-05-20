@@ -73,14 +73,16 @@ Open the printed URL (e.g. `http://127.0.0.1:8080/`). WebSocket clients use the 
 | Path | Role |
 |------|------|
 | `index.js`, [`src/`](src/) | Node server — Caspar AMCP, REST `/api/*`, WebSocket |
-| [`frontend/`](frontend/) | Browser UI — static ES modules ([`frontend/README.md`](frontend/README.md)) |
-| `dist-web/` | Optional Vite production bundle (`npm run build:frontend`) |
+| [`client/`](client/) | Browser UI — static ES modules ([`client/README.md`](client/README.md)) |
+| `dist-web/` | Optional Vite production bundle (`npm run build:client`) |
 | `config/` | Modular settings (runtime JSON; see `.gitignore`) |
 | `template/` | Caspar HTML templates |
 | `scripts/` | Production installer, systemd — [`scripts/README.md`](scripts/README.md) |
 | `tools/` | Live USB, smoke tests, operator launcher |
 
-**Dev:** `npm start` (backend) · `npm run dev:frontend` (Vite on port 3000, proxies `/api` to the backend).
+**Dev:** `npm start` · `npm run dev:client` (Vite on port 3000, proxies `/api` to the server).
+
+**Eggs build host:** use only `~/highascg`. Remove stale `~/highascg-server` / `~/highascg-frontend` if present (`npm run clean:eggs-host`).
 
 Migration notes and file mapping: `work/01_WO_ANALYZE_MODULE.md`, `work/02_WO_MIGRATE_TO_HIGHASCG.md` (local `work/` tree). Architecture catalog: **`work/PROJECT_BREAKDOWN.md`**. Work-order status snapshot: **`work/project_status.md`**.
 
@@ -88,7 +90,7 @@ Migration notes and file mapping: `work/01_WO_ANALYZE_MODULE.md`, `work/02_WO_MI
 
 ```bash
 node tools/verify-w02-structure.js
-find src frontend -name "*.js" | xargs wc -l | sort -n
+find src client -name "*.js" | xargs wc -l | sort -n
 ```
 
 With the server running (`npm start` or `node index.js --port 8080`), in another terminal:

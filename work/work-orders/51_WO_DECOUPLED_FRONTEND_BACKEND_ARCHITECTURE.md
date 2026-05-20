@@ -46,7 +46,7 @@ server {
 
     # Static UI Assets
     location / {
-        root /var/www/highascg-frontend/dist;
+        root /var/www/highascg-client/dist;
         index index.html;
         try_files $uri $uri/ /index.html;
     }

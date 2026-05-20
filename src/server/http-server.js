@@ -1,6 +1,6 @@
 /**
- * HTTP server: static `frontend/`, `/templates/`, `/api/*` (delegated).
- * Also routes `/instance/<id>/api/*` so the same process works when the browser uses a Companion-style path prefix (see `frontend/lib/api-client.js` `getApiBase`).
+ * HTTP server: static `client/`, `/templates/`, `/api/*` (delegated).
+ * Also routes `/instance/<id>/api/*` so the same process works when the browser uses a Companion-style path prefix (see `client/lib/api-client.js` `getApiBase`).
  */
 
 'use strict'

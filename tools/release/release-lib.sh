@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Shared helpers for split GitHub releases (server / frontend).
+# Shared helpers for split GitHub releases (server / client).
 set -euo pipefail
 
 RELEASE_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Compares HighAsCG tree to expected layout: server at repo root (`src/`), UI in `frontend/`.
+ * Expected layout: server at repo root (`src/`), UI in `client/`.
  * Run: node tools/verify-w02-structure.js
  */
 
@@ -37,7 +37,7 @@ const EXPECTED = [
 	'src/media/cinf-parse.js',
 	'src/media/local-media.js',
 	'src/repo-paths.js',
-	'frontend/index.html',
+	'client/index.html',
 	'vite.config.js',
 	'template/multiview_overlay.html',
 ]
@@ -54,9 +54,9 @@ function exists(rel) {
 function main() {
 	const missing = EXPECTED.filter((rel) => !exists(rel))
 	const present = EXPECTED.length - missing.length
-	console.log(`Structure check (src/ at root + frontend/): ${present}/${EXPECTED.length} expected paths present`)
+	console.log(`Structure check (src/ at root + client/): ${present}/${EXPECTED.length} expected paths present`)
 	if (exists('backend')) {
-		console.log('\nWARN: backend/ still exists — server should be at repo root (src/, index.js), not under backend/')
+		console.log('\nWARN: backend/ still exists — server should be at repo root (src/, index.js)')
 	}
 	if (missing.length) {
 		console.log('\nMissing:')
@@ -65,7 +65,7 @@ function main() {
 		console.log('All listed paths present.')
 	}
 	const distWeb = exists('dist-web/index.html')
-	console.log(`dist-web/: ${distWeb ? 'present (runtime prefers over frontend/)' : 'absent (optional: npm run build:frontend)'}`)
+	console.log(`dist-web/: ${distWeb ? 'present (runtime prefers over client/)' : 'absent (optional: npm run build:client)'}`)
 }
 
 main()
