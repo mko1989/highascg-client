@@ -123,6 +123,7 @@ pollUsbStatus()
 setInterval(pollUsbStatus, 3000)
 
 // Simulation controls
+const serverIpInput = document.getElementById('server-ip')
 const simPortInput = document.getElementById('sim-port')
 const simOfflineToggle = document.getElementById('sim-offline')
 const btnStartSim = document.getElementById('btn-start-sim')
@@ -134,6 +135,25 @@ const btnClearTerminal = document.getElementById('btn-clear-terminal')
 
 let isSimRunning = false
 
+function getTargetUrl() {
+  const ip = (serverIpInput.value || 'localhost').trim()
+  const port = simPortInput.value || 4200
+  return `http://${ip}:${port}/`
+}
+
+function updateWebuiButton() {
+  btnOpenWebui.textContent = `Open Web UI (${getTargetUrl()})`
+}
+
+// Bind live text change listeners to update Open Web UI button label
+serverIpInput.addEventListener('input', updateWebuiButton)
+simPortInput.addEventListener('input', updateWebuiButton)
+serverIpInput.addEventListener('change', updateWebuiButton)
+simPortInput.addEventListener('change', updateWebuiButton)
+
+// Initial update to reflect default inputs
+updateWebuiButton()
+
 function appendLog(text) {
   if (terminalOutput.textContent === '[Idle] Simulation has not been started. Select configurations and hit \'Start Simulation\'.' || 
       terminalOutput.textContent === '') {
@@ -144,11 +164,9 @@ function appendLog(text) {
   // Auto-scroll
   terminalBody.scrollTop = terminalBody.scrollHeight
 
-  // Check for successful express listener bind to illuminate Open Web UI button
+  // Check for successful express listener bind to update button text
   if (text.includes('listening on') || text.includes('HTTP Server') || text.includes('Server running') || text.includes('Express')) {
-    btnOpenWebui.disabled = false
-    const port = simPortInput.value || 4200
-    btnOpenWebui.textContent = `Open Web UI (http://localhost:${port})`
+    updateWebuiButton()
   }
 }
 
@@ -160,6 +178,7 @@ btnStartSim.addEventListener('click', () => {
   appendLog(`[Launcher] Starting HighAsCG in simulation mode on port ${port}...\n`)
 
   btnStartSim.disabled = true
+  serverIpInput.disabled = true
   simPortInput.disabled = true
   simOfflineToggle.disabled = true
 
@@ -187,10 +206,10 @@ ipcRenderer.on('sim-status', (event, status) => {
   } else {
     btnStartSim.disabled = false
     btnStopSim.disabled = true
+    serverIpInput.disabled = false
     simPortInput.disabled = false
     simOfflineToggle.disabled = false
-    btnOpenWebui.disabled = true
-    btnOpenWebui.textContent = 'Open Web UI (Idle)'
+    updateWebuiButton()
 
     if (status.error) {
       appendLog(`[Launcher Error] Simulator error: ${status.error}\n`)
@@ -200,8 +219,7 @@ ipcRenderer.on('sim-status', (event, status) => {
 
 // Web UI opener trigger
 btnOpenWebui.addEventListener('click', () => {
-  const port = simPortInput.value || 4200
-  ipcRenderer.send('open-external-url', `http://localhost:${port}/`)
+  ipcRenderer.send('open-external-url', getTargetUrl())
 })
 
 // Quick Simulation Button on Dashboard

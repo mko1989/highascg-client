@@ -42,7 +42,7 @@
 
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 # shellcheck source=archive-common.sh
 source "${ROOT}/scripts/archive-common.sh"
 cd "$ROOT"

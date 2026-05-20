@@ -3,7 +3,7 @@
 Stick Studio — GUI wrapper around live‑USB tooling + portable HighAsCG simulation.
 
 Requires: Python 3, tkinter (Debian/Ubuntu: sudo apt install python3-tk)
-Flashing runs via pkexec → tools/stick-tools/stick-studio-priv.sh .
+Flashing runs via pkexec → client/tools/stick-tools/stick-studio-priv.sh .
 """
 from __future__ import annotations
 
@@ -15,11 +15,11 @@ from pathlib import Path
 
 
 def repo_root() -> Path:
-	return Path(__file__).resolve().parents[2]
+	return Path(__file__).resolve().parents[3]
 
 
 def privileged_helper() -> Path:
-	p = repo_root() / "tools/stick-tools/stick-studio-priv.sh"
+	p = repo_root() / "client/tools/stick-tools/stick-studio-priv.sh"
 	if not p.is_file():
 		raise RuntimeError(f"Missing {p}")
 	mode = p.stat().st_mode
@@ -38,7 +38,7 @@ def run_priv(action: str, *args: str) -> subprocess.CompletedProcess:
 def list_usb_disks() -> list[str]:
 	"""Delegate to flash-stick-common.sh for the same heuristic as CLI flash tools."""
 	rr = repo_root()
-	common_sh = rr / "tools/live-usb/flash-stick-common.sh"
+	common_sh = rr / "tools/eggs/live-usb/flash-stick-common.sh"
 	if not common_sh.is_file():
 		return []
 	proc = subprocess.run(

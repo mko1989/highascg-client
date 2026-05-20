@@ -692,7 +692,8 @@ body {
   margin-bottom: 6px;
 }
 
-.form-group input[type="number"] {
+.form-group input[type="number"],
+.form-group input[type="text"] {
   width: 100%;
   background-color: #000;
   border: 1px solid var(--panel-border);
@@ -705,7 +706,8 @@ body {
   transition: var(--transition-smooth);
 }
 
-.form-group input[type="number"]:focus {
+.form-group input[type="number"]:focus,
+.form-group input[type="text"]:focus {
   border-color: var(--accent-cyan);
   box-shadow: 0 0 8px rgba(6, 182, 212, 0.15);
 }

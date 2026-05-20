@@ -14,7 +14,7 @@
 
   NOTE: The stick must be larger than the ISO image; there must be unallocated
   space at the end after the hybrid ISO layout. If Windows reports no free
-  space, use a bigger stick or run tools/live-usb/add-exfat-data-partition.sh
+  space, use a bigger stick or run tools/eggs/live-usb/add-exfat-data-partition.sh
   from Linux.
 
 .PARAMETER IsoPath

@@ -4,13 +4,13 @@
 # Usage (repo root):
 #   npm run release:github-client
 #   npm run release:github-client:dry
-#   ./tools/release/make-github-release-client.sh [--dry-run] [--replace] [--tag NAME] [--no-build]
+#   ./client/tools/release/make-github-release-client.sh [--dry-run] [--replace] [--tag NAME] [--no-build]
 #
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=release-lib.sh
-source "${SCRIPT_DIR}/release-lib.sh"
+# shellcheck source=../../../tools/release/release-lib.sh
+source "${SCRIPT_DIR}/../../../tools/release/release-lib.sh"
 
 REPO_ROOT="$(release_lib_repo_root)"
 DRY_RUN=0

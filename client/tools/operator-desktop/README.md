@@ -4,7 +4,7 @@ Prepare a **bootable USB** (live **ISO** + **release** on exFAT) or start **simu
 
 ## Minimal GUI launcher (recommended)
 
-**Requirements:** Python 3 + **tkinter** (`sudo apt install python3-tk` on Debian/Ubuntu), **Node.js ≥ 20** for simulation.
+**Requirements:** **Node.js ≥ 20** for running the Electron launcher and simulation environment.
 
 ```bash
 cd /path/to/highascg
@@ -18,12 +18,10 @@ Double-click (from repo root layout):
 | **Linux / macOS** | `tools/operator-desktop/HighAsCG-Launcher.command` |
 | **Windows** | `tools/operator-desktop/HighAsCG-Launcher.cmd` |
 
-Three fields — **ISO**, **Release** (`.tar.gz` or unpacked folder), **USB** (Linux only; Mac/Windows pick disk in the elevated script) — and two buttons: **Prepare USB**, **Simulation**.
+The Electron launcher displays **Flashing Guides**, **Partitioning & exFAT config guides** for creating the `HIGHASCGEXF` partition, offers full **Simulation Center** controls to launch a local simulation, and lets you enter a target **Server IP / Host** to connect directly to the WebUI in a browser.
 
-- **Linux:** `pkexec` flash + exFAT, then copies release to mounted **`HIGHASCGEXF/sim/highascg`** when the volume is mounted.
 - **macOS / Windows:** runs **`highascg-operator.js prepare-stick`** (sudo / Administrator).
 
-Full-featured Linux GUI: **`npm run stick-studio`**.
 
 ## CLI (no GUI)
 
@@ -61,7 +59,7 @@ You still pick the USB device and confirm wipes in those scripts.
 
 | Piece | Role |
 |-------|------|
-| `highascg-launcher.py` | Minimal tkinter GUI — prepare USB + simulation |
+| `client/tools/electron-launcher/` | Premium Electron Launcher & Simulation Center |
 | `highascg-operator.js` | Parses args, invokes platform stick script or sim launcher |
 | `tools/live-usb/macos/make-highascg-stick.sh` | `dd` ISO, `diskutil` exFAT, optional `--tar-gz` / `--app-dir` |
 | `tools/live-usb/windows/make-highascg-stick.ps1` | Raw ISO write + `diskpart` exFAT, optional `-TarGzPath` / `-AppSourceDirectory` |

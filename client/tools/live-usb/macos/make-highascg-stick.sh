@@ -2,8 +2,8 @@
 # HighAsCG — prepare a bootable USB from an .iso on macOS, then add exFAT HIGHASCGEXF + operator folders.
 #
 # Usage (run in Terminal):
-#   chmod +x tools/live-usb/macos/make-highascg-stick.sh
-#   sudo ./tools/live-usb/macos/make-highascg-stick.sh [--tar-gz PATH] [--app-dir PATH] /path/to/live.iso
+#   chmod +x tools/eggs/live-usb/macos/make-highascg-stick.sh
+#   sudo ./tools/eggs/live-usb/macos/make-highascg-stick.sh [--tar-gz PATH] [--app-dir PATH] /path/to/live.iso
 #
 # You will be shown `diskutil list external physical` targets, pick the whole
 # disk identifier (e.g. disk4 — never disk4s1). The script requires typing YES
@@ -155,7 +155,7 @@ else
 	echo ""
 	echo "diskutil addPartition failed (common after some hybrid ISO layouts)."
 	echo "On a Linux workstation run:"
-	echo "    sudo bash tools/live-usb/add-exfat-data-partition.sh /dev/sdX"
+	echo "    sudo bash tools/eggs/live-usb/add-exfat-data-partition.sh /dev/sdX"
 	echo "…or Disk Utility manually: Partition → Add exFAT, label HIGHASCGEXF (11 chars)."
 	exit 4
 fi
@@ -183,7 +183,7 @@ if [[ -z "${VOL:-}" || ! -d "$VOL" ]]; then
 fi
 
 echo "==> Seeding operator layout under $VOL"
-mkdir -p "$VOL/sim/highascg" "$VOL/drop-config" "$VOL/media" "$VOL/templates" "$VOL/configs" "$VOL/snapshots/rear-panels"
+mkdir -p "$VOL/sim/highascg" "$VOL/update/server" "$VOL/drop-config" "$VOL/media" "$VOL/templates" "$VOL/configs" "$VOL/snapshots/rear-panels"
 cat >"$VOL/README-HIGHASCG-EXFAT.txt" <<EOF
 HighAsCG operator data (exFAT volume label: $EXFAT_LABEL)
 

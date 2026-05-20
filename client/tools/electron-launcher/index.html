@@ -373,6 +373,12 @@ tar -xzf ~/Downloads/highascg_*.tar.gz -C "/Volumes/HIGHASCGEXF/sim/highascg"</c
               <h2>Simulator Config</h2>
               
               <div class="form-group">
+                <label for="server-ip">Server IP / Host</label>
+                <input type="text" id="server-ip" value="localhost" placeholder="e.g. localhost or 192.168.1.10">
+                <span class="field-hint">IP address or hostname of the HighAsCG server</span>
+              </div>
+
+              <div class="form-group">
                 <label for="sim-port">HTTP Port</label>
                 <input type="number" id="sim-port" value="4200" min="80" max="65535">
                 <span class="field-hint">The port the server will bind to locally</span>
@@ -400,11 +406,11 @@ tar -xzf ~/Downloads/highascg_*.tar.gz -C "/Volumes/HIGHASCGEXF/sim/highascg"</c
 
               <!-- Main Server Quick Launch Target Link -->
               <div class="webui-quicklink-container" id="webui-link-container">
-                <button class="btn btn-primary btn-large btn-glowing" id="btn-open-webui" disabled>
+                <button class="btn btn-primary btn-large btn-glowing" id="btn-open-webui">
                   <svg viewBox="0 0 24 24" class="btn-icon"><path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/></svg>
-                  Open Web UI (Idle)
+                  Open Web UI (http://localhost:4200)
                 </button>
-                <p class="quicklink-hint">Lights up green when simulation is running</p>
+                <p class="quicklink-hint">Opens the HighAsCG interface in your browser</p>
               </div>
             </div>
           </div>

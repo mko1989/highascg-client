@@ -43,7 +43,7 @@ export function getMainModalHtml() {
 						</div>
 						<p class="settings-note" id="media-mount-status-line" style="margin-top:0.25rem"></p>
 						<h3 class="settings-category">exFAT ↔ project sync (WO-47)</h3>
-						<p class="settings-note">Expect the data partition at <code>/home/casparcg/exfat</code> (see <code>tools/live-usb/systemd/home-casparcg-exfat.mount.example</code>). Map: <code>HIGHASCG_EXFAT_SYNC_MAP</code>, then <code>/etc/highascg/exfat-sync.json</code>, then repo <code>config/exfat-sync.json</code>. Per file, newer <code>mtime</code> wins; deletes are not synced.</p>
+						<p class="settings-note">Expect the data partition at <code>/home/casparcg/exfat</code> (see <code>tools/eggs/live-usb/systemd/home-casparcg-exfat.mount.example</code>). Map: <code>HIGHASCG_EXFAT_SYNC_MAP</code>, then <code>/etc/highascg/exfat-sync.json</code>, then repo <code>config/exfat-sync.json</code>. Per file, newer <code>mtime</code> wins; deletes are not synced.</p>
 						<div class="settings-group" style="display:flex;flex-wrap:wrap;gap:0.5rem;align-items:center">
 							<button type="button" class="btn btn--secondary" id="exfat-sync-refresh-btn">Refresh sync map</button>
 							<button type="button" class="btn btn--secondary" id="exfat-sync-dryrun-btn">Dry-run sync</button>

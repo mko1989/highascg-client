@@ -99,7 +99,7 @@ function spawnPrepareStick(parsed) {
 	const root = repoRoot()
 
 	if (process.platform === 'darwin') {
-		const sh = process.env.HIGHASCG_MAC_SH || path.join(root, 'tools/live-usb/macos/make-highascg-stick.sh')
+		const sh = process.env.HIGHASCG_MAC_SH || path.join(root, 'client/tools/live-usb/macos/make-highascg-stick.sh')
 		const args = []
 		if (parsed.skipExfat) args.push('--skip-exfat')
 		if (parsed.dryRun) args.push('--dry-run')
@@ -113,7 +113,7 @@ function spawnPrepareStick(parsed) {
 
 	if (process.platform === 'win32') {
 		const ps1 =
-			process.env.HIGHASCG_PS1_PATH || path.join(root, 'tools/live-usb/windows/make-highascg-stick.ps1')
+			process.env.HIGHASCG_PS1_PATH || path.join(root, 'client/tools/live-usb/windows/make-highascg-stick.ps1')
 		const psArgs = ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ps1, '-IsoPath', parsed.iso]
 		if (parsed.skipExfat) psArgs.push('-SkipExfat')
 		if (parsed.dryRun) psArgs.push('-DryRun')
@@ -134,7 +134,7 @@ function spawnPrepareStick(parsed) {
 		process.exit(typeof r.status === 'number' ? r.status : 1)
 	}
 
-	die('prepare-stick is for macOS and Windows. On Linux use tools/stick-tools/ or scripts under tools/live-usb/.')
+	die('prepare-stick is for macOS and Windows. On Linux use client/tools/stick-tools/ or tools/eggs/live-usb/.')
 }
 
 function main() {
@@ -151,7 +151,7 @@ function main() {
 	}
 
 	if (cmd === 'sim' || cmd === 'simulate' || cmd === 'portable') {
-		const launcher = path.join(repoRoot(), 'tools/portable-desktop/launch-sim-from-exfat.js')
+		const launcher = path.join(repoRoot(), 'client/tools/portable-desktop/launch-sim-from-exfat.js')
 		const r = spawnSync(process.execPath, [launcher, ...argv.slice(1)], { stdio: 'inherit' })
 		process.exit(typeof r.status === 'number' ? r.status : 1)
 	}

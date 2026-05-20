@@ -5,9 +5,9 @@ set -euo pipefail
 ACTION="${1:-}"
 shift || true
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO="$(cd "${HERE}/../.." && pwd)"
+REPO="$(cd "${HERE}/../../.." && pwd)"
 # shellcheck source=../live-usb/flash-stick-common.sh
-source "${REPO}/tools/live-usb/flash-stick-common.sh"
+source "${REPO}/tools/eggs/live-usb/flash-stick-common.sh"
 
 usage() {
 	echo "Usage: sudo $0 flash <iso> <blockdev>" >&2
@@ -54,7 +54,7 @@ exfat)
 		unset EXFAT_ISO_PATH || true
 	fi
 	[[ "$FILL_DISK" == "1" ]] && export EXFAT_FILL_DISK=1 || unset EXFAT_FILL_DISK || true
-	bash "${REPO}/tools/live-usb/add-exfat-data-partition.sh" "$dev"
+	bash "${REPO}/tools/eggs/live-usb/add-exfat-data-partition.sh" "$dev"
 	;;
 partprobe)
 	dev="${1:?}"

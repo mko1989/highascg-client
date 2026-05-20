@@ -83,8 +83,8 @@ ipcMain.on('start-sim', (event, { port, offlineMode }) => {
 
   event.reply('sim-log', '[Launcher] Preparing to launch simulation...\n')
 
-  const repoRoot = path.resolve(__dirname, '../..')
-  const launcherScript = path.join(repoRoot, 'tools/portable-desktop/launch-sim-from-exfat.js')
+  const repoRoot = path.resolve(__dirname, '../../..')
+  const launcherScript = path.join(repoRoot, 'client/tools/portable-desktop/launch-sim-from-exfat.js')
 
   event.reply('sim-log', `[Launcher] App root detected: ${repoRoot}\n`)
   event.reply('sim-log', `[Launcher] Simulation helper: ${launcherScript}\n`)
