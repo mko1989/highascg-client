@@ -208,20 +208,50 @@ build_archive() {
 
 build_archive
 
+check_sz() {
+	local label="$1" path="$2" s="$3"
+	if ((s > MAX_GITHUB_ASSET)); then
+		echo "ERROR: $label exceeds GitHub ~2 GiB asset limit: $path ($s bytes)" >&2
+		echo "Try: --zip-exclude-node-modules; see docs/DEV_RELEASE_GITHUB.md" >&2
+		exit 1
+	fi
+}
+
 if [[ "$DRY_RUN" -eq 0 ]] && [[ -f "$ARCHIVE_PATH" ]]; then
 	sz_arch=$(stat -c %s "$ARCHIVE_PATH")
-	check_sz() {
-		local label="$1" path="$2" s="$3"
-		if ((s > MAX_GITHUB_ASSET)); then
-			echo "ERROR: $label exceeds GitHub ~2 GiB asset limit: $path ($s bytes)" >&2
-			echo "Try: --zip-exclude-node-modules; see docs/DEV_RELEASE_GITHUB.md" >&2
-			exit 1
-		fi
-	}
 	check_sz "tarball" "$ARCHIVE_PATH" "$sz_arch"
 	if [[ "$APP_ONLY" -eq 0 ]] && [[ -n "$ISO" ]] && [[ -f "$ISO" ]]; then
 		sz_iso=$(stat -c %s "$ISO")
 		check_sz "ISO" "$ISO" "$sz_iso"
+	fi
+fi
+
+LAUNCHER_ASSETS=()
+if [[ "$APP_ONLY" -eq 1 ]]; then
+	if [[ "$DRY_RUN" -eq 1 ]]; then
+		echo "[dry-run] would compile standalone launchers for win32, linux, darwin (x64, arm64)"
+		LAUNCHER_ASSETS+=("${DIST}/HighAsCG-Launcher-win32-x64.tar.gz")
+		LAUNCHER_ASSETS+=("${DIST}/HighAsCG-Launcher-darwin-arm64.tar.gz")
+	else
+		echo "==> Compiling standalone Electron launchers for all platforms (Windows, Linux, macOS; x64 and arm64)..."
+		npx @electron/packager "${REPO_ROOT}/client/tools/electron-launcher" HighAsCG-Launcher --platform=linux,win32,darwin --arch=x64,arm64 --out="${REPO_ROOT}/dist/launcher" --overwrite
+		
+		echo "==> Compressing standalone launchers into release archives..."
+		for dir in "${REPO_ROOT}"/dist/launcher/HighAsCG-Launcher-*; do
+			if [[ -d "$dir" ]]; then
+				name="$(basename "$dir")"
+				archive_name="${name}.tar.gz"
+				out_archive="${DIST}/${archive_name}"
+				echo "    Compressing $name -> $archive_name"
+				tar -C "${REPO_ROOT}/dist/launcher" -czf "$out_archive" "$name"
+				
+				if [[ -f "$out_archive" ]]; then
+					sz=$(stat -c %s "$out_archive")
+					check_sz "launcher asset $name" "$out_archive" "$sz"
+					LAUNCHER_ASSETS+=("$out_archive")
+				fi
+			fi
+		done
 	fi
 fi
 
@@ -290,7 +320,8 @@ if [[ "$APP_ONLY" -eq 1 ]]; then
 			--prerelease \
 			--title "$RELEASE_TITLE" \
 			--notes-file "$NOTES" \
-			"$ARCHIVE_PATH" )
+			"$ARCHIVE_PATH" \
+			"${LAUNCHER_ASSETS[@]}" )
 else
 	( cd "$REPO_ROOT" &&
 		gh release create "$TAG" \
