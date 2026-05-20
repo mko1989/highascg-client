@@ -1,20 +1,13 @@
 /**
  * HTTP API client for CasparCG module endpoints.
- * Uses relative paths (same origin as the page).
- * @see main_plan.md Prompt 11
+ * @see client/lib/api-origin.js — cross-origin API when UI is split from server
  */
 
-/**
- * Base path for API calls. When served via Companion at /instance/ID/,
- * we must always use /instance/ID regardless of SPA route (dashboard, timeline, etc).
- * In standalone mode (no /instance/ prefix), returns '' so calls go to /api/...
- */
-export function getApiBase() {
-	const p = location.pathname.replace(/\/$/, '') || '/'
-	const m = p.match(/^(\/instance\/[^/]+)/)
-	return m ? m[1] : ''
-}
-function getBase() {
+import { getApiBase, getApiOrigin, resolveApiUrl } from './api-origin.js'
+
+export { getApiBase, getApiOrigin, resolveApiUrl } from './api-origin.js'
+
+function requestBase() {
 	return getApiBase()
 }
 
@@ -23,7 +16,7 @@ export async function apiGet(path) {
 	if (path === '/api/media' && window.stateStore?.isOffline?.()) {
 		const placeholders = window.placeholderState?.getAll() || []
 		try {
-			const res = await fetch(getBase() + path)
+			const res = await fetch(requestBase() + path)
 			if (res.ok) {
 				const ct = res.headers.get('content-type') || ''
 				if (ct.includes('application/json')) {
@@ -35,7 +28,7 @@ export async function apiGet(path) {
 			return placeholders
 		}
 	}
-	const url = getBase() + path
+	const url = requestBase() + path
 	const res = await fetch(url)
 	if (!res.ok) {
 		let detail = res.statusText
@@ -67,7 +60,7 @@ function notifyPlaybackMatrixFromResponse(json) {
 
 /** @param {string} path @param {object|string} [body] JSON-serializable body */
 export async function apiPost(path, body = {}) {
-	const url = getBase() + path
+	const url = requestBase() + path
 	const res = await fetch(url, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
@@ -97,7 +90,7 @@ export async function apiPost(path, body = {}) {
 
 /** @param {string} path @param {object|string} [body] */
 export async function apiPut(path, body = {}) {
-	const url = getBase() + path
+	const url = requestBase() + path
 	const res = await fetch(url, {
 		method: 'PUT',
 		headers: { 'Content-Type': 'application/json' },
@@ -126,6 +119,8 @@ export const api = {
 	post: apiPost,
 	put: apiPut,
 	getApiBase,
+	getApiOrigin,
+	resolveApiUrl,
 }
 
 export default api

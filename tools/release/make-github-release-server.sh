@@ -79,6 +79,8 @@ build_server_archive() {
 	fi
 
 	local -a tar_args=(-C "$REPO_ROOT" -czf "$ARCHIVE_PATH")
+	archive_common_server_tar_excludes tar_args
+	archive_common_bulk_tar_excludes tar_args
 	[[ "$ZIP_EXCLUDE_NODE_MODULES" -eq 1 ]] && tar_args+=(--exclude="./node_modules")
 	tar_args+=("${paths[@]}")
 
@@ -112,11 +114,11 @@ Backend + runtime tree for **\`sim/highascg\`** (no browser UI in this asset).
 
 ${NM_NOTE}
 
-Pair with a **frontend** release (\`highascg-client_*.tar.gz\`) for the UI, or run API-only with \`HIGHASCG_HEADLESS=true\`.
+Pair with **Electron launcher** (\`npm run launcher\` + \`highascg-client_*.tar.gz\`) or \`HIGHASCG_HEADLESS=true\` on playout.
 
-**Start:** \`node index.js\` (shim) or \`node index.js\`
+**Start:** \`node index.js\` — API only on production hosts (no \`dist-web/\` in this tarball).
 
-Monolithic / ISO releases: \`npm run release:github-app\` · [\`docs/DEV_RELEASE_GITHUB.md\`](docs/DEV_RELEASE_GITHUB.md)
+See [\`docs/PLAN_SERVER_CLIENT_SPLIT.md\`](docs/PLAN_SERVER_CLIENT_SPLIT.md) · [\`docs/DEV_RELEASE_GITHUB.md\`](docs/DEV_RELEASE_GITHUB.md)
 EOF
 
 if [[ "$DRY_RUN" -eq 1 ]]; then

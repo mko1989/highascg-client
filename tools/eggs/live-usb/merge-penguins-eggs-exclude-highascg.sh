@@ -7,7 +7,7 @@
 set -euo pipefail
 TARGET="${EGGS_EXCLUDE_LIST:-/etc/penguins-eggs.d/exclude.list}"
 HERE="$(cd "$(dirname "$0")" && pwd)"
-FRAG="${HERE}/penguins-eggs-exclude-highascg-fragment.list"
+FRAG="${HIGHASCG_EGGS_EXCLUDE_FRAGMENT:-${HERE}/penguins-eggs-exclude-highascg-fragment.list}"
 MARKER="# --- HighAsCG tools/eggs/live-usb: merge-penguins-eggs-exclude-highascg.sh ---"
 if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
   echo "Usage: sudo $0 [--replace]"

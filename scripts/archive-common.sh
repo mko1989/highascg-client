@@ -5,7 +5,7 @@
 # Layout:
 #   src/         — Node server (repo root)
 #   client/      — Browser UI sources (ES modules)
-#   dist-web/    — Vite production bundle (preferred at runtime when present)
+#   dist-web/    — Vite bundle (Electron launcher / release:github-client — not on playout server)
 #   index.js     — Server entry
 #
 set -euo pipefail
@@ -83,7 +83,17 @@ archive_common_deploy_tar_excludes() {
 	archive_common_bulk_tar_excludes _ex
 }
 
-# Omit client/ dev tree when shipping a built dist-web/ (or server-only).
+# Server-only tarball: never ship browser UI (WO-47 / PLAN_SERVER_CLIENT_SPLIT).
+archive_common_server_tar_excludes() {
+	local -n _ex=$1
+	_ex+=(
+		--exclude=./client
+		--exclude=./dist-web
+		--exclude=./dist/launcher
+	)
+}
+
+# Omit client/ dev tree when shipping a built dist-web/ (monolith / legacy).
 archive_common_exclude_client_sources() {
 	local -n _ex=$1
 	_ex+=(--exclude=./client)
@@ -101,6 +111,17 @@ archive_common_build_client_if_requested() {
 	fi
 	echo "==> Vite production build (dist-web/)"
 	(cd "$root" && npm run build:client)
+}
+
+# Deploy default: API-only tree (matches playout ISO / headless service).
+archive_common_apply_deploy_packaging_rules() {
+	local root="$1"
+	local -n _ex=$2
+	if [[ "${DEPLOY_SERVER_ONLY:-1}" == "1" ]]; then
+		archive_common_server_tar_excludes _ex
+		return 0
+	fi
+	archive_common_apply_client_packaging_rules "$root" _ex
 }
 
 # After build: exclude client/ unless ARCHIVE_INCLUDE_CLIENT_SOURCES=1.

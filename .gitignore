@@ -20,12 +20,19 @@ data/waveforms/
 .reference/
 
 
+# Electron launcher copy of Vite output (npm run launcher:prepare)
+client/tools/electron-launcher/dist-web/
+
+# Vite / packager outputs (UI ships via launcher or release:github-client)
+dist-web/
+dist/
+
 # Local/runtime-heavy folders (never commit)
 CasparCG_Enhanced-main/
 cef-cache/
 bin/
 media/
-lib/
+/lib/
 _media/
 data/
 
@@ -37,8 +44,9 @@ libndi.so.6
 casparcg.config
 config/casparcg.config
 
-# Local live-USB flash settings (copy from tools/live-usb/flash-iso.conf.example)
+# Local live-USB flash settings (copy from flash-iso.conf.example)
 tools/live-usb/flash-iso.conf
+tools/eggs/live-usb/flash-iso.conf
 
 # User-specific runtime configs (keep defaults/examples in source, ignore live overrides)
 config/*.json

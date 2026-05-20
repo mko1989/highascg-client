@@ -36,8 +36,9 @@
 #
 # `highascg.config.json` is excluded so the server copy is not overwritten.
 #
-# Backend / frontend layout: ships src/ (server at repo root), client/, and dist-web/ when built.
-#   DEPLOY_BUILD_CLIENT=1   run `npm run build:client` before tar (omit client/ if dist-web exists)
+# Default: server-only deploy (API on playout host; UI on operator machine). Matches ISO headless layout.
+#   DEPLOY_SERVER_ONLY=0     include client/ or dist-web/ (legacy monolith deploy)
+#   DEPLOY_BUILD_CLIENT=1    run `npm run build:client` before tar (only when DEPLOY_SERVER_ONLY=0)
 #   ARCHIVE_INCLUDE_CLIENT_SOURCES=1   keep client/ even when dist-web/ is present
 
 set -euo pipefail
@@ -118,12 +119,14 @@ fi
 
 export COPYFILE_DISABLE=1
 
-archive_common_build_client_if_requested "$ROOT"
+if [[ "${DEPLOY_SERVER_ONLY:-1}" != "1" ]]; then
+	archive_common_build_client_if_requested "$ROOT"
+fi
 local_excludes=()
 archive_common_deploy_tar_excludes local_excludes
-archive_common_apply_client_packaging_rules "$ROOT" local_excludes
+archive_common_apply_deploy_packaging_rules "$ROOT" local_excludes
 
-echo "→ tar → $TMP (src/ at root + dist-web/; client/ sources=${ARCHIVE_INCLUDE_CLIENT_SOURCES:-0})"
+echo "→ tar → $TMP (server-only=${DEPLOY_SERVER_ONLY:-1}; client sources=${ARCHIVE_INCLUDE_CLIENT_SOURCES:-0})"
 tar czf "$TMP" "${local_excludes[@]}" .
 
 PATH_Q=$(printf '%q' "$DEPLOY_PATH")
@@ -132,7 +135,7 @@ INDEX_Q=$(printf '%q' "${DEPLOY_PATH}/index.js")
 
 # Wipe app tree before unpack, but keep server-local files: live config, project state, previs and existing node_modules
 # (tarball excludes node_modules — without this preserve, every deploy would delete deps and force npm install).
-REMOTE_INNER="set -euo pipefail; mkdir -p ${PATH_Q}; find ${PATH_Q} -mindepth 1 -maxdepth 1 ! -name 'highascg.config.json' ! -name '.highascg-state.json' ! -name '.module-state.json' ! -name '.highascg-previs' ! -name 'config' ! -name 'node_modules' ! -name 'dist-web' -exec rm -rf {} +; env -u TAR_OPTIONS tar -m -xzf ${TGZ_Q} -C ${PATH_Q}; rm -f ${TGZ_Q}; chown -R ${DEPLOY_USER}:${DEPLOY_USER} ${PATH_Q}"
+REMOTE_INNER="set -euo pipefail; mkdir -p ${PATH_Q}; find ${PATH_Q} -mindepth 1 -maxdepth 1 ! -name 'highascg.config.json' ! -name '.highascg-state.json' ! -name '.module-state.json' ! -name '.highascg-previs' ! -name 'config' ! -name 'node_modules' ! -name '.env' -exec rm -rf {} +; env -u TAR_OPTIONS tar -m -xzf ${TGZ_Q} -C ${PATH_Q}; rm -f ${TGZ_Q}; ENV_F=${PATH_Q}/.env; touch \"\$ENV_F\"; if grep -q '^HIGHASCG_HEADLESS=' \"\$ENV_F\" 2>/dev/null; then sed -i 's/^HIGHASCG_HEADLESS=.*/HIGHASCG_HEADLESS=true/' \"\$ENV_F\"; else echo 'HIGHASCG_HEADLESS=true' >> \"\$ENV_F\"; fi; chown -R ${DEPLOY_USER}:${DEPLOY_USER} ${PATH_Q}"
 if [[ "$DEPLOY_REMOTE_SUDO" == "1" ]]; then
 	if [[ -n "$DEPLOY_SUDO_PASSWORD" ]]; then
 		SUDO_PW_SQ=${DEPLOY_SUDO_PASSWORD//\'/\'\"\'\"\'}
@@ -173,5 +176,6 @@ if ! "${SSH_BASE[@]}" "${SSH_TTY[@]}" "${SSH_OPTS[@]}" "$REMOTE" "$REMOTE_VERIFY
 	exit 1
 fi
 
-echo "→ done: ${REMOTE}:${DEPLOY_PATH} — run npm install (or npm ci) when package.json / lockfile changed."
-echo "   UI: dist-web/ if deployed; else unbundled client/. Set DEPLOY_BUILD_CLIENT=1 to refresh dist-web/ on deploy."
+echo "→ done: ${REMOTE}:${DEPLOY_PATH} — API-only (HIGHASCG_HEADLESS=true in .env). Restart highascg.service if used."
+echo "   Operator UI: npm run dev:client or npm run launcher on your laptop (not on this host)."
+echo "   Legacy full deploy: DEPLOY_SERVER_ONLY=0 DEPLOY_BUILD_CLIENT=1 npm run deploy:dev"

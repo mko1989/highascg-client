@@ -3,12 +3,13 @@
 Use this flow when you have a **build host or workstation** running the repo (typically with `node_modules` already installed). Two modes:
 
 - **Full image (rare)** — Eggs ISO + tarball: **`npm run release:dev-github`** (needs **`sudo`** / eggs).
-- **Alpha / app-only (usual)** — tarball only for **exFAT modular** updates: **`npm run release:github-app`** — no eggs/ISO, Git tag defaults to **`alpha_<date>_<time>Z`**, **`node_modules` included** by default (same archive as the full path).
-- **Split server + frontend (modular)** — two smaller prereleases on the same stick path:
-  - **`npm run release:github-server`** → `highascg-server_<UTC>.tar.gz` (tag `server_…`)
-  - **`npm run release:github-client`** → `highascg-client_<UTC>.tar.gz` (tag `client_…`, Vite build → `dist-web/`)
+- **Split server + client (canonical)** — playout API tarball + operator UI:
+  - **`npm run release:github-server`** → `highascg-server_<UTC>.tar.gz` (no `client/`, `dist-web/`)
+  - **`npm run release:github-launcher`** → `highascg-launcher_<UTC>.tar.gz` (Electron prep kit + embedded `dist-web/`)
+  - **`npm run release:github-client`** → `highascg-client_<UTC>.tar.gz` (`dist-web/` only — optional if you use launcher tarball)
+- **Alpha / app-only (legacy monolith)** — **`npm run release:github-app`** — full repo tarball with `dist-web/`; prefer split releases for new sticks.
 
-**Playout stick:** extract **`highascg-server_*.tar.gz`** into **`update/server/`** only (`tools/runtime/`, no UI). **Client:** install **`highascg-client_*.tar.gz`** on Mac/Windows (`dist-web/`), not on the playout stick.
+**Playout stick:** extract **`highascg-server_*.tar.gz`** into **`update/server/`** only (API + Caspar; no UI). **Operator laptop:** **`highascg-launcher_*.tar.gz`** or clone + **`npm run launcher`**. Do not put `dist-web/` on the playout stick.
 
 ## What gets published
 
@@ -22,9 +23,9 @@ Use this flow when you have a **build host or workstation** running the repo (ty
 
 | Asset | Produced by |
 |-------|----------------|
-| `dist/highascg_<UTC>.tar.gz` | `tar -czf` of the repo (`src/` at root + built **`dist-web/`** on app-only). **Default archive includes `node_modules`** unless you pass `--zip-exclude-node-modules`. |
+| `dist/highascg_<UTC>.tar.gz` | **Legacy** monolith (`release:github-app`): `src/` + built **`dist-web/`**. Split server tarball has **no** `dist-web/`. |
 
-**Alpha** run (`npm run release:github-app` / `--app-only`): **only** the tarball above — no ISO upload; runs **`npm run build:client`** first; omits **`client/`** sources unless `--with-client-sources`. Tag defaults to **`alpha_YYYY-MM-DD_HHMMSSZ`**.
+**Legacy alpha** (`npm run release:github-app`): monolith tarball only — prefer **`release:github-server`** + **`release:github-launcher`** for new deployments.
 
 GitHub Releases have a soft **per-asset ~2 GiB** limit. If the server tarball is too large, use `--zip-exclude-node-modules` and run `npm ci` under `~/highascg` after the stick applies `update/server/`.
 
@@ -39,7 +40,7 @@ The **server** asset (`release:github-server`) is backend-only — it does **not
 | **`src/`** | Node orchestrator, APIs, Caspar client (repo root). |
 | **`scripts/`**, **`config/`**, **`template/`** | Install helpers and Caspar templates. |
 
-The **frontend** tarball is small (only `dist-web/` after Vite). **`release:github-app`** builds `dist-web/` by default and omits `client/` sources unless you pass `--with-client-sources`.
+The **client** tarball is small (`dist-web/` only). The **launcher** tarball ships `client/tools/electron-launcher/` including synced `dist-web/`. **`release:github-app`** remains a legacy monolith with both server and UI.
 
 Shared rules: [`scripts/archive-common.sh`](../scripts/archive-common.sh) (used by deploy + release scripts).
 
@@ -52,20 +53,13 @@ Shared rules: [`scripts/archive-common.sh`](../scripts/archive-common.sh) (used 
 
 ## Commands
 
-### Alpha — tarball-only (usual)
-
-```bash
-npm run release:github-app:dry
-npm run release:github-app
-```
-
-### Split — server + frontend (modular UI updates)
+### Split — server + launcher (canonical)
 
 ```bash
 npm run release:github-server:dry
-npm run release:github-client:dry
+npm run release:github-launcher:dry
 npm run release:github-server
-npm run release:github-client
+npm run release:github-launcher
 ```
 
 On the playout stick:
@@ -75,7 +69,16 @@ mkdir -p <mount>/update/server
 tar -xzf highascg-server_<stamp>.tar.gz -C <mount>/update/server
 ```
 
-Client on Mac/Windows: extract **`highascg-client_*.tar.gz`** locally and point the UI at the server IP. Production playout: **`HIGHASCG_HEADLESS=true`**.
+Operator laptop: extract **`highascg-launcher_*.tar.gz`**, `npm install electron` in `electron-launcher/`, run Electron, set playout API host/port. Production playout: **`HIGHASCG_HEADLESS=true`**.
+
+Optional UI-only drop: **`npm run release:github-client`** (same `dist-web/` as launcher sync).
+
+### Legacy — monolith tarball
+
+```bash
+npm run release:github-app:dry
+npm run release:github-app
+```
 
 ### Full image — Eggs ISO + tarball (rare)
 
@@ -107,7 +110,8 @@ Useful variants:
 
 | Need | Flags |
 |------|--------|
-| **Tarball + GitHub only** (exFAT-first / modular) | **`npm run release:github-app`** or **`--app-only`** |
+| **Server + launcher prereleases** | **`release:github-server`** + **`release:github-launcher`** |
+| **Legacy monolith tarball** | **`npm run release:github-app`** or **`--app-only`** |
 | Rebuild tarball + attach **existing** ISO | `--no-iso` (still expects an ISO under `/home/eggs/`). |
 | Smaller archive | `--zip-exclude-node-modules` |
 | Repeat same tag during testing | `--replace` |

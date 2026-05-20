@@ -4,7 +4,9 @@ HighAsCG is a Node.js control and configuration service built around CasparCG. I
 
 **This repository is the source tree for everything that goes into the [live ISO](docs/ISO_CONTENTS.md)** (Ubuntu, NVIDIA/DeckLink stack, CasparCG, installer, systemd units, and the Node server under `src/`). The hybrid image is built from this checkout on the eggs host; WO‑47 then loads the full app from exFAT (`sim/highascg`) using release tarballs produced from the same repo.
 
-**Browser UI (client):** operator-facing HTML/CSS/JS lives in [`client/`](client/) in this repo ([`client/README.md`](client/README.md)). Production bundles are built with `npm run build:client` → `dist-web/`. Split client-only GitHub releases use `npm run release:github-client` (see [`docs/DEV_RELEASE_GITHUB.md`](docs/DEV_RELEASE_GITHUB.md)).
+**Browser UI (client):** operator-facing HTML/CSS/JS lives in [`client/`](client/) ([`client/README.md`](client/README.md)). Built with `npm run build:client` → `dist-web/`, hosted by the [**Electron launcher**](client/tools/electron-launcher/) on the operator machine — **not** served from the playout server (see [`docs/PLAN_SERVER_CLIENT_SPLIT.md`](docs/PLAN_SERVER_CLIENT_SPLIT.md)).
+
+**Playout server:** API + WebSocket only (`HIGHASCG_HEADLESS=true` via systemd). **Operator UI:** `npm run launcher:prepare` then `npm run launcher` ([`client/tools/electron-launcher/README.md`](client/tools/electron-launcher/README.md)).
 
 ## Requirements
 
@@ -26,7 +28,8 @@ Defaults live in `config/default.js`. Override with environment variables:
 |----------|---------|
 | `CASPAR_HOST` | CasparCG host (default `127.0.0.1`) |
 | `CASPAR_PORT` | AMCP port (default `5250`) |
-| `HTTP_PORT` or `PORT` | HTTP server port (default `8080`) |
+| `HTTP_PORT` or `PORT` | API server port (default **4200** in `src/config/defaults.js`) |
+| `HIGHASCG_HEADLESS` | `true` / `1` — API only; no static UI (default on playout via systemd) |
 | `BIND_ADDRESS` | Listen address (default `0.0.0.0`) |
 | `HIGHASCG_WS_BROADCAST_MS` | Optional periodic WebSocket state push (ms; `0` = off) |
 | `OSC_LISTEN_PORT` | OSC UDP port (default `6251`; Caspar `<default-port>` is typically `6250`) |
@@ -64,13 +67,21 @@ On a playout machine you can start **media scanner** and **HighAsCG** first, cha
 
 ## Usage
 
-```bash
-npm start
-# or
-node index.js
-```
+**Production (playout + operator laptop):** API on the playout host (`highascg.service`, port **4200**); UI in **`npm run launcher`** (Electron). See [`docs/PLAN_SERVER_CLIENT_SPLIT.md`](docs/PLAN_SERVER_CLIENT_SPLIT.md).
 
-Open the printed URL (e.g. `http://127.0.0.1:8080/`). WebSocket clients use the same port at `/api/ws` (and `/ws`). If the UI is opened under a Companion-style prefix (`/instance/<id>/`), the client uses `/instance/<id>/api/*` and `/instance/<id>/api/ws`; the server accepts those paths directly (not only when a reverse proxy strips the prefix). Static assets (`index.html`, `app.js`, `styles.css`, …) are also served under `/instance/<id>/…` so relative URLs work when you load `http://host:port/instance/myid/`.
+**Dev — split (same as ISO / production):**
+
+| Machine | Command |
+|---------|---------|
+| Playout / API host | `npm start` — API only **:4200** (`HIGHASCG_HEADLESS` set in script + `.env`) |
+| Operator laptop | `npm run dev:client` — UI **:3000** (set `VITE_HIGHASCG_API_ORIGIN` in `.env.development` to playout IP) |
+| Operator laptop | `npm run launcher` — Electron UI (set playout host in launcher) |
+
+Remote UI: copy `.env.development.example` → `.env.development` with `VITE_HIGHASCG_API_ORIGIN=http://<playout-ip>:4200`.
+
+**Dev — legacy monolith (deprecated):** `npm run start:monolith` serves `client/` or `dist-web/` on the API port.
+
+**Deploy API to dev playout host:** `npm run deploy:dev` (server-only; writes `HIGHASCG_HEADLESS=true` in remote `.env`).
 
 ## Project layout
 
@@ -78,13 +89,13 @@ Open the printed URL (e.g. `http://127.0.0.1:8080/`). WebSocket clients use the 
 |------|------|
 | `index.js`, [`src/`](src/) | Node server — Caspar AMCP, REST `/api/*`, WebSocket |
 | [`client/`](client/) | Browser UI — static ES modules ([`client/README.md`](client/README.md)) |
-| `dist-web/` | Optional Vite production bundle (`npm run build:client`) |
+| `dist-web/` | Vite build output — packaged in Electron / `release:github-client`, not on playout ISO |
 | `config/` | Modular settings (runtime JSON; see `.gitignore`) |
 | `template/` | Caspar HTML templates |
 | `scripts/` | Production installer, systemd — [`scripts/README.md`](scripts/README.md) |
 | `tools/` | Live USB, smoke tests, operator launcher |
 
-**Dev:** `npm start` · `npm run dev:client` (Vite on port 3000, proxies `/api` to the server).
+**Dev:** `npm start` (API **:4200**) · `npm run dev:client` (UI **:3000**) · `npm run launcher` (Electron).
 
 **Eggs build host:** use only `~/highascg`. Remove stale `~/highascg-server` / `~/highascg-frontend` if present (`npm run clean:eggs-host`).
 

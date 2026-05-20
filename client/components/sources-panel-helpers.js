@@ -1,4 +1,5 @@
 import { api, getApiBase } from '../lib/api-client.js'
+import { assetUrl } from '../lib/api-origin.js'
 import { getThumbnailUrl } from '../lib/thumbnail-url.js'
 
 /** @param {string | null} cd */
@@ -249,11 +250,10 @@ export function buildLiveSources(channelMap, connectors) {
 	const sources = []
 	
 	// Built-in System Timers Template source
-	const host = typeof location !== 'undefined' ? location.origin : 'http://localhost:8080'
 	sources.push({
 		type: 'browser',
 		routeType: 'browser',
-		value: `${host}/templates/playback_timers.html`,
+		value: assetUrl('/templates/playback_timers.html'),
 		label: 'System Timers Template',
 		resolution: '1920×1080',
 		fps: '50',

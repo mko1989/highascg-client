@@ -10,6 +10,7 @@ const fs = require('fs')
 const path = require('path')
 const os = require('os')
 const { mergeCors } = require('./cors')
+const { isHeadlessMode } = require('./headless-mode')
 
 const MIME = {
 	'.html': 'text/html',
@@ -217,7 +218,7 @@ function startHttpServer(options) {
 
 	const server = http.createServer(async (req, res) => {
 		if (req.method === 'OPTIONS') {
-			res.writeHead(204, mergeCors())
+			res.writeHead(204, mergeCors({}, req))
 			res.end()
 			return
 		}
@@ -248,7 +249,7 @@ function startHttpServer(options) {
 				const qs = qIdx >= 0 ? rawPath.slice(qIdx) : ''
 				const routedPath = reqPathForRouting + qs
 				result = await routeApi(req.method || 'GET', routedPath, body, req)
-			} else if (process.env.HIGHASCG_HEADLESS === 'true') {
+			} else if (isHeadlessMode()) {
 				result = {
 					status: 404,
 					headers: { 'Content-Type': 'application/json; charset=utf-8' },
@@ -257,7 +258,7 @@ function startHttpServer(options) {
 			} else {
 				result = await serveWebApp(reqPath, { webDir, templatesDir, vendorDirs })
 			}
-			const headers = mergeCors(result.headers)
+			const headers = mergeCors(result.headers, req)
 			res.writeHead(result.status ?? 200, headers)
 			if (result.stream && typeof result.stream.pipe === 'function') {
 				result.stream.on('error', (err) => {
@@ -273,7 +274,7 @@ function startHttpServer(options) {
 			res.end(result.body ?? '')
 		} catch (e) {
 			const msg = e instanceof Error ? e.message : String(e)
-			res.writeHead(502, mergeCors({ 'Content-Type': 'application/json; charset=utf-8' }))
+			res.writeHead(502, mergeCors({ 'Content-Type': 'application/json; charset=utf-8' }, req))
 			res.end(JSON.stringify({ error: msg }))
 		}
 	})

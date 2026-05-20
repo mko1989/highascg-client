@@ -6,31 +6,38 @@ Static **HTML / CSS / ES modules** — the operator UI (dashboard, scenes, devic
 |--------------|------|
 | Document shell | `index.html` |
 | App bootstrap | `app.js` |
+| API origin | `lib/api-origin.js` |
+| API + WebSocket clients | `lib/api-client.js`, `lib/ws-client.js` |
 | Global styles | `styles.css`, `styles/*.css` |
 | Components | `components/*.js` |
-| API + WebSocket clients | `lib/*.js` |
 | Assets | `assets/`, `fonts/` |
 
-## Run with the server (default)
+## Split dev (recommended)
 
-From repo root:
-
-```bash
-npm start
-```
-
-Open the URL printed by the server (e.g. `http://127.0.0.1:8080/`). The server serves `client/` (or `dist-web/` when built) unless `HIGHASCG_HEADLESS=true`.
-
-## Dev: Vite + API proxy
+API and UI run on different ports. See [`docs/PLAN_SERVER_CLIENT_SPLIT.md`](../docs/PLAN_SERVER_CLIENT_SPLIT.md).
 
 ```bash
-npm run dev:client   # port 3000 → proxies /api to server (see vite.config.js)
-# in another terminal:
+# Playout / API host
 npm start
+
+# Operator machine — UI (Vite :3000 → API via VITE_HIGHASCG_API_ORIGIN)
+npm run dev:client
 ```
 
-Optional production bundle: `npm run build:client` → `dist-web/`.
+Open **http://localhost:3000/** (or your LAN IP when Vite uses `host: true`). Copy `.env.development.example` → `.env.development`; set `VITE_HIGHASCG_API_ORIGIN` to the playout host (e.g. `http://192.168.0.2:4200`).
 
-Caspar HTML templates for playout live in [`../template/`](../template/) (not part of this SPA).
+## Production operator path
 
-Server: [`../index.js`](../index.js), [`../src/`](../src/).
+UI is hosted by the [**Electron launcher**](tools/electron-launcher/) (`npm run launcher`), not by the playout server. The launcher sets `window.__HIGHASCG_API_ORIGIN__` to the playout host (e.g. `http://192.168.0.10:4200`).
+
+## Legacy monolith (deprecated)
+
+```bash
+npm run start:monolith   # legacy — server also serves client/ or dist-web/
+```
+
+## Build
+
+`npm run build:client` → `dist-web/` (packaged in Electron / `release:github-client`).
+
+Caspar HTML templates for playout live in [`../template/`](../template/) (served from the **API** host at `/templates/`).

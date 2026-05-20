@@ -44,9 +44,20 @@ Legacy **`highascg-exfat-bootstrap`** (`sim/highascg/`) is deprecated — do not
 | **`HIGHASCG_SERVER_UPDATE_DRY_RUN=1`** | Log only (server update) |
 | **`ConditionPathExists=…/package.json`** on **`highascg.service`** | Node app does not start until tree exists |
 
+## Standalone ISO (embedded server)
+
+By default **`prepare-eggs-clone-with-exfat.sh`** sets **`HIGHASCG_ISO_EMBED_SERVER=1`** and **`HIGHASCG_ISO_BUILD_WEB=0`**:
+
+- Installs **`config/casparcg.config`** from **`config/casparcg.config.iso`** (single **720p50** windowed borderless screen consumer).
+- Runs **`npm ci --omit=dev`** so **`package.json`**, **`src/`**, **`node_modules/`** are in the squashfs — **not** **`dist-web/`** (operator UI via Electron; see [`PLAN_SERVER_CLIENT_SPLIT.md`](PLAN_SERVER_CLIENT_SPLIT.md)).
+- **`highascg.service.d/10-headless.conf`** sets **`HIGHASCG_HEADLESS=true`** (API-only on playout).
+- Merges **`penguins-eggs-exclude-highascg-embed-server.list`** (excludes **`client/`**, **`dist-web/`**, dev trees).
+
+Set **`HIGHASCG_ISO_EMBED_SERVER=0`** for Caspar shell only (Node app from **`exfat/update/server/`**). Set **`HIGHASCG_ISO_BUILD_WEB=1`** only for legacy monolith ISO experiments.
+
 ## Operator workflow
 
-1. Build host: **`sudo npm run eggs:prepare`** (or **`sudo bash tools/eggs/live-usb/prepare-eggs-clone-with-exfat.sh`**) — WO‑47 units + exclude merge  
+1. Build host: **`sudo npm run eggs:prepare`** (or **`sudo bash tools/eggs/live-usb/prepare-eggs-clone-with-exfat.sh`**) — WO‑47 units + exclude merge (+ ISO defaults when embed is on)  
 2. Eggs **`--clone`**: squashfs honors **`exclude.list`** fragment (re-merge after edits: **`sudo bash tools/eggs/live-usb/merge-penguins-eggs-exclude-highascg.sh`**)  
 3. Stick: extract **`highascg-server_*.tar.gz`** into **`update/server/`** (must include top-level **`package.json`**, **`src/`**, **`tools/runtime/`**, …)  
 4. Client UI: separate Mac/Windows install or **`release:github-client`** — **not** on the playout stick  

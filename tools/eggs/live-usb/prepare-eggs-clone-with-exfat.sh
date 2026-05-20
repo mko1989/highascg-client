@@ -10,6 +10,10 @@ set -euo pipefail
 #
 # Optional env:
 #   HIGHASCG_ROOT=/home/casparcg/highascg   deployed tree path (must contain package.json)
+#   HIGHASCG_ISO_EMBED_SERVER=1             bake server+node_modules into squashfs (default 1)
+#   HIGHASCG_ISO_BUILD_WEB=0                skip dist-web on ISO (default 0; UI via Electron)
+#   HIGHASCG_ISO_BUILD_WEB=1                legacy: build dist-web on imaging host before clone
+#   HIGHASCG_ISO_EMBED_SERVER=0             WO-47 only: omit Node tree; use exFAT update/server/
 #   SKIP_APT=1                               skip apt install (you already installed packages)
 #   SKIP_MERGE_EGGS_EXCLUDES=1              do not merge penguins-eggs exclude fragment
 #   SKIP_HIGHASCG_SYSTEMD_RESTART=1         skip systemctl restart highascg.service at end
@@ -42,6 +46,8 @@ fi
 SKIP_APT="${SKIP_APT:-0}"
 SKIP_MERGE_EGGS_EXCLUDES="${SKIP_MERGE_EGGS_EXCLUDES:-0}"
 SKIP_HIGHASCG_SYSTEMD_RESTART="${SKIP_HIGHASCG_SYSTEMD_RESTART:-0}"
+HIGHASCG_ISO_EMBED_SERVER="${HIGHASCG_ISO_EMBED_SERVER:-1}"
+HIGHASCG_ISO_BUILD_WEB="${HIGHASCG_ISO_BUILD_WEB:-0}"
 SKIP_STRIP_HOST_SWAP="${SKIP_STRIP_HOST_SWAP:-0}"
 
 if [[ "$SKIP_STRIP_HOST_SWAP" != "1" ]]; then
@@ -55,6 +61,9 @@ if [[ "$SKIP_APT" != "1" ]]; then
 	apt-get update -qq
 	apt-get install -y --no-install-recommends exfatprogs parted python3 rsync
 fi
+
+echo "==> ISO defaults (Caspar config + optional embedded server)"
+bash "${HERE}/install-iso-defaults.sh"
 
 echo "==> empty mount stubs for squashfs (${HIGHASCG_ROOT}/media *, ~/exfat)"
 bash "${HERE}/ensure-empty-live-usb-dirs.sh"
@@ -83,8 +92,14 @@ echo "==> HighAsCG service unit ordering (depends on WO-47 when present)"
 bash "${REPO_ROOT}/scripts/write-highascg-systemd-unit.sh" "$USER_CASPAR"
 
 if [[ "$SKIP_MERGE_EGGS_EXCLUDES" != "1" ]]; then
-	echo "==> merge HighAsCG eggs excludes (run once — idempotent marker)"
-	bash "${HERE}/merge-penguins-eggs-exclude-highascg.sh" || {
+	if [[ "$HIGHASCG_ISO_EMBED_SERVER" == "1" ]]; then
+		export HIGHASCG_EGGS_EXCLUDE_FRAGMENT="${HERE}/penguins-eggs-exclude-highascg-embed-server.list"
+		echo "==> merge HighAsCG eggs excludes (embed server on ISO — standalone boot)"
+	else
+		export HIGHASCG_EGGS_EXCLUDE_FRAGMENT="${HERE}/penguins-eggs-exclude-highascg-fragment.list"
+		echo "==> merge HighAsCG eggs excludes (WO-47 — server from exFAT update/server/)"
+	fi
+	bash "${HERE}/merge-penguins-eggs-exclude-highascg.sh" --replace || {
 		echo >&2 ""
 		echo >&2 "If merge failed because ${EGGS_EXCLUDE_LIST:-/etc/penguins-eggs.d/exclude.list} does not exist yet,"
 		echo >&2 "run eggs configuration once, then re-run this script with SKIP_MERGE_EGGS_EXCLUDES=1 for the WO-47 part only,"

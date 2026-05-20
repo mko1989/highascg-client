@@ -7,6 +7,7 @@
 'use strict'
 
 import { api } from '../lib/api-client.js'
+import { getApiOrigin } from '../lib/api-origin.js'
 import { postFormDataWithProgress } from '../lib/form-upload.js'
 
 const TARGET_STORAGE_KEY = 'highascg_publish_target'
@@ -151,8 +152,8 @@ async function runPublishWorkflow(targetUrl, modal) {
 	updateStep('bundle', 'loading')
 	
 	// Prevent self-sync if target points to local
-	const myOrigin = window.location.origin
-	if (targetUrl.startsWith(myOrigin)) {
+	const localApi = getApiOrigin() || window.location.origin
+	if (targetUrl.startsWith(localApi)) {
 		throw new Error('Target address cannot be the local server itself.')
 	}
 

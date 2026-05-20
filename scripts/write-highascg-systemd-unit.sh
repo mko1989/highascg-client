@@ -76,6 +76,18 @@ WantedBy=multi-user.target
 EOF
 
 chmod 0644 /etc/systemd/system/highascg.service
+
+# API-only on playout — UI hosted by Electron launcher (see docs/PLAN_SERVER_CLIENT_SPLIT.md)
+HEADLESS_DROPIN_DIR="/etc/systemd/system/highascg.service.d"
+HEADLESS_DROPIN="${HEADLESS_DROPIN_DIR}/10-headless.conf"
+install -d "$HEADLESS_DROPIN_DIR"
+cat <<'EOF' >"$HEADLESS_DROPIN"
+[Service]
+Environment=HIGHASCG_HEADLESS=true
+EOF
+chmod 0644 "$HEADLESS_DROPIN"
+
 systemctl daemon-reload
 systemctl enable highascg.service 2>/dev/null || true
 echo "Wrote /etc/systemd/system/highascg.service (WO-47 deps if units present)."
+echo "Wrote ${HEADLESS_DROPIN} (API-only; no dist-web on playout)."

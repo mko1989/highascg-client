@@ -22,7 +22,7 @@ The image is a **`eggs produce --clone --max --excludes static`** snapshot of th
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  HighAsCG (Node.js) — highascg.service → :8080              │
+│  HighAsCG (Node.js API) — highascg.service → :4200 (headless) │
 │  (full app tree often from exFAT after WO‑47 bootstrap)     │
 ├─────────────────────────────────────────────────────────────┤
 │  CasparCG Server 2.5 + CEF + casparcg-scanner               │
@@ -147,7 +147,7 @@ Caspar is launched with config under **`~/highascg`**, matching HighAsCG’s gen
 | Item | Notes |
 |------|------|
 | **Service** | **`highascg.service`** — `node index.js` (see **`scripts/write-highascg-systemd-unit.sh`**) |
-| **HTTP / Web UI** | Default **:8080** (from config / `highascg.config.json`) |
+| **HTTP API** | Default **:4200**; **`HIGHASCG_HEADLESS=true`** — no Web UI on playout (Electron on operator PC) |
 | **Deploy path on playout host** | **`/home/casparcg/highascg`** |
 | **Depends on** | **`package.json`** present (WO‑47: from exFAT **`update/server/`** apply) |
 
@@ -169,7 +169,7 @@ Kept under **`/home/casparcg/highascg`** for Caspar + mounts:
 | Path | In ISO |
 |------|--------|
 | **`bin/`** | Optional site helpers |
-| **`config/`** | At least **`casparcg.config`** |
+| **`config/`** | **`casparcg.config`** from **`casparcg.config.iso`** (720p50 windowed borderless screen) when prepare embed is on |
 | **`lib/`** | e.g. **NDI** copies |
 | **`media/`**, **`log/`**, **`template/`**, **`data/`**, **`cef-cache/`** | **Empty stubs** (contents excluded) |
 | **`~/exfat`** | Empty mountpoint; **`exfat/*`** excluded from squashfs |
@@ -264,7 +264,7 @@ sudo bash deprecated/tools/release/make-dev-github-release-iso-quick.sh
 | DeckLink **desktopvideo**? | **Yes**, if installed on build host before produce |
 | Caspar + scanner binaries? | **Yes**, if install.sh ran |
 | **`~/highascg/config/casparcg.config`** stub? | **Yes** (minimal shell) |
-| Full HighAsCG **`src/` / `node_modules`?** | **No** — use **exFAT `update/server/`** (`highascg-server_*.tar.gz`) |
+| Full HighAsCG **`src/` / `node_modules`?** | **Yes** when **`HIGHASCG_ISO_EMBED_SERVER=1`** (default); **`dist-web/`** excluded — use Electron launcher |
 | Operator media / templates? | **No** in squashfs — **exFAT** |
 | GitHub alpha tarball contents? | Same as **exFAT app tree**, not the minimal ISO shell |
 

@@ -10,7 +10,7 @@
  * Disable: `localStorage.removeItem('highascg_dev_remote_preview')`
  */
 
-import { getApiBase } from './api-client.js'
+import { resolveApiUrl } from './api-origin.js'
 
 function devRemotePreviewEnabled() {
 	try {
@@ -42,8 +42,7 @@ let devRemotePreviewLogged = false
 
 /** Poll until go2rtc is up (Caspar ADD STREAM may finish slightly after go2rtc starts). */
 async function waitForGo2rtcRunning(maxMs = 20000) {
-	const base = typeof location !== 'undefined' ? getApiBase() : ''
-	const url = `${location.origin}${base}/api/streams`
+	const url = resolveApiUrl('/api/streams')
 	const t0 = Date.now()
 	while (Date.now() - t0 < maxMs) {
 		try {
@@ -138,8 +137,7 @@ export function createLiveView(streamName, containerEl, opts = {}) {
 			const offer = await pc.createOffer()
 			await pc.setLocalDescription(offer)
 
-			const base = typeof location !== 'undefined' ? getApiBase() : ''
-			const url = `${location.origin}${base}/api/go2rtc/webrtc?src=${encodeURIComponent(streamName)}`
+			const url = `${resolveApiUrl('/api/go2rtc/webrtc')}?src=${encodeURIComponent(streamName)}`
 
 			const res = await fetch(url, {
 				method: 'POST',

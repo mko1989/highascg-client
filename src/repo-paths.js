@@ -7,7 +7,8 @@ const path = require('path')
 const REPO_ROOT = path.join(__dirname, '..')
 
 /**
- * Directory served as static UI: `HIGHASCG_WEB_DIR`, else `dist-web/` if built, else `client/`.
+ * Directory served as static UI when not headless (local dev / legacy monolith only).
+ * Production playout: HIGHASCG_HEADLESS=true — UI via Electron launcher, not Node static files.
  * @param {string} [repoRoot]
  * @returns {string}
  */

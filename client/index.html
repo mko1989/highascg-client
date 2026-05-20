@@ -6,16 +6,15 @@
 	<title>HighAsCG — Direct Playout</title>
 	<link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
 	<link rel="stylesheet" href="styles.css?v=6">
+	<meta name="highascg-api-origin" content="">
 	<link rel="stylesheet" href="/vendor/grapesjs/dist/css/grapes.min.css">
 
 	<!--
-		Import map for optional modules. The entries below are inert when the underlying
-		npm package isn't installed (`three` is an optionalDependency — only present after
-		`npm run install:previs`). Browsers ignore unused import-map entries, so this is
-		safe to ship unconditionally. Loaded here (before `app.js`) because import maps
-		must exist BEFORE any module script is parsed.
+		Import map: Vite replaces entries in dev/build (VITE_HIGHASCG_API_ORIGIN).
+		Electron sets window.__HIGHASCG_API_ORIGIN__ before navigation.
+		Relative paths when empty => same-origin / Vite proxy.
 	-->
-	<script type="importmap">
+	<script type="importmap" id="highascg-importmap">
 	{
 		"imports": {
 			"three": "/vendor/three/build/three.module.js",
@@ -25,6 +24,31 @@
 			"html-to-image": "/vendor/html-to-image/es/index.js"
 		}
 	}
+	</script>
+	<script id="highascg-importmap-bootstrap">
+	(function () {
+		var o = (typeof window !== 'undefined' && window.__HIGHASCG_API_ORIGIN__) || '';
+		if (!o) {
+			var el = document.querySelector('meta[name="highascg-api-origin"]');
+			if (el && el.content) o = el.content;
+		}
+		o = String(o || '').replace(/\/$/, '');
+		if (!o) return;
+		function vp(p) { return o + p; }
+		var map = {
+			imports: {
+				three: vp('/vendor/three/build/three.module.js'),
+				'three/': vp('/vendor/three/'),
+				'three/addons/': vp('/vendor/three/examples/jsm/'),
+				grapesjs: vp('/vendor/grapesjs/dist/grapes.mjs'),
+				'html-to-image': vp('/vendor/html-to-image/es/index.js')
+			}
+		};
+		var s = document.getElementById('highascg-importmap');
+		if (s) s.textContent = JSON.stringify(map);
+		var css = document.querySelector('link[href*="grapes.min.css"]');
+		if (css) css.href = vp('/vendor/grapesjs/dist/css/grapes.min.css');
+	})();
 	</script>
 </head>
 <body>

@@ -8,7 +8,7 @@
 > 4. Do **not** delete previous agents’ log entries.
 
 **Parent / context:** [Architecture Analysis](../../docs/architecture_analysis.md) or `/home/casparcg/.gemini/antigravity/brain/0ec5855d-b84e-4947-b307-3f07952c0eca/architecture_analysis.md`  
-**Status:** Draft  
+**Status:** Implemented (see [`docs/PLAN_SERVER_CLIENT_SPLIT.md`](../../docs/PLAN_SERVER_CLIENT_SPLIT.md))  
 **Prerequisites:** HighAsCG modular layout rendering, functioning settings and device-graph APIs.
 
 ---
@@ -53,7 +53,7 @@ server {
 
     # API Proxy
     location /api/ {
-        proxy_pass http://127.0.0.1:8080/api/;
+        proxy_pass http://127.0.0.1:4200/api/;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -61,7 +61,7 @@ server {
 
     # WebSocket Proxy
     location /ws/ {
-        proxy_pass http://127.0.0.1:8080/;
+        proxy_pass http://127.0.0.1:4200/;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "Upgrade";
@@ -119,3 +119,8 @@ server {
 - **Vite Configured**: Created `vite.config.js` config routing all `/api` and WebSockets upgrades directly to the Node orchestrator and isolating optional dependencies (`three`, `grapesjs`, `html-to-image`) from compilation limits.
 - **Verified Operations**: Confirmed dynamic CORS integration, compiled file pathways, and seamless reverse proxy routing. Headless execution verified on port 8888 under local CLI options.
 - **Instructions for Next Agent:** Continue monitoring production Nginx bindings; optionally optimize production bundles further once deployed on local site servers.
+
+### 2026-05-20 — Server/client split closed (PLAN phases 3–4)
+- **Canonical operator UI:** Electron launcher (`npm run launcher`) with `HIGHASCG_HEADLESS=true` on playout; server GitHub tarball excludes `client/` and `dist-web/`.
+- **Releases:** `npm run release:github-server`, `release:github-launcher`, optional `release:github-client`; `release:github-app` documented as legacy monolith.
+- **Instructions for next agent:** None — WO‑51 checklist complete; follow [`docs/PLAN_SERVER_CLIENT_SPLIT.md`](../../docs/PLAN_SERVER_CLIENT_SPLIT.md) for future hardening only.

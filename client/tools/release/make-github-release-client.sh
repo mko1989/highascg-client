@@ -100,17 +100,17 @@ trap 'rm -f "$NOTES"' EXIT
 cat >"$NOTES" <<EOF
 ## HighAsCG client (${STAMP})
 
-Vite production bundle (\`dist-web/\`) for **\`sim/highascg\`**.
+Vite production bundle (\`dist-web/\`) for the **Electron launcher** or legacy extract under \`sim/highascg/\`.
 
-| Asset | Extract |
-|-------|---------|
-| \`${ARCHIVE_BASENAME}.tar.gz\` | \`tar -xzf … -C <mount>/sim/highascg\` (creates \`dist-web/\`) |
+| Asset | Use |
+|-------|-----|
+| \`${ARCHIVE_BASENAME}.tar.gz\` | **Recommended:** \`npm run launcher:prepare\` uses this tree; or extract beside launcher |
 
-The server auto-serves \`dist-web/\` when present (over \`client/\` sources). Override with \`HIGHASCG_WEB_DIR\`.
+Production playout runs **API only** (\`HIGHASCG_HEADLESS=true\`). Open UI with \`npm run launcher\` and set playout API host/port.
 
-Requires a matching **server** release on the same stick or host.
+Requires matching **server** tarball on \`update/server/\` or embedded on ISO.
 
-Monolithic / ISO releases: \`npm run release:github-app\` · [\`docs/DEV_RELEASE_GITHUB.md\`](docs/DEV_RELEASE_GITHUB.md)
+[\`docs/PLAN_SERVER_CLIENT_SPLIT.md\`](docs/PLAN_SERVER_CLIENT_SPLIT.md) · [\`client/tools/electron-launcher/README.md\`](client/tools/electron-launcher/README.md)
 EOF
 
 if [[ "$DRY_RUN" -eq 1 ]]; then

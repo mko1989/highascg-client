@@ -32,6 +32,27 @@ const { ArtnetReceiver } = require('./src/artnet/artnet-receiver')
 
 const Args = require('./src/bootstrap/args'); const Config = require('./src/bootstrap/config'); const Modules = require('./src/bootstrap/modules'); const Shutdown = require('./src/bootstrap/shutdown')
 const { REPO_ROOT, resolveWebDir } = require('./src/repo-paths')
+const { isHeadlessMode } = require('./src/server/headless-mode')
+
+/** Load repo `.env` when vars are unset (deploy / dev convenience; no dependency). */
+function loadRepoDotEnv() {
+	const envPath = path.join(REPO_ROOT, '.env')
+	if (!fs.existsSync(envPath)) return
+	for (const line of fs.readFileSync(envPath, 'utf8').split('\n')) {
+		const trimmed = line.trim()
+		if (!trimmed || trimmed.startsWith('#')) continue
+		const eq = trimmed.indexOf('=')
+		if (eq <= 0) continue
+		const key = trimmed.slice(0, eq).trim()
+		if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key) || process.env[key] != null) continue
+		let val = trimmed.slice(eq + 1).trim()
+		if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+			val = val.slice(1, -1)
+		}
+		process.env[key] = val
+	}
+}
+loadRepoDotEnv()
 
 const WEB_DIR = resolveWebDir(REPO_ROOT)
 
@@ -163,6 +184,17 @@ function main() {
 			appCtx.amcp = casparConn.amcp; appCtx.casparConnection = casparConn
 			casparConn.context.parseInfoConfigForDecklinks = parseInfoConfigForDecklinks
 			casparConn.context.gatheredInfo = appCtx.gatheredInfo
+		}
+
+		if (!isHeadlessMode()) {
+			logger.warn(
+				'[HTTP] Serving Web UI from Node is deprecated for production playout. ' +
+					'Set HIGHASCG_HEADLESS=true on the server and use the Electron launcher (npm run launcher). ' +
+					'See docs/PLAN_SERVER_CLIENT_SPLIT.md'
+			)
+			if (process.env.HIGHASCG_WEB_DIR) {
+				logger.warn('[HTTP] HIGHASCG_WEB_DIR is deprecated; prefer headless server + launcher or Vite dev.')
+			}
 		}
 
 		const httpServer = startHttpServer({

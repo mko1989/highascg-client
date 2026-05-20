@@ -4,6 +4,10 @@
  * @see main_plan.md Prompt 11
  */
 
+import { getWsUrl } from './api-origin.js'
+
+export { getWsUrl } from './api-origin.js'
+
 export class WsClient {
 	constructor(options = {}) {
 		this.url = options.url || getWsUrl()
@@ -140,17 +144,3 @@ export class WsClient {
 	}
 }
 
-/**
- * WebSocket URL for live state + OSC + AMCP bridge. Uses the same `/instance/ID`
- * prefix as `getApiBase()` in `api-client.js` so Companion-hosted SPAs connect correctly.
- * @returns {string} e.g. `ws://host:8080/api/ws` or `ws://host:8080/instance/xyz/api/ws`
- */
-export function getWsUrl() {
-	const base = location.origin.replace(/^http/, 'ws')
-	const pathPrefix = (() => {
-		const p = location.pathname.replace(/\/$/, '') || '/'
-		const m = p.match(/^(\/instance\/[^/]+)/)
-		return m ? m[1] : ''
-	})()
-	return base + pathPrefix + '/api/ws'
-}
