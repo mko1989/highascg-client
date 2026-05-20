@@ -8,7 +8,7 @@
  * repo's CommonJS default. Exits non-zero on any failure.
  */
 
-import { __selfTest } from '../web/lib/previs-uv-mapper.js'
+import { __selfTest } from '../frontend/lib/previs-uv-mapper.js'
 
 const result = __selfTest()
 

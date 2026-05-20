@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 /**
- * Compares HighAsCG tree to Work Order 02 target paths (files that should exist post-migration).
+ * Compares HighAsCG tree to expected layout: server at repo root (`src/`), UI in `frontend/`.
  * Run: node tools/verify-w02-structure.js
- * Exit 0 always; prints missing paths to stdout for human review.
  */
 
 'use strict'
@@ -12,13 +11,11 @@ const path = require('path')
 
 const ROOT = path.resolve(__dirname, '..')
 
-/** Paths relative to HighAsCG root — from 02_WO_MIGRATE_TO_HIGHASCG.md target tree */
 const EXPECTED = [
 	'package.json',
 	'README.md',
 	'.gitignore',
 	'index.js',
-	'config/default.js',
 	'src/server/http-server.js',
 	'src/server/ws-server.js',
 	'src/server/cors.js',
@@ -39,8 +36,10 @@ const EXPECTED = [
 	'src/utils/periodic-sync.js',
 	'src/media/cinf-parse.js',
 	'src/media/local-media.js',
-	'web/index.html',
-	'templates/multiview_overlay.html',
+	'src/repo-paths.js',
+	'frontend/index.html',
+	'vite.config.js',
+	'template/multiview_overlay.html',
 ]
 
 function exists(rel) {
@@ -55,13 +54,18 @@ function exists(rel) {
 function main() {
 	const missing = EXPECTED.filter((rel) => !exists(rel))
 	const present = EXPECTED.length - missing.length
-	console.log(`WO-02 structure check: ${present}/${EXPECTED.length} expected paths present`)
+	console.log(`Structure check (src/ at root + frontend/): ${present}/${EXPECTED.length} expected paths present`)
+	if (exists('backend')) {
+		console.log('\nWARN: backend/ still exists — server should be at repo root (src/, index.js), not under backend/')
+	}
 	if (missing.length) {
-		console.log('\nMissing (migration incomplete):')
+		console.log('\nMissing:')
 		for (const m of missing) console.log(`  - ${m}`)
 	} else {
 		console.log('All listed paths present.')
 	}
+	const distWeb = exists('dist-web/index.html')
+	console.log(`dist-web/: ${distWeb ? 'present (runtime prefers over frontend/)' : 'absent (optional: npm run build:frontend)'}`)
 }
 
 main()

@@ -89,6 +89,11 @@ const TIMELINE_LAYER_BASE = 200
 const TICK_MS = 40
 /** WS `timeline.tick` throttle — client extrapolates between ticks; ~150–180ms reduces jitter over high-latency links. */
 const TIMELINE_TICK_BROADCAST_MS = 165
+/**
+ * Stretched-timeline clips (file shorter than clip duration) need occasional SEEK to stay locked.
+ * Separate from {@link TICK_MS} — transport AMCP must not run on every UI tick.
+ */
+const TIMELINE_AMCP_DRIFT_MS = 500
 
 module.exports = {
 	buildEffectAmcpLinesPlayback,
@@ -98,4 +103,5 @@ module.exports = {
 	TIMELINE_LAYER_BASE,
 	TICK_MS,
 	TIMELINE_TICK_BROADCAST_MS,
+	TIMELINE_AMCP_DRIFT_MS,
 }

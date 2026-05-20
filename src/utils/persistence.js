@@ -8,8 +8,9 @@
 
 const fs = require('fs')
 const path = require('path')
+const { REPO_ROOT } = require('../repo-paths')
 
-const STATE_FILE = path.join(__dirname, '..', '..', '.highascg-state.json')
+const STATE_FILE = path.join(REPO_ROOT, '.highascg-state.json')
 const STATE_FILE_TMP = STATE_FILE + '.tmp'
 let _cache = null
 

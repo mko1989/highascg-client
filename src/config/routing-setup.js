@@ -5,6 +5,7 @@
 
 const fs = require('fs')
 const path = require('path')
+const { REPO_ROOT } = require('../repo-paths')
 const Map = require('./routing-map')
 
 async function setupInputsChannel(self) {
@@ -67,7 +68,7 @@ async function setupMultiview(self, layout) {
 
 function syncAllTemplatesToDestination(self, destDir, label) {
 	if (!destDir || !fs.existsSync(destDir)) return 0
-	const srcRoot = path.join(__dirname, '..', '..', 'templates'); if (!fs.existsSync(srcRoot)) return 0
+	const srcRoot = path.join(REPO_ROOT, 'templates'); if (!fs.existsSync(srcRoot)) return 0
 	let n = 0; for (const ent of fs.readdirSync(srcRoot, { withFileTypes: true })) {
 		if (!ent.isFile() || ent.name.startsWith('.')) continue
 		try { fs.copyFileSync(path.join(srcRoot, ent.name), path.join(destDir, ent.name)); n++ } catch {}

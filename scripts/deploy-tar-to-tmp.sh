@@ -13,10 +13,13 @@
 #   DEPLOY_SSH_CONTROL optional ControlMaster socket path
 #
 # `highascg.config.json` is excluded from the tarball (same as dev-push.sh).
+# See dev-push.sh for DEPLOY_BUILD_FRONTEND / ARCHIVE_INCLUDE_FRONTEND_SOURCES.
 
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=archive-common.sh
+source "${ROOT}/scripts/archive-common.sh"
 cd "$ROOT"
 
 if [[ -f .env.deploy ]]; then
@@ -75,20 +78,13 @@ fi
 
 export COPYFILE_DISABLE=1
 
+archive_common_build_frontend_if_requested "$ROOT"
+local_excludes=()
+archive_common_deploy_tar_excludes local_excludes
+archive_common_apply_frontend_packaging_rules "$ROOT" local_excludes
+
 echo "→ tar → $TMP"
-tar czf "$TMP" \
-	--exclude=node_modules \
-	--exclude=.git \
-	--exclude=work \
-	--exclude=.env \
-	--exclude=.env.local \
-	--exclude='*.log' \
-	--exclude=highascg.config.json \
-	--exclude=.highascg-state.json \
-	--exclude=.module-state.json \
-	--exclude=.highascg-previs \
-	--exclude='config/*.json' \
-	.
+tar czf "$TMP" "${local_excludes[@]}" .
 
 TGZ_Q=$(printf '%q' "$DEPLOY_REMOTE_TMP")
 

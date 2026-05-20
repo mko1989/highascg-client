@@ -173,7 +173,8 @@ class SamplingManager {
 
 		this._startWorker()
 
-		const appRoot = path.join(__dirname, '..', '..')
+		const { REPO_ROOT } = require('../repo-paths')
+		const appRoot = REPO_ROOT
 		for (const ch of channelsToSample) {
 			const plan = this._channelPlan.get(ch)
 			if (!plan) continue

@@ -5,6 +5,7 @@
 
 const fs = require('fs')
 const path = require('path')
+const { REPO_ROOT } = require('../repo-paths')
 const moduleRegistry = require('../module-registry')
 const pluginManager = require('../plugins/plugin-manager')
 
@@ -15,7 +16,7 @@ function loadOptionalModules(config, log) {
 function buildVendorDirs(logger) {
 	const out = {}
 	if (moduleRegistry.isLoaded && moduleRegistry.isLoaded('previs')) {
-		const threeRoot = path.join(__dirname, '..', '..', 'node_modules', 'three')
+		const threeRoot = path.join(REPO_ROOT, 'node_modules', 'three')
 		try {
 			if (fs.existsSync(path.join(threeRoot, 'build', 'three.module.js'))) {
 				out['/vendor/three/'] = threeRoot
@@ -26,13 +27,13 @@ function buildVendorDirs(logger) {
 		} catch {}
 	}
 	try {
-		const htmlToImageRoot = path.join(__dirname, '..', '..', 'node_modules', 'html-to-image')
+		const htmlToImageRoot = path.join(REPO_ROOT, 'node_modules', 'html-to-image')
 		if (fs.existsSync(path.join(htmlToImageRoot, 'es', 'index.js'))) {
 			out['/vendor/html-to-image/'] = htmlToImageRoot
 		}
 	} catch {}
 	if (moduleRegistry.isLoaded && moduleRegistry.isLoaded('cg-studio')) {
-		const grapesRoot = path.join(__dirname, '..', '..', 'node_modules', 'grapesjs')
+		const grapesRoot = path.join(REPO_ROOT, 'node_modules', 'grapesjs')
 		try {
 			if (fs.existsSync(path.join(grapesRoot, 'dist', 'grapes.mjs'))) {
 				out['/vendor/grapesjs/'] = grapesRoot

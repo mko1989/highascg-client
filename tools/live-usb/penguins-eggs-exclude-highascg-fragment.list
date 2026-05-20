@@ -22,8 +22,10 @@ home/casparcg/highascg/src
 home/casparcg/highascg/src/*
 home/casparcg/highascg/tools
 home/casparcg/highascg/tools/*
-home/casparcg/highascg/web
-home/casparcg/highascg/web/*
+home/casparcg/highascg/frontend
+home/casparcg/highascg/frontend/*
+home/casparcg/highascg/dist-web
+home/casparcg/highascg/dist-web/*
 home/casparcg/highascg/work
 home/casparcg/highascg/work/*
 
@@ -31,7 +33,6 @@ home/casparcg/highascg/work/*
 home/casparcg/highascg/package.json
 home/casparcg/highascg/package-lock.json
 home/casparcg/highascg/npm-shrinkwrap.json
-home/casparcg/highascg/index.js
 
 # --- HighAsCG runtime/working artifacts (regenerated on boot or from stick) ---
 

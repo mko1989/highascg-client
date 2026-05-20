@@ -225,7 +225,11 @@ if [ "$SHOULD_DEPLOY_HIGHASCG" = true ]; then
 
     if [ -f "$SCRIPT_DIR/package.json" ]; then
         echo "  Copying from local repo: $SCRIPT_DIR"
-        rsync -a --exclude='node_modules' --exclude='.git' --exclude='work' "$SCRIPT_DIR/" /home/casparcg/highascg/
+        rsync -a \
+            --exclude='node_modules' --exclude='.git' --exclude='work' \
+            --exclude='media' --exclude='_media' --exclude='data' --exclude='bin' --exclude='lib' \
+            --exclude='dist' --exclude='cef-cache' --exclude='log' --exclude='core' \
+            "$SCRIPT_DIR/" /home/casparcg/highascg/
     else
         echo "  Cloning from GitHub: $HIGHASCG_GIT_URL"
         rm -rf /home/casparcg/highascg/.git 2>/dev/null || true
@@ -241,6 +245,9 @@ if [ "$SHOULD_DEPLOY_HIGHASCG" = true ]; then
 
     cd /home/casparcg/highascg
     sudo -u "$USER_CASPAR" npm install --omit=dev
+    # Production UI: unbundled frontend/ (ES modules). Optional Vite bundle:
+    #   sudo -u "$USER_CASPAR" npm install --include=dev && npm run build:frontend
+    # Runtime prefers dist-web/ when index.html exists (see src/repo-paths.js).
 
     if [ ! -f /home/casparcg/highascg/highascg.config.json ] && [ -f /home/casparcg/highascg/highascg.config.example.json ]; then
         cp /home/casparcg/highascg/highascg.config.example.json /home/casparcg/highascg/highascg.config.json

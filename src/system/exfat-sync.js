@@ -60,7 +60,8 @@ function validateMap(m) {
 }
 
 function mapCandidatePaths() {
-	const repoDefault = path.join(__dirname, '../../config/exfat-sync.json')
+	const { REPO_ROOT } = require('../repo-paths')
+	const repoDefault = path.join(REPO_ROOT, 'config/exfat-sync.json')
 	const env = process.env.HIGHASCG_EXFAT_SYNC_MAP
 	const list = []
 	if (env) list.push(path.resolve(env))

@@ -342,7 +342,8 @@ function applyPlaybackMixin(TimelineEngineClass) {
 				return
 			}
 			this._pb.position = ms
-			this._applyAt(pb.timelineId, ms, false)
+			// UI tick updates playhead only; AMCP transport runs on clip/state changes (not every 40ms).
+			this._syncAmcpOnTimelineTick(pb.timelineId, ms)
 			this.emit('tick', { timelineId: pb.timelineId, position: ms })
 			const ctx = this.self
 			if (ctx && typeof ctx._wsBroadcast === 'function') {

@@ -1,6 +1,6 @@
 /**
- * HTTP server: static `web/`, `/templates/`, `/api/*` (delegated).
- * Also routes `/instance/<id>/api/*` so the same process works when the browser uses a Companion-style path prefix (see `web/lib/api-client.js` `getApiBase`).
+ * HTTP server: static `frontend/`, `/templates/`, `/api/*` (delegated).
+ * Also routes `/instance/<id>/api/*` so the same process works when the browser uses a Companion-style path prefix (see `frontend/lib/api-client.js` `getApiBase`).
  */
 
 'use strict'
@@ -248,6 +248,12 @@ function startHttpServer(options) {
 				const qs = qIdx >= 0 ? rawPath.slice(qIdx) : ''
 				const routedPath = reqPathForRouting + qs
 				result = await routeApi(req.method || 'GET', routedPath, body, req)
+			} else if (process.env.HIGHASCG_HEADLESS === 'true') {
+				result = {
+					status: 404,
+					headers: { 'Content-Type': 'application/json; charset=utf-8' },
+					body: JSON.stringify({ error: 'HighAsCG running in headless mode. Static asset serving is disabled.' })
+				}
 			} else {
 				result = await serveWebApp(reqPath, { webDir, templatesDir, vendorDirs })
 			}

@@ -36,7 +36,8 @@ function readTopologyFromConfig(cfg, gpuModel) {
 	if (!arr || !arr.length) {
 		if (gpuModel) {
 			try {
-				const knownPath = path.join(__dirname, '../../data/known-gpus.json')
+				const { REPO_ROOT } = require('../repo-paths')
+				const knownPath = path.join(REPO_ROOT, 'data/known-gpus.json')
 				if (fs.existsSync(knownPath)) {
 					const known = JSON.parse(fs.readFileSync(knownPath, 'utf8'))
 					if (known[gpuModel]) {

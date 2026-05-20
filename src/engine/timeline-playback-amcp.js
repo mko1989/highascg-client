@@ -8,19 +8,85 @@ const {
 	mixerEffectNeutralLines,
 	playAfSuffix,
 	TIMELINE_LAYER_BASE,
+	TIMELINE_AMCP_DRIFT_MS,
 } = require('./timeline-playback-helpers')
+
+/**
+ * @param {object} clip
+ * @param {number} ms timeline position
+ * @param {object} tl timeline model
+ * @param {object} self app ctx
+ */
+function clipTransportMeta(clip, ms, tl, self) {
+	const src = String(clip.source?.value || '')
+	const isRoute = src.startsWith('route://')
+	const fps = Math.max(1, tl.fps || 25)
+	const inFrames = Number(clip.inPoint) || 0
+	const localMs = Math.max(0, ms - clip.startTime)
+	const relativeFrame = Math.floor((localMs * fps) / 1000)
+	let frame = !isRoute ? relativeFrame + inFrames : 0
+	let implicitLoop = false
+	if (!isRoute && src) {
+		const durMs = resolveClipDurationMs(self, src)
+		if (durMs != null && durMs > 0) {
+			const totalFrames = Math.max(1, Math.floor((durMs * fps) / 1000))
+			if (inFrames < totalFrames) {
+				const spanFrames = totalFrames - inFrames
+				const spanMs = (spanFrames * 1000) / fps
+				if (clip.duration > spanMs + 0.5) {
+					implicitLoop = true
+					frame = inFrames + (relativeFrame % spanFrames)
+				}
+			}
+		}
+	}
+	return {
+		src,
+		srcQ: clipParamForPlay(src),
+		isRoute,
+		frame,
+		implicitLoop,
+		loopClip: !!(clip.loopAlways || clip.loop),
+		loopAlways: !!clip.loopAlways,
+	}
+}
 
 module.exports = {
 	_caspLayer(_ch, li) {
 		return TIMELINE_LAYER_BASE + li
 	},
 
+	/**
+	 * Full transport + mixer sync (scrub, play start, inspector edits). Not called from the UI tick.
+	 * @param {string} id timeline id
+	 * @param {number} ms position
+	 * @param {boolean} force scrub / explicit seek — sends PLAY|LOAD|SEEK for active clips
+	 */
 	_applyAt(id, ms, force) {
+		this._syncAmcpLayers(id, ms, { force: !!force, allowDriftSeek: false })
+	},
+
+	/**
+	 * Called from {@link TimelineEngine#_tick} only — clip enter/exit, throttled drift SEEK for stretched clips,
+	 * and keyframed mixer when values change. Does not PLAY/SEEK on every tick for normal 1× clips.
+	 */
+	_syncAmcpOnTimelineTick(id, ms) {
+		this._syncAmcpLayers(id, ms, { force: false, allowDriftSeek: true })
+	},
+
+	/**
+	 * @param {string} id
+	 * @param {number} ms
+	 * @param {{ force?: boolean, allowDriftSeek?: boolean }} opts
+	 */
+	_syncAmcpLayers(id, ms, opts) {
 		const tl = this.timelines.get(id)
 		const self = this.self
 		if (!tl || !self?.amcp) return
+		const force = !!opts.force
+		const allowDriftSeek = !!opts.allowDriftSeek
 		const channels = this._channels()
-		/** Channels that received at least one mixer command this frame — COMMIT only those (Caspar 2.5+). */
+		const playing = this._pb?.playing ?? false
 		const mixerDirty = new Set()
 
 		for (let li = 0; li < tl.layers.length; li++) {
@@ -33,69 +99,58 @@ module.exports = {
 				const prev = this._prevKey.get(key)
 
 				if (clip) {
-					const src = String(clip.source?.value || '')
-					const isRoute = src.startsWith('route://')
-					const srcQ = clipParamForPlay(src)
+					const meta = clipTransportMeta(clip, ms, tl, self)
 					const newClip = !prev || prev.clipId !== clip.id
-					const playing = this._pb?.playing ?? false
-					const loopClip = clip.loopAlways || clip.loop
-					const fps = Math.max(1, tl.fps || 25)
-					const inFrames = Number(clip.inPoint) || 0
-					const localMs = Math.max(0, ms - clip.startTime)
-					const relativeFrame = Math.floor((localMs * fps) / 1000)
-					let frame = !isRoute ? relativeFrame + inFrames : 0
-					let implicitLoop = false
-					if (!isRoute && src) {
-						const durMs = resolveClipDurationMs(self, src)
-						if (durMs != null && durMs > 0) {
-							const totalFrames = Math.max(1, Math.floor((durMs * fps) / 1000))
-							if (inFrames < totalFrames) {
-								const spanFrames = totalFrames - inFrames
-								const spanMs = (spanFrames * 1000) / fps
-								if (clip.duration > spanMs + 0.5) {
-									implicitLoop = true
-									frame = inFrames + (relativeFrame % spanFrames)
-								}
-							}
+					let transportSent = false
+
+					if (meta.loopAlways) {
+						if (newClip || force) {
+							this._sendClipTransport(ch, caspLayer, clip, meta, { playing, startTransport: true })
+							transportSent = true
+						}
+					} else if (newClip || force) {
+						this._sendClipTransport(ch, caspLayer, clip, meta, { playing, startTransport: true })
+						transportSent = true
+					} else if (
+						allowDriftSeek &&
+						playing &&
+						meta.implicitLoop &&
+						!meta.isRoute &&
+						prev?.clipId === clip.id
+					) {
+						const now = Date.now()
+						const driftDue = !prev.lastDriftAt || now - prev.lastDriftAt >= TIMELINE_AMCP_DRIFT_MS
+						if (driftDue && prev.frame !== meta.frame) {
+							self.amcp.call(ch, caspLayer, 'SEEK', String(meta.frame)).catch(() => {})
+							transportSent = true
+							this._prevKey.set(key, {
+								clipId: clip.id,
+								frame: meta.frame,
+								lastDriftAt: now,
+							})
 						}
 					}
-					if (clip.loopAlways) {
-						if (newClip) {
-							self.amcp
-								.raw(`PLAY ${ch}-${caspLayer} ${srcQ} LOOP${playAfSuffix(clip)}`)
-								.catch(() => {})
-						}
-					} else if (force || newClip) {
-						if (isRoute) {
-							self.amcp.raw(`PLAY ${ch}-${caspLayer} ${srcQ}${playAfSuffix(clip)}`).catch(() => {})
-						} else if (playing || loopClip) {
-							// Only user clip.loop / loopAlways uses Caspar LOOP. Stretched (implicit) clips rely on
-							// SEEK each tick while playing — PLAY LOOP would keep decoding in a loop and ignore pause.
-							const loopStr = loopClip ? ' LOOP' : ''
-							self.amcp
-								.raw(`PLAY ${ch}-${caspLayer} ${srcQ}${loopStr} SEEK ${frame}${playAfSuffix(clip)}`)
-								.catch(() => {})
-						} else {
-							self.amcp
-								.raw(`LOAD ${ch}-${caspLayer} ${srcQ} SEEK ${frame}${playAfSuffix(clip)}`)
-								.catch(() => {})
-						}
-					} else if (!isRoute && prev?.clipId === clip.id) {
-						// Stretched clip: keep Caspar frame locked to timeline (decoder would otherwise drift past file end).
-						// Normal clip: only SEEK on scrub (force); let the layer play forward at 1×.
-						if (force || (playing && implicitLoop)) {
-							self.amcp.call(ch, caspLayer, 'SEEK', String(frame)).catch(() => {})
-						}
-					}
-					if (force || newClip) {
+
+					if (transportSent && (force || newClip)) {
 						for (const pk of this._lastKfValues.keys()) {
 							if (pk.startsWith(`${ch}-${caspLayer}-`)) this._lastKfValues.delete(pk)
 						}
 					}
+
+					if (transportSent || newClip || !prev) {
+						this._prevKey.set(key, {
+							clipId: clip.id,
+							frame: meta.frame,
+							lastDriftAt:
+								transportSent && meta.implicitLoop
+									? Date.now()
+									: prev?.lastDriftAt,
+						})
+					}
+
 					if (this._applyClipMixer(ch, caspLayer, clip, ms - clip.startTime)) {
 						mixerDirty.add(ch)
 					}
-					this._prevKey.set(key, { clipId: clip.id })
 				} else if (prev?.clipId) {
 					self.amcp.stop(ch, caspLayer).catch(() => {})
 					this._prevKey.set(key, null)
@@ -105,10 +160,40 @@ module.exports = {
 				}
 			}
 		}
-		for (const ch of channels) {
-			if (mixerDirty.has(ch)) {
-				self.amcp.mixerCommit(ch).catch(() => {})
-			}
+
+		for (const ch of mixerDirty) {
+			self.amcp.mixerCommit(ch).catch(() => {})
+		}
+	},
+
+	/**
+	 * PLAY / LOAD for one layer — only when clip starts or user scrubs (startTransport).
+	 * @param {boolean} opts.playing timeline transport playing
+	 * @param {boolean} opts.startTransport new clip, play(), or seek/scrub
+	 */
+	_sendClipTransport(ch, caspLayer, clip, meta, opts) {
+		const self = this.self
+		if (!self?.amcp) return
+		const { playing, startTransport } = opts
+
+		if (meta.loopAlways) {
+			if (!startTransport) return
+			self.amcp.raw(`PLAY ${ch}-${caspLayer} ${meta.srcQ} LOOP${playAfSuffix(clip)}`).catch(() => {})
+			return
+		}
+		if (!startTransport) return
+
+		if (meta.isRoute) {
+			self.amcp.raw(`PLAY ${ch}-${caspLayer} ${meta.srcQ}${playAfSuffix(clip)}`).catch(() => {})
+		} else if (playing || meta.loopClip) {
+			const loopStr = meta.loopClip ? ' LOOP' : ''
+			self.amcp
+				.raw(`PLAY ${ch}-${caspLayer} ${meta.srcQ}${loopStr} SEEK ${meta.frame}${playAfSuffix(clip)}`)
+				.catch(() => {})
+		} else {
+			self.amcp
+				.raw(`LOAD ${ch}-${caspLayer} ${meta.srcQ} SEEK ${meta.frame}${playAfSuffix(clip)}`)
+				.catch(() => {})
 		}
 	},
 
@@ -133,7 +218,6 @@ module.exports = {
 		const fillStr = `${fx},${fy},${sx},${sy}`
 		if (this._lastKfValues.get(kFill) !== fillStr) {
 			this._lastKfValues.set(kFill, fillStr)
-			/** Same as scene-take: FILL x y xScale yScale duration — duration 0 = immediate (Caspar 2.5+). */
 			self.amcp.mixerFill(ch, layer, fx, fy, sx, sy, 0).catch(() => {})
 			sent = true
 			if (typeof self.log === 'function') {
@@ -155,7 +239,6 @@ module.exports = {
 			sent = true
 		}
 
-		// Apply mixer effects from clip.effects[] (WO-22); neutral reset first so omitted effects clear Caspar state.
 		const kFx = `${ch}-${layer}-fx`
 		const fxKey =
 			Array.isArray(clip.effects) && clip.effects.length > 0
@@ -181,7 +264,6 @@ module.exports = {
 
 	_channelsFor(sendTo) {
 		const st = sendTo || {}
-		// Undefined preview/program must mean “on” (same as UI defaults). Only explicit `false` turns a bus off.
 		const previewOn = st.preview !== false
 		const programOn = st.program !== false
 		let map = null
@@ -211,16 +293,11 @@ module.exports = {
 		return this._channelsFor(this._pb?.sendTo)
 	},
 
-	/** Layer index from Caspar layer number (TIMELINE_LAYER_BASE + stack index). */
 	_timelineLayerIndex(caspLayer) {
 		const li = caspLayer - TIMELINE_LAYER_BASE
 		return li >= 0 ? li : -1
 	},
 
-	/**
-	 * Pause every timeline layer that had output, except layers whose active clip uses loopAlways
-	 * (those keep playing in Caspar while transport is paused).
-	 */
 	_pauseAll() {
 		const self = this.self
 		if (!self?.amcp) return
@@ -239,7 +316,6 @@ module.exports = {
 		}
 	},
 
-	/** Resume only layers we would have paused (same loopAlways exception). */
 	_resumeAll() {
 		const self = this.self
 		if (!self?.amcp) return

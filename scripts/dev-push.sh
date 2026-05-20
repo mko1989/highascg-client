@@ -35,10 +35,16 @@
 #   DEPLOY_SSH_CONTROL optional path for SSH multiplex socket (default: /tmp/highascg-deploy-$$.sock)
 #
 # `highascg.config.json` is excluded so the server copy is not overwritten.
+#
+# Backend / frontend layout: ships src/ (server at repo root), frontend/, and dist-web/ when built.
+#   DEPLOY_BUILD_FRONTEND=1   run `npm run build:frontend` before tar (omit frontend/ if dist-web exists)
+#   ARCHIVE_INCLUDE_FRONTEND_SOURCES=1   keep frontend/ even when dist-web/ is present
 
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=archive-common.sh
+source "${ROOT}/scripts/archive-common.sh"
 cd "$ROOT"
 
 if [[ -f .env.deploy ]]; then
@@ -112,20 +118,13 @@ fi
 
 export COPYFILE_DISABLE=1
 
-echo "→ tar → $TMP"
-tar czf "$TMP" \
-	--exclude=node_modules \
-	--exclude=.git \
-	--exclude=work \
-	--exclude=.env \
-	--exclude=.env.local \
-	--exclude='*.log' \
-	--exclude=highascg.config.json \
-	--exclude=.highascg-state.json \
-	--exclude=.module-state.json \
-	--exclude=.highascg-previs \
-	--exclude='config/*.json' \
-	.
+archive_common_build_frontend_if_requested "$ROOT"
+local_excludes=()
+archive_common_deploy_tar_excludes local_excludes
+archive_common_apply_frontend_packaging_rules "$ROOT" local_excludes
+
+echo "→ tar → $TMP (src/ at root + dist-web/; frontend/ sources=${ARCHIVE_INCLUDE_FRONTEND_SOURCES:-0})"
+tar czf "$TMP" "${local_excludes[@]}" .
 
 PATH_Q=$(printf '%q' "$DEPLOY_PATH")
 TGZ_Q=$(printf '%q' "$DEPLOY_REMOTE_TMP")
@@ -133,7 +132,7 @@ INDEX_Q=$(printf '%q' "${DEPLOY_PATH}/index.js")
 
 # Wipe app tree before unpack, but keep server-local files: live config, project state, previs and existing node_modules
 # (tarball excludes node_modules — without this preserve, every deploy would delete deps and force npm install).
-REMOTE_INNER="set -euo pipefail; mkdir -p ${PATH_Q}; find ${PATH_Q} -mindepth 1 -maxdepth 1 ! -name 'highascg.config.json' ! -name '.highascg-state.json' ! -name '.module-state.json' ! -name '.highascg-previs' ! -name 'config' ! -name 'node_modules' -exec rm -rf {} +; env -u TAR_OPTIONS tar -m -xzf ${TGZ_Q} -C ${PATH_Q}; rm -f ${TGZ_Q}; chown -R ${DEPLOY_USER}:${DEPLOY_USER} ${PATH_Q}"
+REMOTE_INNER="set -euo pipefail; mkdir -p ${PATH_Q}; find ${PATH_Q} -mindepth 1 -maxdepth 1 ! -name 'highascg.config.json' ! -name '.highascg-state.json' ! -name '.module-state.json' ! -name '.highascg-previs' ! -name 'config' ! -name 'node_modules' ! -name 'dist-web' -exec rm -rf {} +; env -u TAR_OPTIONS tar -m -xzf ${TGZ_Q} -C ${PATH_Q}; rm -f ${TGZ_Q}; chown -R ${DEPLOY_USER}:${DEPLOY_USER} ${PATH_Q}"
 if [[ "$DEPLOY_REMOTE_SUDO" == "1" ]]; then
 	if [[ -n "$DEPLOY_SUDO_PASSWORD" ]]; then
 		SUDO_PW_SQ=${DEPLOY_SUDO_PASSWORD//\'/\'\"\'\"\'}
@@ -174,4 +173,5 @@ if ! "${SSH_BASE[@]}" "${SSH_TTY[@]}" "${SSH_OPTS[@]}" "$REMOTE" "$REMOTE_VERIFY
 	exit 1
 fi
 
-echo "→ done: ${REMOTE}:${DEPLOY_PATH} — run npm install (or npm ci) only when package.json / lockfile changed."
+echo "→ done: ${REMOTE}:${DEPLOY_PATH} — run npm install (or npm ci) when package.json / lockfile changed."
+echo "   UI: dist-web/ if deployed; else unbundled frontend/. Set DEPLOY_BUILD_FRONTEND=1 to refresh dist-web/ on deploy."

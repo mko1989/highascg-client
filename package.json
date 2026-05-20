@@ -7,7 +7,11 @@
 	"scripts": {
 		"start": "node index.js",
 		"dev": "node --watch index.js",
+		"dev:frontend": "vite",
+		"build:frontend": "vite build",
 		"deploy:dev": "bash scripts/dev-push.sh",
+		"deploy:dev:frontend": "DEPLOY_BUILD_FRONTEND=1 bash scripts/dev-push.sh",
+		"clean:eggs-host": "bash scripts/clean-eggs-dev-host.sh",
 		"smoke": "node tools/http-smoke.js",
 		"smoke:caspar": "node tools/smoke-caspar.js",
 		"smoke:previs-uv": "node tools/smoke-previs-uv.mjs",
@@ -18,7 +22,7 @@
 		"smoke:media-mount": "node --test tools/smoke-media-mount-lsblk.js",
 		"exfat-sync": "node tools/exfat-sync-cli.js",
 		"smoke:exfat-sync": "node --test tools/smoke-exfat-sync.js",
-    "test:device-graph": "node --test tools/smoke-device-graph.js",
+		"test:device-graph": "node --test tools/smoke-device-graph.js",
 		"test:device-snapshot": "node --test tools/smoke-device-snapshot.js",
 		"test:os-layout-w40": "node --test tools/smoke-os-layout-w40.js",
 		"test:mapping-gpu-os-layout": "node --test tools/smoke-mapping-gpu-os-layout.js",
@@ -41,11 +45,16 @@
 		"operator-kit": "node tools/operator-desktop/highascg-operator.js",
 		"operator-kit:check": "node --check tools/operator-desktop/highascg-operator.js",
 		"stick-studio": "python3 tools/stick-tools/stick_studio.py",
-		"launcher": "python3 tools/operator-desktop/highascg-launcher.py",
+		"launcher": "electron --no-sandbox tools/electron-launcher",
+		"launcher:python": "python3 tools/operator-desktop/highascg-launcher.py",
 		"release:dev-github": "bash tools/release/make-dev-github-release.sh",
 		"release:dev-github:dry": "bash tools/release/make-dev-github-release.sh --dry-run",
 		"release:github-app": "bash tools/release/make-dev-github-release.sh --app-only",
 		"release:github-app:dry": "bash tools/release/make-dev-github-release.sh --app-only --dry-run",
+		"release:github-server": "bash tools/release/make-github-release-server.sh",
+		"release:github-server:dry": "bash tools/release/make-github-release-server.sh --dry-run",
+		"release:github-frontend": "bash tools/release/make-github-release-frontend.sh",
+		"release:github-frontend:dry": "bash tools/release/make-github-release-frontend.sh --dry-run",
 		"smoke:wo47-manifest": "node tools/smoke-wo47-manifest.mjs"
 	},
 	"engines": {
@@ -61,6 +70,10 @@
 		"wetransfert": "^2.4.0",
 		"ws": "^8.18.0",
 		"xml2js": "^0.6.2"
+	},
+	"devDependencies": {
+		"electron": "^30.0.0",
+		"vite": "^6.4.2"
 	},
 	"optionalDependencies": {
 		"grapesjs": "^0.21.2",

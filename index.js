@@ -31,13 +31,16 @@ const { applyUiSelectionPayloadToVariables } = require('./src/api/apply-ui-selec
 const { ArtnetReceiver } = require('./src/artnet/artnet-receiver')
 
 const Args = require('./src/bootstrap/args'); const Config = require('./src/bootstrap/config'); const Modules = require('./src/bootstrap/modules'); const Shutdown = require('./src/bootstrap/shutdown')
+const { REPO_ROOT, resolveWebDir } = require('./src/repo-paths')
+
+const WEB_DIR = resolveWebDir(REPO_ROOT)
 
 const logger = createLogger({ minLevel: 'info', onLine: logBuffer.appendHighasLine }); const debugLog = createLogger({ minLevel: 'debug', onLine: logBuffer.appendHighasLine })
 
 function main() {
 	const cli = Args.parseArgs(process.argv); if (cli.help) { Args.printHelp(); process.exit(0) }
-	let configPath = process.env.HIGHASCG_CONFIG_PATH ? path.resolve(process.env.HIGHASCG_CONFIG_PATH) : path.join(__dirname, 'highascg.config.json')
-	const modularDir = path.join(__dirname, 'config')
+	let configPath = process.env.HIGHASCG_CONFIG_PATH ? path.resolve(process.env.HIGHASCG_CONFIG_PATH) : path.join(REPO_ROOT, 'highascg.config.json')
+	const modularDir = path.join(REPO_ROOT, 'config')
 	if (!process.env.HIGHASCG_CONFIG_PATH && fs.existsSync(modularDir) && fs.statSync(modularDir).isDirectory()) {
 		configPath = modularDir
 	}
@@ -165,12 +168,13 @@ function main() {
 		const httpServer = startHttpServer({
 			port: config.server.httpPort,
 			bindAddress: config.server.bindAddress,
-			webDir: path.join(__dirname, 'web'),
-			templatesDir: path.join(__dirname, 'template'),
+			webDir: WEB_DIR,
+			templatesDir: path.join(REPO_ROOT, 'template'),
 			vendorDirs: Modules.buildVendorDirs(logger),
 			routeApi: (m, p, b, r) => routeRequest(m, p, b, appCtx, r),
 			log: m => logger.info(m),
 		})
+		logger.info(`[HTTP] Static UI: ${WEB_DIR}`)
 		const wsBroadcastMs = cli.wsBroadcastMs || parseInt(process.env.HIGHASCG_WS_BROADCAST_MS || '0', 10) || 0
 		appCtx.onFirstWebSocketClient = (ctx) => notifyWebSocketClientConnected(ctx)
 		const wsHandle = attachWebSocketServer(httpServer, appCtx, { log: m => logger.info(m), stateBroadcastIntervalMs: wsBroadcastMs })
@@ -219,8 +223,8 @@ function main() {
 			const httpServer = startHttpServer({ 
 				port: config.server.httpPort, 
 				bindAddress: config.server.bindAddress, 
-				webDir: path.join(__dirname, 'web'), 
-				templatesDir: path.join(__dirname, 'templates'), 
+				webDir: WEB_DIR,
+				templatesDir: path.join(REPO_ROOT, 'template'), 
 				vendorDirs: [], 
 				routeApi: (m, p, b, r) => routeRequest(m, p, b, safeCtx, r),
 				log: m => logger.info(`[SafeMode HTTP] ${m}`) 

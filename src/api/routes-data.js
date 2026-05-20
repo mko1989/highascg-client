@@ -90,7 +90,8 @@ async function handleProject(path, body, ctx) {
 		const fs = require('fs')
 		const pathObj = require('path')
 		try {
-			const autosavePath = pathObj.join(__dirname, '..', '..', 'autosave.json')
+			const { REPO_ROOT } = require('../repo-paths')
+			const autosavePath = pathObj.join(REPO_ROOT, 'autosave.json')
 			fs.writeFileSync(autosavePath, JSON.stringify(project, null, 2), 'utf8')
 			return { status: 200, headers: JSON_HEADERS, body: jsonBody({ ok: true }) }
 		} catch (e) {

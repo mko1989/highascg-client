@@ -30,7 +30,8 @@ async function handleSave(ctx, bodyStr) {
 		const body = JSON.parse(bodyStr)
 		if (!body.name) throw new Error('Missing template name')
 
-		const tplDir = path.join(__dirname, '..', '..', 'template', body.name)
+		const { REPO_ROOT } = require('../repo-paths')
+		const tplDir = path.join(REPO_ROOT, 'template', body.name)
 		await fs.promises.mkdir(tplDir, { recursive: true })
 
 		// Save GrapesJS project data

@@ -75,7 +75,8 @@ async function handleMultiviewApply(body, ctx) {
 	// Auto-deploy templates to media/template paths
 	const basePath = (ctx.config?.local_media_path || '').trim()
 	if (basePath) {
-		const templatesDir = path.join(__dirname, '..', '..', 'template')
+		const { REPO_ROOT } = require('../repo-paths')
+		const templatesDir = path.join(REPO_ROOT, 'template')
 		for (const tpl of [
 			'multiview_master.html',
 			'multiview_overlay.html',

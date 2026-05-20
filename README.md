@@ -70,13 +70,17 @@ Open the printed URL (e.g. `http://127.0.0.1:8080/`). WebSocket clients use the 
 
 ## Project layout
 
-- `index.js` — entry point, Caspar `ConnectionManager`, HTTP, WebSocket
-- `src/server/` — HTTP static + API, WebSocket
-- `src/caspar/` — TCP, AMCP protocol, `AmcpClient`
-- `src/api/` — REST routers
-- `src/engine/` — scenes, timelines
-- `web/` — static SPA (workspace UI, editors)
-- `scripts/` — production installer (`install.sh` + phases), dev deploy, smoke tests, staged Caspar helpers — see **`scripts/README.md`**
+| Path | Role |
+|------|------|
+| `index.js`, [`src/`](src/) | Node server — Caspar AMCP, REST `/api/*`, WebSocket |
+| [`frontend/`](frontend/) | Browser UI — static ES modules ([`frontend/README.md`](frontend/README.md)) |
+| `dist-web/` | Optional Vite production bundle (`npm run build:frontend`) |
+| `config/` | Modular settings (runtime JSON; see `.gitignore`) |
+| `template/` | Caspar HTML templates |
+| `scripts/` | Production installer, systemd — [`scripts/README.md`](scripts/README.md) |
+| `tools/` | Live USB, smoke tests, operator launcher |
+
+**Dev:** `npm start` (backend) · `npm run dev:frontend` (Vite on port 3000, proxies `/api` to the backend).
 
 Migration notes and file mapping: `work/01_WO_ANALYZE_MODULE.md`, `work/02_WO_MIGRATE_TO_HIGHASCG.md` (local `work/` tree). Architecture catalog: **`work/PROJECT_BREAKDOWN.md`**. Work-order status snapshot: **`work/project_status.md`**.
 
@@ -84,7 +88,7 @@ Migration notes and file mapping: `work/01_WO_ANALYZE_MODULE.md`, `work/02_WO_MI
 
 ```bash
 node tools/verify-w02-structure.js
-find src/ web/ -name "*.js" | xargs wc -l | sort -n
+find src frontend -name "*.js" | xargs wc -l | sort -n
 ```
 
 With the server running (`npm start` or `node index.js --port 8080`), in another terminal:

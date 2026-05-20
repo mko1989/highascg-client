@@ -1,0 +1,25 @@
+'use strict'
+
+const fs = require('fs')
+const path = require('path')
+
+/** Repo root (parent of `src/`). Server lives here; UI is `frontend/` or `dist-web/`. */
+const REPO_ROOT = path.join(__dirname, '..')
+
+/**
+ * Directory served as static UI: `HIGHASCG_WEB_DIR`, else `dist-web/` if built, else `frontend/`.
+ * @param {string} [repoRoot]
+ * @returns {string}
+ */
+function resolveWebDir(repoRoot = REPO_ROOT) {
+	if (process.env.HIGHASCG_WEB_DIR) {
+		return path.resolve(process.env.HIGHASCG_WEB_DIR)
+	}
+	const distWeb = path.join(repoRoot, 'dist-web')
+	if (fs.existsSync(path.join(distWeb, 'index.html'))) {
+		return distWeb
+	}
+	return path.join(repoRoot, 'frontend')
+}
+
+module.exports = { REPO_ROOT, resolveWebDir }

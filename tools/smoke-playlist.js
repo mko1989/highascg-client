@@ -1,6 +1,6 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
-const { migrateScene } = require('../web/lib/scene-state-helpers')
+const { migrateScene } = require('../frontend/lib/scene-state-helpers')
 const { buildTakeJobs } = require('../src/engine/scene-take-lbg-jobs')
 
 test('scene state migration adds default playlist properties', () => {

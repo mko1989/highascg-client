@@ -43,8 +43,10 @@ const EXT_MIME = {
 	'.fbx': 'application/octet-stream',
 }
 
+const { REPO_ROOT } = require('../repo-paths')
+
 function getStorageRoot() {
-	return path.join(__dirname, '..', '..', '.highascg-previs', 'models')
+	return path.join(REPO_ROOT, '.highascg-previs', 'models')
 }
 
 function ensureStorageRoot() {
