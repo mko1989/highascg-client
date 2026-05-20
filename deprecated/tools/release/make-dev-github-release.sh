@@ -32,10 +32,10 @@
 #
 set -euo pipefail
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-# shellcheck source=../live-usb/flash-stick-common.sh
-source "${REPO_ROOT}/tools/live-usb/flash-stick-common.sh"
-# shellcheck source=../../scripts/archive-common.sh
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+# shellcheck source=../../../tools/eggs/live-usb/flash-stick-common.sh
+source "${REPO_ROOT}/tools/eggs/live-usb/flash-stick-common.sh"
+# shellcheck source=../../../scripts/archive-common.sh
 source "${REPO_ROOT}/scripts/archive-common.sh"
 
 BASENAME="${BASENAME:-highascg}"
@@ -97,13 +97,11 @@ done
 export RELEASE_BUILD_CLIENT ARCHIVE_INCLUDE_CLIENT_SOURCES
 
 STAMP="$(date -u +%Y-%m-%dT%H%M%SZ)"
-ZIP_BASENAME="highascg_${STAMP}"
+CLEAN_STAMP="${STAMP/T/_}"
+CLEAN_STAMP="${CLEAN_STAMP%Z}"
+ZIP_BASENAME="highascg_${CLEAN_STAMP}"
 if [[ -z "${TAG}" ]]; then
-	if [[ "$APP_ONLY" -eq 1 ]]; then
-		TAG="alpha_${STAMP/T/_}"
-	else
-		TAG="dev-${STAMP}"
-	fi
+	TAG="${CLEAN_STAMP}"
 fi
 DIST="${OUT_DIR:-${REPO_ROOT}/dist}"
 MAX_GITHUB_ASSET=$((2 * 1024 * 1024 * 1024 - 100 * 1024 * 1024))
@@ -139,7 +137,7 @@ if [[ "$SKIP_ISO" -eq 0 ]]; then
 	else
 		if [[ "$FULL_ISO_BUILD" -eq 1 ]]; then
 			echo "==> Full ISO via build-highascg-egg.sh (sudo)"
-			sudo env BASENAME="$BASENAME" bash "${REPO_ROOT}/tools/live-usb/build-highascg-egg.sh"
+			sudo env BASENAME="$BASENAME" bash "${REPO_ROOT}/tools/eggs/live-usb/build-highascg-egg.sh"
 			# Eggs writes ISO under /home/eggs/mnt as root — unprivileged tarball/gh need read + dir traverse
 			sudo chmod a+rx /home/eggs /home/eggs/mnt 2>/dev/null || true
 			sudo find /home/eggs /home/eggs/mnt -maxdepth 1 -type f -name '*.iso' -exec chmod a+r {} \; 2>/dev/null || true
@@ -233,15 +231,11 @@ trap 'rm -f "$NOTES"' EXIT
 ZIP_NOTE="Includes **node_modules** (watch GitHub ~2 GiB per asset)."
 [[ "$ZIP_EXCLUDE_NODE_MODULES" -eq 1 ]] && ZIP_NOTE="**node_modules** omitted — run \`npm ci\` in \`sim/highascg\` after extract."
 
-if [[ "$APP_ONLY" -eq 1 ]]; then
-	RELEASE_TITLE="Alpha ${STAMP/T/_}"
-else
-	RELEASE_TITLE="Dev ${STAMP}"
-fi
+RELEASE_TITLE="${TAG}"
 
 if [[ "$APP_ONLY" -eq 1 ]]; then
 	cat >"$NOTES" <<EOF
-## Alpha app bundle (${STAMP})
+## HighAsCG App Release (${TAG})
 
 Portable HighAsCG drop for **exFAT-first / modular workflows** (no Eggs ISO in this release).
 
@@ -253,13 +247,13 @@ Includes **\`dist-web/\`** (Vite UI) by default; \`client/\` dev sources omitted
 
 Combine with your existing live USB image when ready; rebuild ISO / Eggs only when needed: \`npm run release:dev-github\`.
 
-**Operators:** \`npm run operator-kit\` — [\`tools/operator-desktop/README.md\`](tools/operator-desktop/README.md); stick layout: [\`MANUAL_STICK_WINDOWS_MACOS.md\`](tools/live-usb/MANUAL_STICK_WINDOWS_MACOS.md).
+**Operators:** \`npm run operator-kit\` — [\`tools/operator-desktop/README.md\`](tools/operator-desktop/README.md); stick layout: [\`MANUAL_STICK_WINDOWS_MACOS.md\`](tools/eggs/live-usb/MANUAL_STICK_WINDOWS_MACOS.md).
 
 Full runbook: [\`docs/DEV_RELEASE_GITHUB.md\`](docs/DEV_RELEASE_GITHUB.md).
 EOF
 else
 	cat >"$NOTES" <<EOF
-## Dev snapshot (${STAMP})
+## HighAsCG System Release (${TAG})
 
 | Asset | Purpose |
 |-------|---------|

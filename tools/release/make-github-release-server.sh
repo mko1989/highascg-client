@@ -48,7 +48,8 @@ done
 
 STAMP="$(release_lib_stamp)"
 if [[ -z "${TAG}" ]]; then
-	TAG="server_$(release_lib_stamp_tag "$STAMP")"
+	TAG="$(release_lib_stamp_tag "$STAMP")"
+	TAG="${TAG%Z}"
 fi
 
 DIST="${OUT_DIR:-${REPO_ROOT}/dist}"
