@@ -18,12 +18,21 @@ ipcMain.on('update-api-origin', (event, origin) => {
 const PORT = 3000
 const distWebPath = path.resolve(__dirname, 'dist-web')
 
+function mapInstanceStaticPath(requestPath) {
+  const m = String(requestPath || '/').match(/^\/instance\/[^/]+(\/.*)?$/)
+  if (!m) return requestPath
+  const rest = m[1]
+  if (!rest || rest === '/') return '/'
+  return rest
+}
+
 const server = http.createServer((req, res) => {
   const parsedUrl = url.parse(req.url)
   let pathname = parsedUrl.pathname
   
-  // Transparent proxy for backend-hosted assets & APIs to prevent missing functionality
-  if (pathname.startsWith('/api/') || pathname.startsWith('/vendor/') || pathname.startsWith('/template/') || pathname.startsWith('/templates/')) {
+  // Transparent proxy for backend-hosted assets & APIs to prevent missing functionality (supporting Companion prefixes)
+  const isProxyPath = /^\/(instance\/[^/]+\/)?(api|vendor|template|templates)\b/.test(pathname)
+  if (isProxyPath) {
     try {
       const targetUrl = new URL(req.url, webuiApiOrigin)
       const proxyReq = http.request({
@@ -53,11 +62,13 @@ const server = http.createServer((req, res) => {
     return
   }
   
-  if (pathname === '/' || pathname === '') {
-    pathname = '/index.html'
+  // Map Companion-style prefix to local static folder root
+  let cleanPath = mapInstanceStaticPath(pathname)
+  if (cleanPath === '/' || cleanPath === '') {
+    cleanPath = '/index.html'
   }
   
-  let filePath = path.join(distWebPath, pathname)
+  let filePath = path.join(distWebPath, cleanPath)
   if (!filePath.startsWith(distWebPath)) {
     res.statusCode = 403
     res.end('Forbidden')
