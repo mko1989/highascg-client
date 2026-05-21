@@ -1,8 +1,0 @@
-# Installed automatically by scripts/write-highascg-systemd-unit.sh as:
-#   /etc/systemd/system/highascg.service.d/10-headless.conf
-#
-# Playout machine: API + WebSocket only. Operator UI runs in Electron launcher.
-# See docs/PLAN_SERVER_CLIENT_SPLIT.md
-
-[Service]
-Environment=HIGHASCG_HEADLESS=true
