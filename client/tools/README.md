@@ -10,4 +10,5 @@ Browser UI dev/simulation, desktop launchers, and **client** GitHub releases. No
 | [`stick-tools/`](stick-tools/) | `npm run stick-studio` — Stick Studio GUI |
 | [`live-usb/`](live-usb/) | macOS/Windows stick scripts (exFAT + ISO write) |
 | [`release/`](release/) | `npm run release:github-client` → `dist-web/` tarball |
-| [`../scripts/dev-push.sh`](../scripts/dev-push.sh) | `npm run deploy:dev` |
+
+Server deploy (`dev-push.sh`) is under [`../../not-needed/client-scripts/`](../../not-needed/client-scripts/).

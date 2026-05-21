@@ -32,4 +32,4 @@ npm run launcher:prepare
 npm run build:launcher
 ```
 
-See [`docs/PLAN_SERVER_CLIENT_SPLIT.md`](../../../docs/PLAN_SERVER_CLIENT_SPLIT.md).
+See [`not-needed/docs/PLAN_SERVER_CLIENT_SPLIT.md`](../../../not-needed/docs/PLAN_SERVER_CLIENT_SPLIT.md).

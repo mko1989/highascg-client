@@ -18,7 +18,7 @@ import { showLedTestModal, getLedTestSettings, getLedTestShowGridForChannel } fr
 import { createHeaderAudioMonitor } from './header-bar-audio.js'
 import { markLocalProjectSaved } from '../lib/project-remote-sync.js'
 import { initConfigStrip } from './header-bar-config-strip.js'
-import { initStreamingBadge } from './header-bar-streaming.js'
+
 import { initLedTestCard } from './header-bar-led-test.js'
 
 /**
@@ -219,7 +219,7 @@ export function initHeaderBar(headerEl, statusEl, stateStore) {
 	ledTestWrap.className = 'header-led-test'
 	
 	initLedTestCard(ledTestWrap, stateStore)
-	initStreamingBadge(ledTestWrap)
+
 
 	const audioGroup = createHeaderAudioMonitor(stateStore)
 

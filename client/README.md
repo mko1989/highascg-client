@@ -14,7 +14,7 @@ Static **HTML / CSS / ES modules** — the operator UI (dashboard, scenes, devic
 
 ## Split dev (recommended)
 
-API and UI run on different ports. See [`docs/PLAN_SERVER_CLIENT_SPLIT.md`](../docs/PLAN_SERVER_CLIENT_SPLIT.md).
+API and UI run on different ports. See [`not-needed/docs/PLAN_SERVER_CLIENT_SPLIT.md`](../not-needed/docs/PLAN_SERVER_CLIENT_SPLIT.md).
 
 ```bash
 # Playout / API host
@@ -40,4 +40,4 @@ npm run start:monolith   # legacy — server also serves client/ or dist-web/
 
 `npm run build:client` → `dist-web/` (packaged in Electron / `release:github-client`).
 
-Caspar HTML templates for playout live in [`../template/`](../template/) (served from the **API** host at `/templates/`).
+Caspar HTML templates for playout live in [`../not-needed/template/`](../not-needed/template/) (served from the **API** host at `/templates/`).

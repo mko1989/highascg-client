@@ -24,7 +24,7 @@ import { showLogsModal } from './components/logs-modal.js'
 import { multiviewState } from './lib/multiview-state.js'
 import { dmxState } from './lib/dmx-state.js'
 import { initPixelMapEditor } from './components/pixel-map-editor.js'
-import { initStreamingPanel } from './components/streaming-panel.js'
+
 import { getVariableStore } from './lib/variable-state.js'
 import { projectState } from './lib/project-state.js'
 import { timelineState } from './lib/timeline-state.js'
@@ -32,6 +32,7 @@ import { initOptionalModules } from './lib/optional-modules.js'
 import { initDeviceView } from './components/device-view.js'
 import { placeholderState } from './lib/placeholder-state.js'
 import { markLocalProjectSaved } from './lib/project-remote-sync.js'
+
 
 import * as Status from './lib/app-status.js'
 import * as Handlers from './lib/app-ws-handlers.js'
@@ -84,7 +85,6 @@ function initTabs() {
 			window.dispatchEvent(new CustomEvent('highascg-mapping-browser-visibility', { detail: { visible: false } }))
 		}
 		if (['scenes', 'multiview', 'pixelmap', 'timeline'].includes(target)) requestAnimationFrame(() => document.dispatchEvent(new CustomEvent(`${target === 'pixelmap' ? 'px' : (target === 'multiview' ? 'mv' : target)}-tab-activated`)))
-		if (target === 'streaming') initStreamingPanel(document.getElementById('tab-streaming'))
 		if (target === 'device-view') initDeviceView(document.getElementById('tab-device-view'))
 	}
 	tabs.forEach(tab => tab.addEventListener('click', () => activateTab(tab.dataset.tab)))

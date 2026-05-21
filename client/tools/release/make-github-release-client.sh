@@ -9,8 +9,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=../../../tools/release/release-lib.sh
-source "${SCRIPT_DIR}/../../../tools/release/release-lib.sh"
+# shellcheck source=./release-lib.sh
+source "${SCRIPT_DIR}/release-lib.sh"
 
 REPO_ROOT="$(release_lib_repo_root)"
 DRY_RUN=0
@@ -110,7 +110,7 @@ Production playout runs **API only** (\`HIGHASCG_HEADLESS=true\`). Open UI with 
 
 Requires matching **server** tarball on \`update/server/\` or embedded on ISO.
 
-[\`docs/PLAN_SERVER_CLIENT_SPLIT.md\`](docs/PLAN_SERVER_CLIENT_SPLIT.md) · [\`client/tools/electron-launcher/README.md\`](client/tools/electron-launcher/README.md)
+[\`client/tools/electron-launcher/README.md\`](client/tools/electron-launcher/README.md) · server/API sources: [\`not-needed/\`](../not-needed/)
 EOF
 
 if [[ "$DRY_RUN" -eq 1 ]]; then

@@ -1,0 +1,42 @@
+========================================================================
+HighAsCG USB stick — macOS
+ISO:      /Users/marcin/Downloads/highascg_amd64_2026-05-18_2201.iso
+HighAsCG: /Users/marcin/Downloads/highascg-main
+Repo:     /Users/marcin/companion-module-dev/highascg
+========================================================================
+
+── Option A — Balena Etcher (no sudo from this repo) ──
+
+Step 1 — Flash the live ISO (GUI)
+  • Open https://etcher.balena.io/
+  • Flash from file → /Users/marcin/Downloads/highascg_amd64_2026-05-18_2201.iso
+  • Select your USB stick (check size/model), then Flash.
+  • Do NOT reformat the small boot partitions Etcher creates.
+
+Step 2 — See external USB disks (Terminal)
+diskutil list external physical
+
+Step 3 — Add exFAT volume label HIGHASCGEXF
+  • Disk Utility → View → Show All Devices
+  • Select the top-level USB device → Partition → add ExFAT
+  • Name exactly: HIGHASCGEXF
+  • Details: /Users/marcin/companion-module-dev/highascg/tools/live-usb/MANUAL_STICK_WINDOWS_MACOS.md
+
+Step 4 — Seed folders + copy HighAsCG (after volume mounts)
+mkdir -p "/Volumes/HIGHASCGEXF/sim/highascg" "/Volumes/HIGHASCGEXF/drop-config" "/Volumes/HIGHASCGEXF/media" "/Volumes/HIGHASCGEXF/templates" "/Volumes/HIGHASCGEXF/configs" "/Volumes/HIGHASCGEXF/snapshots/rear-panels"
+ditto /Users/marcin/Downloads/highascg-main/. "/Volumes/HIGHASCGEXF/sim/highascg/"
+test -f "/Volumes/HIGHASCGEXF/sim/highascg/package.json" && echo "OK: package.json present"
+
+── Option B — One automated script (sudo, erases whole USB) ──
+
+cd /Users/marcin/companion-module-dev/highascg
+diskutil list external physical
+# Replace diskN below after you identify your USB (e.g. disk2):
+sudo bash /Users/marcin/companion-module-dev/highascg/tools/live-usb/macos/make-highascg-stick.sh --disk diskN --app-dir /Users/marcin/Downloads/highascg-main /Users/marcin/Downloads/highascg_amd64_2026-05-18_2201.iso
+# Type YES (capitals) when prompted; re-type diskN to confirm.
+
+── Option C — operator-kit (same script, disk chosen inside Terminal) ──
+
+cd /Users/marcin/companion-module-dev/highascg
+npm run operator-kit -- prepare-stick --iso /Users/marcin/Downloads/highascg_amd64_2026-05-18_2201.iso --app-dir /Users/marcin/Downloads/highascg-main
+

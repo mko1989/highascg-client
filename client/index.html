@@ -27,6 +27,11 @@
 	</script>
 	<script id="highascg-importmap-bootstrap">
 	(function () {
+		// Always keep same-origin relative paths when loading via the local Electron/Vite server (port 3000)
+		// to leverage the transparent HTTP proxy and avoid CORS errors on these assets.
+		if (typeof location !== 'undefined' && (location.port === '3000' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
+			return;
+		}
 		var o = (typeof window !== 'undefined' && window.__HIGHASCG_API_ORIGIN__) || '';
 		if (!o) {
 			var el = document.querySelector('meta[name="highascg-api-origin"]');
@@ -79,7 +84,7 @@
 					<button class="tab" data-tab="timeline">Timeline Editor</button>
 					<button class="tab" data-tab="multiview">Multiview Editor</button>
 					<button class="tab" data-tab="device-view">Devices</button>
-					<button class="tab" data-tab="streaming" id="tab-btn-streaming" style="display:none">Streaming</button>
+
 				</div>
 				<div class="workspace__content">
 					<div class="tab-pane active" id="tab-scenes"></div>
@@ -87,7 +92,7 @@
 					<div class="tab-pane" id="tab-multiview"></div>
 					<div class="tab-pane" id="tab-device-view"></div>
 					<div class="tab-pane" id="tab-pixelmap"></div>
-					<div class="tab-pane" id="tab-streaming"></div>
+
 				</div>
 			</main>
 

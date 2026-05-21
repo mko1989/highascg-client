@@ -1,7 +1,8 @@
 import { api } from '../lib/api-client.js'
 import { sceneState } from '../lib/scene-state.js'
 import { buildLiveSources, decklinkSlotStatusMessage, escapeHtml, makeDraggable } from './sources-panel-helpers.js'
-import { getLiveThumbnailChannelForSource } from '../lib/thumbnail-url.js'
+import { getLiveThumbnailChannelForSource, getLiveThumbnailUrl } from '../lib/thumbnail-url.js'
+import { invalidateThumbnailCache } from './preview-canvas-draw-base.js'
 
 export function renderLiveTab(listEl, { channelMap, decklinkInputsStatus, extraSources = [], connectors = [] }) {
 	const base = buildLiveSources(channelMap, connectors)
@@ -40,7 +41,7 @@ export function renderLiveTab(listEl, { channelMap, decklinkInputsStatus, extraS
 		let thumbHtml = ''
 		let thumbControls = ''
 		if (ch > 0) {
-			const thumbUrl = `/api/thumbnail/live/${ch}?v=${Date.now()}`
+			const thumbUrl = getLiveThumbnailUrl(ch, Date.now())
 			thumbHtml = `<div class="source-item__thumbnail source-item__thumbnail--live" style="position: relative; width: 32px; height: 32px; flex-shrink: 0; background: #151520; border: 1px solid #333; border-radius: 3px; display: flex; align-items: center; justify-content: center; overflow: hidden;" title="Custom thumbnail / manual capture">
 				<img class="source-item__live-img" src="${thumbUrl}" onerror="this.style.display='none'; if(!this.parentElement.querySelector('svg')){this.parentElement.insertAdjacentHTML('afterbegin', '<svg class=\\'source-item__live-svg-fallback\\' width=\\'14\\' height=\\'14\\' viewBox=\\'0 0 24 24\\' fill=\\'none\\' stroke=\\'#666\\' stroke-width=\\'2\\' stroke-linecap=\\'round\\' stroke-linejoin=\\'round\\'><rect x=\\'2\\' y=\\'3\\' width=\\'20\\' height=\\'14\\' rx=\\'2\\' ry=\\'2\\'></rect><line x1=\\'8\\' y1=\\'21\\' x2=\\'16\\' y2=\\'21\\'></line><line x1=\\'12\\' y1=\\'17\\' x2=\\'12\\' y2=\\'21\\'></line></svg>')}" style="width: 100%; height: 100%; object-fit: cover;" />
 			</div>`
@@ -97,12 +98,11 @@ export function renderLiveTab(listEl, { channelMap, decklinkInputsStatus, extraS
 						const bust = Date.now()
 						if (imgEl) {
 							imgEl.style.display = 'block'
-							imgEl.src = `/api/thumbnail/live/${ch}?v=${bust}`
+							imgEl.src = getLiveThumbnailUrl(ch, bust)
 							const fallbackIcon = thumbContainer.querySelector('.source-item__live-svg-fallback')
 							if (fallbackIcon) fallbackIcon.remove()
 						}
-						const { invalidateThumbnailCache } = await import('./preview-canvas-draw-base.js')
-						invalidateThumbnailCache(`/api/thumbnail/live/${ch}`)
+						invalidateThumbnailCache(getLiveThumbnailUrl(ch))
 					} catch (err) {
 						alert(err?.message || 'Failed to capture live thumbnail')
 					} finally {
@@ -145,12 +145,11 @@ export function renderLiveTab(listEl, { channelMap, decklinkInputsStatus, extraS
 						const bust = Date.now()
 						if (imgEl) {
 							imgEl.style.display = 'block'
-							imgEl.src = `/api/thumbnail/live/${ch}?v=${bust}`
+							imgEl.src = getLiveThumbnailUrl(ch, bust)
 							const fallbackIcon = thumbContainer.querySelector('.source-item__live-svg-fallback')
 							if (fallbackIcon) fallbackIcon.remove()
 						}
-						const { invalidateThumbnailCache } = await import('./preview-canvas-draw-base.js')
-						invalidateThumbnailCache(`/api/thumbnail/live/${ch}`)
+						invalidateThumbnailCache(getLiveThumbnailUrl(ch))
 					} catch (err) {
 						alert(err?.message || 'Failed to upload custom thumbnail')
 					} finally {

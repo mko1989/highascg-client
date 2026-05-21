@@ -99,63 +99,7 @@ export async function updateConnector(id, patch) {
 	return await api.post('/api/device-view', { updateConnector: { id, patch } })
 }
 
-export async function getStreamingChannelStatus() {
-	return await api.get('/api/streaming-channel')
-}
 
-export async function startStreamingChannelRtmp({
-	rtmpServerUrl,
-	streamKey,
-	quality,
-	outputId,
-	videoCodec,
-	videoBitrateKbps,
-	encoderPreset,
-	audioCodec,
-	audioBitrateKbps,
-}) {
-	return await api.post('/api/streaming-channel/rtmp', {
-		action: 'start',
-		rtmpServerUrl,
-		streamKey,
-		quality,
-		outputId,
-		videoCodec,
-		videoBitrateKbps,
-		encoderPreset,
-		audioCodec,
-		audioBitrateKbps,
-	})
-}
-
-export async function stopStreamingChannelRtmp() {
-	return await api.post('/api/streaming-channel/rtmp', { action: 'stop' })
-}
-
-export async function getPgmRecordStatus() {
-	const st = await api.get('/api/streaming-channel')
-	return {
-		recording: !!st?.record?.active,
-		path: st?.record?.path || null,
-	}
-}
-
-export async function startPgmRecord({ outputId, crf, videoCodec, videoBitrateKbps, encoderPreset, audioCodec, audioBitrateKbps }) {
-	return await api.post('/api/streaming-channel/record', {
-		action: 'start',
-		outputId,
-		crf,
-		videoCodec,
-		videoBitrateKbps,
-		encoderPreset,
-		audioCodec,
-		audioBitrateKbps,
-	})
-}
-
-export async function stopPgmRecord({ outputId } = {}) {
-	return await api.post('/api/streaming-channel/record', { action: 'stop', outputId })
-}
 
 export async function addMappingNode() {
 	return await api.post('/api/device-view', { addMappingNode: true })

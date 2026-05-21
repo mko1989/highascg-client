@@ -9,6 +9,8 @@ import { getVariableStore } from '../lib/variable-state.js'
 import { getOscClient, ws } from '../app.js'
 import { isMediaOrFileSource } from './scenes-shared.js'
 import { audioOutputRoutesForLayout } from '../lib/audio-routes.js'
+import { sceneState } from '../lib/scene-state.js'
+import { showScenesToast } from './scenes-editor-support.js'
 
 /** @param {unknown[]} [levels] */
 function peakDbfsFromLevels(levels) {
@@ -267,18 +269,14 @@ export function initAudioMixerPanel(stateStore, mountEl) {
 				const routeSel = row.querySelector('.audio-mixer__route-sel')
 				if (routeSel) {
 					routeSel.addEventListener('change', () => {
-						import('../lib/scene-state.js').then(({ sceneState }) => {
-							const scene = sceneState.getScene(r.sceneId)
-							if (scene) {
-								const idx = scene.layers.findIndex((l) => l.layerNumber === r.layer)
-								if (idx >= 0) {
-									sceneState.patchLayer(r.sceneId, idx, { audioRoute: routeSel.value })
-									import('./scenes-editor-support.js').then(({ showScenesToast }) => {
-										showScenesToast('Route changed. Re-take the look to apply to output.', 'info')
-									})
-								}
+						const scene = sceneState.getScene(r.sceneId)
+						if (scene) {
+							const idx = scene.layers.findIndex((l) => l.layerNumber === r.layer)
+							if (idx >= 0) {
+								sceneState.patchLayer(r.sceneId, idx, { audioRoute: routeSel.value })
+								showScenesToast('Route changed. Re-take the look to apply to output.', 'info')
 							}
-						})
+						}
 					})
 				}
 			}

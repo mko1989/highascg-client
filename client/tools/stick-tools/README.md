@@ -35,6 +35,6 @@ Created under the mount root when requested:
 
 ## Related docs
 
-- [`docs/WO47_ISO_VS_EXFAT.md`](../../docs/WO47_ISO_VS_EXFAT.md)
+- [`not-needed/docs/WO47_ISO_VS_EXFAT.md`](../../../not-needed/docs/WO47_ISO_VS_EXFAT.md)
 - [`tools/live-usb/BUILD_AND_FLASH.md`](../live-usb/BUILD_AND_FLASH.md)
-- [`docs/DEV_RELEASE_GITHUB.md`](../../docs/DEV_RELEASE_GITHUB.md)
+- [`not-needed/docs/DEV_RELEASE_GITHUB.md`](../../../not-needed/docs/DEV_RELEASE_GITHUB.md)

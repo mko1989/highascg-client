@@ -1,3 +1,5 @@
+import { getApiBase, resolveApiUrl } from './api-origin.js'
+
 /**
  * Web-side loader for optional feature modules (WO-30 T30.4).
  *
@@ -46,7 +48,7 @@ export async function initOptionalModules(ctx) {
 
 	let info
 	try {
-		const res = await fetch('/api/modules', { credentials: 'same-origin' })
+		const res = await fetch(`${getApiBase()}/api/modules`, { credentials: 'same-origin' })
 		if (!res.ok) throw new Error(`HTTP ${res.status}`)
 		info = await res.json()
 	} catch (e) {
@@ -66,11 +68,21 @@ export async function initOptionalModules(ctx) {
 		return { enabled: [], failed: [] }
 	}
 
-	for (const href of _state.styles) injectStylesheet(href)
+	for (const href of _state.styles) {
+		const styleUrl =
+			href.startsWith('http://') || href.startsWith('https://')
+				? href
+				: resolveApiUrl(href.startsWith('/') ? href : `/${href}`)
+		injectStylesheet(styleUrl)
+	}
 
 	for (const url of _state.bundles) {
+		const bundleUrl =
+			url.startsWith('http://') || url.startsWith('https://')
+				? url
+				: resolveApiUrl(url.startsWith('/') ? url : `/${url}`)
 		try {
-			const mod = await import(/* @vite-ignore */ url)
+			const mod = await import(/* @vite-ignore */ bundleUrl)
 			if (mod && typeof mod.default === 'function') {
 				try {
 					await mod.default(_state.context)
