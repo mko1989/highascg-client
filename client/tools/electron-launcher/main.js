@@ -123,6 +123,59 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`[Electron Main] WebUI Static Server listening on http://localhost:${PORT}`)
 })
 
+// Transparent WebSocket Upgrade Proxy to route real-time client traffic under same-origin mapping
+server.on('upgrade', (req, socket, head) => {
+  const parsedUrl = url.parse(req.url)
+  const pathname = parsedUrl.pathname
+  
+  const isWsPath = /^\/(instance\/[^/]+\/)?api\/ws\b/.test(pathname)
+  if (isWsPath) {
+    try {
+      const targetUrl = new URL(webuiApiOrigin)
+      const targetHost = targetUrl.hostname
+      const targetPort = targetUrl.port || (targetUrl.protocol === 'https:' ? 443 : 80)
+      
+      const net = require('net')
+      const targetSocket = net.connect(targetPort, targetHost, () => {
+        let rawHeaders = `${req.method} ${req.url} HTTP/1.1\r\n`
+        for (let i = 0; i < req.rawHeaders.length; i += 2) {
+          const key = req.rawHeaders[i]
+          const val = req.rawHeaders[i+1]
+          if (key.toLowerCase() === 'host') {
+            rawHeaders += `Host: ${targetUrl.host}\r\n`
+          } else {
+            rawHeaders += `${key}: ${val}\r\n`
+          }
+        }
+        rawHeaders += '\r\n'
+        
+        targetSocket.write(rawHeaders)
+        if (head && head.length > 0) {
+          targetSocket.write(head)
+        }
+        
+        targetSocket.pipe(socket)
+        socket.pipe(targetSocket)
+      })
+      
+      targetSocket.on('error', (err) => {
+        console.error('[Electron Main] WebSocket Proxy target error:', err.message)
+        socket.destroy()
+      })
+      
+      socket.on('error', (err) => {
+        console.error('[Electron Main] WebSocket Proxy client error:', err.message)
+        targetSocket.destroy()
+      })
+    } catch (err) {
+      console.error('[Electron Main] WebSocket Proxy upgrade failed:', err.message)
+      socket.destroy()
+    }
+  } else {
+    socket.destroy()
+  }
+})
+
 let mainWindow = null
 let simProcess = null
 
