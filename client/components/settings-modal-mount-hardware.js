@@ -2,6 +2,7 @@
  * Settings modal: media mount, exFAT sync table, system hardware (NVIDIA), DeckLink summaries.
  */
 import { api } from '../lib/api-client.js'
+import { resolveApiUrl } from '../lib/api-origin.js'
 import { settingsState } from '../lib/settings-state.js'
 
 function escapeHtml(s) {
@@ -65,8 +66,16 @@ export async function refreshMediaMountPanel(modal) {
 		line.textContent = lines.join(' · ')
 		if (applyBtn) applyBtn.disabled = !sel.value
 	} catch (e) {
-		line.textContent = e?.message || String(e)
+		line.textContent = formatSettingsFetchError(e, '/api/system/block-devices')
 	}
+}
+
+function formatSettingsFetchError(err, path) {
+	const msg = err?.message || String(err)
+	if (/networkerror/i.test(msg)) {
+		return `${msg} — cannot reach ${resolveApiUrl(path)}. Check the playout API is running, firewall allows the port, and the Web UI uses the same host (not 127.0.0.1 from another machine).`
+	}
+	return msg
 }
 
 export async function refreshExfatSyncPanel(modal) {
@@ -108,7 +117,7 @@ export async function refreshExfatSyncPanel(modal) {
 			tbody.appendChild(tr)
 		}
 	} catch (e) {
-		line.textContent = e?.message || String(e)
+		line.textContent = formatSettingsFetchError(e, '/api/system/exfat-sync')
 		tbody.innerHTML = ''
 	}
 }

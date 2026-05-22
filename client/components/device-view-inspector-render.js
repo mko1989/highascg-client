@@ -34,6 +34,12 @@ export function readableConnectorRows(connector, ctx) {
 			{ label: 'DeckLink device', value: String(connector.externalRef ?? ctx?.output?.device ?? ctx?.multiviewDevice ?? '0') },
 			{ label: 'Caspar main', value: main != null ? `Main ${main}` : 'Not mapped' }
 		)
+	} else if (connector.kind === 'decklink_io') {
+		const dir = String(connector?.caspar?.ioDirection || 'in').toLowerCase() === 'out' ? 'out' : 'in'
+		rows.push(
+			{ label: 'Port', value: String(connector.externalRef ?? '?') },
+			{ label: 'Direction', value: dir === 'out' ? 'Output' : 'Input' }
+		)
 	} else if (connector.kind === 'decklink_in') {
 		rows.push(
 			{ label: 'Type', value: 'DeckLink input' },

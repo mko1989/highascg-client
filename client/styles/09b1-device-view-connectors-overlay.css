@@ -22,6 +22,26 @@
 	/* Enhanced shadow for physical prominence, with a very soft, elegant highlight glow */
 	filter: drop-shadow(0 5px 8px rgba(0, 0, 0, 0.65)) drop-shadow(0 0 2px var(--cable-color));
 }
+.device-view__decklink-kf-link {
+	stroke-dasharray: none;
+	stroke-width: 2;
+	opacity: 0.95;
+	pointer-events: none;
+	filter: none;
+}
+.device-view__decklink-kf-link.device-view__cable-line--active {
+	stroke-width: 2.75;
+	filter: drop-shadow(0 0 4px rgba(88, 166, 255, 0.65));
+}
+.device-view__decklink-kf-link-label text {
+	fill: #f1f5f9;
+	font-size: 10px;
+	font-weight: 700;
+	font-family: ui-sans-serif, system-ui, sans-serif;
+	letter-spacing: 0.03em;
+	pointer-events: none;
+	user-select: none;
+}
 .device-view__backpanel-overlay {
 	position: absolute;
 	inset: 0;

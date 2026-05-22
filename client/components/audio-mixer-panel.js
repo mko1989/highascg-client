@@ -12,6 +12,53 @@ import { audioOutputRoutesForLayout } from '../lib/audio-routes.js'
 import { sceneState } from '../lib/scene-state.js'
 import { showScenesToast } from './scenes-editor-support.js'
 
+export function syncFaderUI(key, percent) {
+	const selectors = [
+		`input[data-key="${key}"].audio-mixer__fader-horizontal`,
+		`input[data-key="${key}"].audio-mixer__fader-vertical`,
+		`input[data-key="${key}"].audio-mixer-view__fader`
+	]
+	const faders = document.querySelectorAll(selectors.join(', '))
+	faders.forEach((f) => {
+		if (f.value !== String(percent)) {
+			f.value = percent
+			const parent = f.closest('.audio-mixer__bus-master, .audio-mixer__bus-layer, .audio-mixer-view__strip')
+			if (parent) {
+				const valEl = parent.querySelector('.audio-mixer__fader-val, .audio-mixer-view__fader-val')
+				if (valEl) valEl.textContent = `${percent}%`
+			}
+		}
+	})
+}
+
+export function syncMuteUI(key, muted) {
+	const btnCompact = document.querySelector(`.audio-mixer__mute-btn[data-key="${key}"]`)
+	const btnBig = document.querySelector(`.audio-mixer-view__mute-btn[data-key="${key}"]`)
+	if (btnCompact) {
+		if (muted) btnCompact.classList.add('audio-mixer__mute-btn--active')
+		else btnCompact.classList.remove('audio-mixer__mute-btn--active')
+	}
+	if (btnBig) {
+		if (muted) btnBig.classList.add('audio-mixer-view__mute-btn--active')
+		else btnBig.classList.remove('audio-mixer-view__mute-btn--active')
+	}
+}
+
+export function syncAllSolosUI() {
+	const allBtns = document.querySelectorAll('.audio-mixer__solo-btn, .audio-mixer-view__solo-btn')
+	allBtns.forEach(btn => {
+		const k = btn.dataset.key
+		const activeClass = btn.classList.contains('audio-mixer__solo-btn') 
+			? 'audio-mixer__solo-btn--active' 
+			: 'audio-mixer-view__solo-btn--active'
+		if (audioMixerState.isSoloed(k)) {
+			btn.classList.add(activeClass)
+		} else {
+			btn.classList.remove(activeClass)
+		}
+	})
+}
+
 /** @param {unknown[]} [levels] */
 function peakDbfsFromLevels(levels) {
 	if (!Array.isArray(levels) || levels.length === 0) return NaN
@@ -98,7 +145,10 @@ export function initAudioMixerPanel(stateStore, mountEl) {
 			<span class="audio-mixer__section-label">Program audio</span>
 		</button>
 		<div class="audio-mixer__panel" hidden>
-			<div class="audio-mixer__buses"></div>
+			<div class="audio-mixer__section-title">Masters</div>
+			<div class="audio-mixer__masters"></div>
+			<div class="audio-mixer__section-title">Inputs</div>
+			<div class="audio-mixer__inputs"></div>
 		</div>
 	`
 	mountEl.appendChild(root)
@@ -106,7 +156,8 @@ export function initAudioMixerPanel(stateStore, mountEl) {
 	const toggle = root.querySelector('.audio-mixer__section-toggle')
 	const panel = root.querySelector('.audio-mixer__panel')
 	const chevron = root.querySelector('.audio-mixer__section-chevron')
-	const busesEl = root.querySelector('.audio-mixer__buses')
+	const mastersEl = root.querySelector('.audio-mixer__masters')
+	const inputsEl = root.querySelector('.audio-mixer__inputs')
 	/** @type {ReturnType<typeof requestAnimationFrame> | null} */
 	let raf = null
 	/** @type {Map<string, HTMLDivElement>} */
@@ -133,10 +184,10 @@ export function initAudioMixerPanel(stateStore, mountEl) {
 		meterSmooth.clear()
 		meterLayerMeta.clear()
 		const cm = getChannelMap()
-		// `[]` is truthy — without length check we render zero buses and never start the meter loop.
 		const programChannels =
 			Array.isArray(cm.programChannels) && cm.programChannels.length > 0 ? cm.programChannels : [1]
-		busesEl.innerHTML = ''
+		mastersEl.innerHTML = ''
+		inputsEl.innerHTML = ''
 
 		const rows = []
 		programChannels.forEach((ch, i) => {
@@ -160,6 +211,7 @@ export function initAudioMixerPanel(stateStore, mountEl) {
 							label: `L${ln} · ${shortName}`,
 							labelTitle: `L${ln}: ${fullName}`,
 							v: layer.volume != null ? layer.volume : 1,
+							muted: !!layer.muted,
 							isMaster: false,
 							audioRoute: layer.audioRoute || '1+2',
 							sceneId: liveSceneData.sceneId,
@@ -169,51 +221,113 @@ export function initAudioMixerPanel(stateStore, mountEl) {
 			}
 		})
 
-		for (const r of rows) {
+		const mastersList = rows.filter((r) => r.isMaster)
+		const inputsList = rows.filter((r) => !r.isMaster)
+
+		// 1. Render Masters Side-by-Side
+		for (const r of mastersList) {
 			const row = document.createElement('div')
-			row.className = 'audio-mixer__bus' + (r.isMaster ? ' audio-mixer__bus--master' : ' audio-mixer__bus--layer')
-			
-			let routeHtml = ''
-			let soloHtml = ''
-			if (!r.isMaster) {
+			row.className = 'audio-mixer__bus-master'
+			const labelShort = r.label.replace('Program', 'PGM').replace('audio', '')
+			row.innerHTML = `
+				<div class="audio-mixer__master-label" title="${escapeAttr(r.label)}">${escapeHtml(labelShort)}</div>
+				<div class="audio-mixer__master-meter-container">
+					<div class="audio-mixer__meter-vertical" aria-hidden="true">
+						<div class="audio-mixer__meter-fill"></div>
+					</div>
+					<input type="range" class="audio-mixer__fader-vertical" min="0" max="100" value="${Math.round(r.v * 100)}" data-ch="${r.ch}" data-key="${escapeAttr(r.key)}" aria-label="Volume" />
+				</div>
+				<span class="audio-mixer__fader-val">${Math.round(r.v * 100)}%</span>
+			`
+			mastersEl.appendChild(row)
+
+			const fill = row.querySelector('.audio-mixer__meter-fill')
+			meterFills.set(r.key, fill)
+
+			const fader = row.querySelector('.audio-mixer__fader-vertical')
+			const valEl = row.querySelector('.audio-mixer__fader-val')
+
+			fader.addEventListener('input', () => {
+				const x = parseInt(fader.value, 10) / 100
+				valEl.textContent = `${fader.value}%`
+				audioMixerState.setMasterVolume(r.key, x)
+				syncFaderUI(r.key, fader.value)
+			})
+
+			fader.addEventListener('change', async () => {
+				const x = parseInt(fader.value, 10) / 100
+				try {
+					await api.post('/api/audio/volume', { channel: r.ch, master: true, volume: x })
+				} catch (e) {
+					console.warn('VOLUME failed:', e?.message || e)
+				}
+			})
+		}
+
+		// 2. Group Inputs by parent channel and render horizontally
+		const inputsByCh = {}
+		for (const r of inputsList) {
+			if (!inputsByCh[r.ch]) inputsByCh[r.ch] = []
+			inputsByCh[r.ch].push(r)
+		}
+
+		programChannels.forEach((ch, chIdx) => {
+			const list = inputsByCh[ch] || []
+			if (list.length === 0) return
+
+			// Divider/Header
+			const divider = document.createElement('div')
+			divider.className = 'audio-mixer__channel-divider'
+			divider.textContent = `PGM ${chIdx + 1} (ch ${ch}) Inputs`
+			inputsEl.appendChild(divider)
+
+			for (const r of list) {
+				const row = document.createElement('div')
+				row.className = 'audio-mixer__bus-layer'
+
 				const masterLayout = stateStore.getState()?.settings?.audioRouting?.programLayout || 'stereo'
 				const routes = audioOutputRoutesForLayout(masterLayout)
 				let options = routes.map((rt) => `<option value="${escapeAttr(rt.value)}"${rt.value === r.audioRoute ? ' selected' : ''}>${escapeHtml(rt.label)}</option>`).join('')
-				routeHtml = `<select class="audio-mixer__route-sel" data-ch="${r.ch}" data-layer="${r.layer}" data-scene="${escapeAttr(r.sceneId)}" aria-label="Audio Route" title="Audio routing destination">${options}</select>`
-				
+				const routeHtml = `<select class="audio-mixer__route-sel" data-ch="${r.ch}" data-layer="${r.layer}" data-scene="${escapeAttr(r.sceneId)}" aria-label="Audio Route" title="Audio routing destination">${options}</select>`
+
 				const isSolo = audioMixerState.isSoloed(r.key)
-				soloHtml = `<button type="button" class="audio-mixer__solo-btn${isSolo ? ' audio-mixer__solo-btn--active' : ''}" data-key="${escapeAttr(r.key)}" title="Solo this layer to monitor (Cmd/Ctrl+Click for multi)">S</button>`
-			}
+				const soloHtml = `<button type="button" class="audio-mixer__solo-btn${isSolo ? ' audio-mixer__solo-btn--active' : ''}" data-key="${escapeAttr(r.key)}" title="Solo this layer to monitor">S</button>`
 
-			const labelTitle = r.labelTitle || r.label
-			row.innerHTML = `
-				<div class="audio-mixer__meter-stack">
-					<div class="audio-mixer__bus-label" title="${escapeAttr(labelTitle)}">${escapeHtml(r.label)}</div>
-					${soloHtml}
-					${routeHtml}
-					<div class="audio-mixer__meter" aria-hidden="true"><div class="audio-mixer__meter-fill"></div></div>
-				</div>
-				<div class="audio-mixer__fader-col">
-					<input type="range" class="audio-mixer__fader" min="0" max="100" value="${Math.round(r.v * 100)}" aria-orientation="vertical" data-ch="${r.ch}" data-key="${escapeAttr(r.key)}" aria-label="Volume" />
-					<span class="audio-mixer__fader-val">${Math.round(r.v * 100)}%</span>
-				</div>
-			`
-			busesEl.appendChild(row)
+				const isMuted = !!r.muted
+				const muteHtml = `<button type="button" class="audio-mixer__mute-btn${isMuted ? ' audio-mixer__mute-btn--active' : ''}" data-key="${escapeAttr(r.key)}" title="Mute this layer">M</button>`
 
-			if (!r.isMaster) {
+				const labelTitle = r.labelTitle || r.label
+				row.innerHTML = `
+					<div class="audio-mixer__layer-info">
+						<div class="audio-mixer__layer-label" title="${escapeAttr(labelTitle)}">${escapeHtml(r.label)}</div>
+						<div class="audio-mixer__layer-actions">
+							${soloHtml}
+							${muteHtml}
+							${routeHtml}
+						</div>
+					</div>
+					<div class="audio-mixer__layer-fader-row">
+						<div class="audio-mixer__meter-horizontal" aria-hidden="true">
+							<div class="audio-mixer__meter-fill"></div>
+						</div>
+						<input type="range" class="audio-mixer__fader-horizontal" min="0" max="100" value="${Math.round(r.v * 100)}" data-ch="${r.ch}" data-key="${escapeAttr(r.key)}" aria-label="Volume" />
+						<span class="audio-mixer__fader-val">${Math.round(r.v * 100)}%</span>
+					</div>
+				`
+				inputsEl.appendChild(row)
+
+				const fill = row.querySelector('.audio-mixer__meter-fill')
+				meterFills.set(r.key, fill)
+				meterLayerMeta.set(r.key, { volume: r.v, paused: false })
+
 				const soloBtn = row.querySelector('.audio-mixer__solo-btn')
 				if (soloBtn) {
 					soloBtn.onclick = async (e) => {
 						const multi = e.metaKey || e.ctrlKey
 						audioMixerState.toggleSolo(r.key, multi)
 						
-						// Update all solo buttons in the UI
-						const allSoloBtns = busesEl.querySelectorAll('.audio-mixer__solo-btn')
-						allSoloBtns.forEach(btn => {
-							const k = btn.dataset.key
-							if (audioMixerState.isSoloed(k)) btn.classList.add('audio-mixer__solo-btn--active')
-							else btn.classList.remove('audio-mixer__solo-btn--active')
-						})
+						// Sync all solo buttons in BOTH panels instantly
+						syncAllSolosUI()
 
 						// Send to backend
 						try {
@@ -223,49 +337,93 @@ export function initAudioMixerPanel(stateStore, mountEl) {
 							})
 							await api.post('/api/audio/solo', { solos })
 						} catch (err) {
-							console.error('Failed to set solo:', err)
+							console.warn('Solo API not supported on this playout server. Solo state will remain client-side only.')
 						}
 					}
 				}
-			}
 
-			const fill = row.querySelector('.audio-mixer__meter-fill')
-			meterFills.set(r.key, fill)
-			if (!r.isMaster) {
-				meterLayerMeta.set(r.key, { volume: r.v, paused: false })
-			}
-			const fader = row.querySelector('.audio-mixer__fader')
-			const valEl = row.querySelector('.audio-mixer__fader-val')
-			
-			if (r.isMaster) {
-				fader.addEventListener('input', () => {
-					const x = parseInt(fader.value, 10) / 100
-					valEl.textContent = `${fader.value}%`
-					audioMixerState.setMasterVolume(r.key, x)
-				})
-			} else {
+				const muteBtn = row.querySelector('.audio-mixer__mute-btn')
+				if (muteBtn) {
+					muteBtn.onclick = async () => {
+						const scene = sceneState.getScene(r.sceneId)
+						if (scene) {
+							const idx = scene.layers.findIndex((l) => l.layerNumber === r.layer)
+							if (idx >= 0) {
+								const isCurrentlyMuted = muteBtn.classList.contains('audio-mixer__mute-btn--active')
+								const nextMuted = !isCurrentlyMuted
+								
+								sceneState.patchLayer(r.sceneId, idx, { muted: nextMuted })
+								document.dispatchEvent(new CustomEvent('scenes-refresh-preview'))
+
+								// Update in stateStore in-place for instant syncing
+								const liveScenes = stateStore.getState()?.scene?.live || {}
+								const liveSceneData = liveScenes[r.ch] || liveScenes[String(r.ch)]
+								if (liveSceneData?.scene?.layers) {
+									const layer = liveSceneData.scene.layers.find(l => l.layerNumber === r.layer)
+									if (layer) layer.muted = nextMuted
+								}
+
+								// Sync UI across panels
+								syncMuteUI(r.key, nextMuted)
+
+								// Read current fresh volume from the DOM fader input
+								const faderEl = document.querySelector(`input[data-key="${r.key}"]`)
+								const currentVol = faderEl ? (parseInt(faderEl.value, 10) / 100) : r.v
+
+								// Real-time mute playout update on the server
+								try {
+									await api.post('/api/audio/volume', {
+										channel: r.ch,
+										layer: r.layer,
+										volume: nextMuted ? 0 : currentVol
+									})
+								} catch (e) {
+									console.warn('MUTE playout update failed:', e?.message || e)
+								}
+							}
+						}
+					}
+				}
+
+				const fader = row.querySelector('.audio-mixer__fader-horizontal')
+				const valEl = row.querySelector('.audio-mixer__fader-val')
+
 				fader.addEventListener('input', () => {
 					const x = parseInt(fader.value, 10) / 100
 					valEl.textContent = `${fader.value}%`
 					const meta = meterLayerMeta.get(r.key)
 					if (meta) meta.volume = x
-				})
-			}
-			
-			fader.addEventListener('change', async () => {
-				const x = parseInt(fader.value, 10) / 100
-				try {
-					if (r.isMaster) {
-						await api.post('/api/audio/volume', { channel: r.ch, master: true, volume: x })
-					} else {
-						await api.post('/api/audio/volume', { channel: r.ch, layer: r.layer, volume: x })
-					}
-				} catch (e) {
-					console.warn('VOLUME failed:', e?.message || e)
-				}
-			})
 
-			if (!r.isMaster) {
+					// Update in stateStore in-place for instant syncing
+					const liveScenes = stateStore.getState()?.scene?.live || {}
+					const liveSceneData = liveScenes[r.ch] || liveScenes[String(r.ch)]
+					if (liveSceneData?.scene?.layers) {
+						const layer = liveSceneData.scene.layers.find(l => l.layerNumber === r.layer)
+						if (layer) layer.volume = x
+					}
+
+					// Sync UI across panels
+					syncFaderUI(r.key, fader.value)
+				})
+
+				fader.addEventListener('change', async () => {
+					const x = parseInt(fader.value, 10) / 100
+					// Patch the scene editor model
+					const scene = sceneState.getScene(r.sceneId)
+					if (scene) {
+						const idx = scene.layers.findIndex((l) => l.layerNumber === r.layer)
+						if (idx >= 0) {
+							sceneState.patchLayer(r.sceneId, idx, { volume: x })
+						}
+					}
+					// Update server playout
+					try {
+						await api.post('/api/audio/volume', { channel: r.ch, layer: r.layer, volume: x })
+					} catch (e) {
+						console.warn('VOLUME failed:', e?.message || e)
+					}
+				})
+
 				const routeSel = row.querySelector('.audio-mixer__route-sel')
 				if (routeSel) {
 					routeSel.addEventListener('change', () => {
@@ -280,7 +438,7 @@ export function initAudioMixerPanel(stateStore, mountEl) {
 					})
 				}
 			}
-		}
+		})
 
 		if (meterFills.size) startMeterLoop()
 	}
@@ -311,23 +469,23 @@ export function initAudioMixerPanel(stateStore, mountEl) {
 				let aim = 0
 
 				if (level > -90) {
-					// dBFS → 0..1 bar height (noise floor ~-90; below that treated as silence)
 					aim = Math.max(0, Math.min(1, (level + 60) / 60))
 				}
 
-				// Classic VU behaviour: fast attack (snap up to peak), slow release (~250 ms).
-				// Previous symmetric smoothing made loud transients feel "laggy" / unresponsive.
 				if (aim >= s) s = aim
 				else s += (aim - s) * 0.18
 				meterSmooth.set(key, s)
 				const pct = (s * 100).toFixed(1)
 				if (fill._lastPct !== pct) {
-					fill.style.height = `${pct}%`
+					if (key.includes(':layer:')) {
+						fill.style.width = `${pct}%`
+					} else {
+						fill.style.height = `${pct}%`
+					}
 					fill._lastPct = pct
 				}
 
 				if (level > -90) {
-					// Clip only when we have a real meter reading above ~full-scale
 					if (level > -1) fill.style.background = 'var(--accent-red)'
 					else fill.style.background = 'var(--accent-green)'
 				} else {
@@ -339,40 +497,40 @@ export function initAudioMixerPanel(stateStore, mountEl) {
 		raf = requestAnimationFrame(tick)
 	}
 
+	let isExpanded = false
+	try {
+		const v = localStorage.getItem(LS_EXPANDED)
+		if (v === '1') isExpanded = true
+		else if (v === '0') isExpanded = false
+	} catch {
+		/* ignore */
+	}
+
 	function applyExpanded(expanded) {
-		panel.hidden = !expanded
-		toggle.setAttribute('aria-expanded', expanded ? 'true' : 'false')
-		if (chevron) chevron.textContent = expanded ? '▼' : '▶'
-		if (expanded) {
+		isExpanded = !!expanded
+		panel.hidden = !isExpanded
+		toggle.setAttribute('aria-expanded', isExpanded ? 'true' : 'false')
+		if (chevron) chevron.textContent = isExpanded ? '▼' : '▶'
+		if (isExpanded) {
 			renderBuses()
 		} else {
 			stopMeterLoop()
 		}
 	}
 
-	// Default expanded so users see buses/meters; collapse only if explicitly saved off
-	let initialExpanded = true
-	try {
-		const v = localStorage.getItem(LS_EXPANDED)
-		if (v === '0') initialExpanded = false
-		else if (v === '1') initialExpanded = true
-	} catch {
-		/* ignore */
-	}
-	applyExpanded(initialExpanded)
+	applyExpanded(isExpanded)
 
 	toggle.addEventListener('click', () => {
-		const next = panel.hidden
+		applyExpanded(!isExpanded)
 		try {
-			localStorage.setItem(LS_EXPANDED, next ? '1' : '0')
+			localStorage.setItem(LS_EXPANDED, isExpanded ? '1' : '0')
 		} catch {
 			/* ignore */
 		}
-		applyExpanded(next)
 	})
 
 	stateStore.on('*', (path) => {
-		if (panel.hidden) return
+		if (!isExpanded) return
 		// setState emits path '*'. Do not re-DOM on every variables merge (live meter reads state in rAF).
 		if (path === 'variables') return
 		// Re-render when channels/map change or when a new look is taken (so layer rows reflect the current live scene).

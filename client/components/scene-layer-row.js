@@ -181,6 +181,9 @@ export function appendSceneLayerStripRows(layerStrip, opts) {
 					if (Number.isFinite(th) && th > 0) src.thumbnailChannel = th
 					if (data.useDirect != null) src.useDirect = data.useDirect === true || data.useDirect === 'true'
 					sceneState.setLayerSource(scene.id, realIdx, src)
+					if (src.type === 'live_audio') {
+						sceneState.patchLayer(scene.id, realIdx, { opacity: 0 })
+					}
 					void applyNativeFillForSource(realIdx, {
 						type: data.type || 'media',
 						value: data.value,

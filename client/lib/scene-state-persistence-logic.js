@@ -5,6 +5,7 @@ import {
 	defaultTransition,
 	migrateScene,
 } from './scene-state-helpers.js'
+import { normalizeGlobalBordersArray } from './scene-state-global-border.js'
 
 export const STORAGE_KEY_V1 = 'casparcg_scenes_v1'
 export const STORAGE_KEY = 'casparcg_scenes_v2'
@@ -97,11 +98,7 @@ export function applyPersistedData(state, data) {
 	} else {
 		state.lookPresets = []
 	}
-	if (Array.isArray(data.globalBorders)) {
-		state.globalBorders = data.globalBorders
-	} else {
-		state.globalBorders = [null, null, null, null]
-	}
+	state.globalBorders = normalizeGlobalBordersArray(data.globalBorders)
 	return true
 }
 

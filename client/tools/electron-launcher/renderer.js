@@ -1,4 +1,5 @@
 const { ipcRenderer } = require('electron')
+const { WEBUI_PORT } = require('../../lib/webui-port.cjs')
 
 // Tab Navigation
 const navItems = document.querySelectorAll('.nav-menu .nav-item')
@@ -142,6 +143,42 @@ const headerBtnOpenWebui = document.getElementById('header-btn-open-webui')
 const headerStatusDot = document.getElementById('header-status-dot')
 const headerStatusText = document.getElementById('header-status-text')
 
+const LS_SERVER_IP = 'highascg.launcher.serverIp'
+const LS_SERVER_PORT = 'highascg.launcher.serverPort'
+
+function loadServerPrefs() {
+  try {
+    const ip = localStorage.getItem(LS_SERVER_IP)
+    if (ip != null && String(ip).trim() !== '') {
+      headerIpInput.value = String(ip).trim()
+      if (serverIpInput) serverIpInput.value = headerIpInput.value
+    }
+    const portRaw = localStorage.getItem(LS_SERVER_PORT)
+    if (portRaw != null && String(portRaw).trim() !== '') {
+      const port = parseInt(portRaw, 10)
+      if (port >= 80 && port <= 65535) {
+        headerPortInput.value = String(port)
+        if (simPortInput) simPortInput.value = String(port)
+      }
+    }
+  } catch (e) {
+    console.warn('Could not load launcher server prefs:', e)
+  }
+}
+
+function saveServerPrefs() {
+  try {
+    const ip = (headerIpInput.value || 'localhost').trim()
+    const port = parseInt(headerPortInput.value, 10) || 4200
+    localStorage.setItem(LS_SERVER_IP, ip)
+    localStorage.setItem(LS_SERVER_PORT, String(Math.max(80, Math.min(65535, port))))
+  } catch (e) {
+    console.warn('Could not save launcher server prefs:', e)
+  }
+}
+
+loadServerPrefs()
+
 function getTargetUrl() {
   const ip = (headerIpInput.value || 'localhost').trim()
   const port = headerPortInput.value || 4200
@@ -149,7 +186,7 @@ function getTargetUrl() {
 }
 
 function getWebuiUrl() {
-  return 'http://localhost:3000/'
+  return `http://localhost:${WEBUI_PORT}/`
 }
 
 function updateWebuiButton() {
@@ -165,6 +202,7 @@ function syncInputs(source, target) {
       if (target.value !== source.value) {
         target.value = source.value
         updateWebuiButton()
+        saveServerPrefs()
         ipcRenderer.send('update-api-origin', getTargetUrl())
       }
     }

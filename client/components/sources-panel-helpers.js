@@ -1,6 +1,9 @@
 import { api, getApiBase } from '../lib/api-client.js'
 import { assetUrl } from '../lib/api-origin.js'
 import { getThumbnailUrl } from '../lib/thumbnail-url.js'
+import { buildLiveAudioSources, liveAudioSlotStatusMessage } from '../lib/live-audio-inputs.js'
+
+export { liveAudioSlotStatusMessage }
 
 /** @param {string | null} cd */
 function parseContentDispositionFilename(cd) {
@@ -246,7 +249,7 @@ export function mergeMediaProbeOverlay(stateMedia, probeList) {
 	return [...byKey.values()]
 }
 
-export function buildLiveSources(channelMap, connectors) {
+export function buildLiveSources(channelMap, connectors, liveAudioConfigured) {
 	const sources = []
 	
 	// Built-in System Timers Template source
@@ -285,6 +288,9 @@ export function buildLiveSources(channelMap, connectors) {
 		// Full channel composite (black L9 + content L10+). Do not use route://N-11 — layer numbers match PGM now.
 		sources.push({ type: 'route', routeType: 'prv', value: `route://${ch}`, label: `Preview ${i + 1}`, resolution, fps })
 	})
+	const liveAudio = buildLiveAudioSources(channelMap, liveAudioConfigured)
+	for (const s of liveAudio) sources.push(s)
+
 	if (inputsCh != null && decklinkCount > 0) {
 		const inputsRes = channelMap.inputsResolution
 		const resolution = inputsRes?.w && inputsRes?.h ? `${inputsRes.w}×${inputsRes.h}` : ''

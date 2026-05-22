@@ -148,6 +148,16 @@ for _ in $(seq 1 40); do
 	[[ -d "$VOL" ]] && break
 	sleep 0.25
 done
+if [[ ! -d "$VOL" ]]; then
+	for try in "/Volumes/${EXFAT_LABEL}"*; do
+		[[ -d "$try" ]] || continue
+		VOL=$try
+		break
+	done
+fi
+if [[ -d "$VOL" && "$(basename "$VOL")" != "$EXFAT_LABEL" ]]; then
+	diskutil rename "$(basename "$VOL")" "$EXFAT_LABEL" 2>/dev/null && VOL="/Volumes/${EXFAT_LABEL}" || true
+fi
 [[ -d "$VOL" ]] || {
 	echo "Volume not mounted at ${VOL} — open Disk Utility or re-plug the stick." >&2
 	exit 0

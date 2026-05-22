@@ -1,18 +1,32 @@
 import { api } from '../lib/api-client.js'
 import { sceneState } from '../lib/scene-state.js'
-import { buildLiveSources, decklinkSlotStatusMessage, escapeHtml, makeDraggable } from './sources-panel-helpers.js'
+import {
+	buildLiveSources,
+	decklinkSlotStatusMessage,
+	escapeHtml,
+	liveAudioSlotStatusMessage,
+	makeDraggable,
+} from './sources-panel-helpers.js'
 import { getLiveThumbnailChannelForSource, getLiveThumbnailUrl } from '../lib/thumbnail-url.js'
 import { invalidateThumbnailCache } from './preview-canvas-draw-base.js'
 
-export function renderLiveTab(listEl, { channelMap, decklinkInputsStatus, extraSources = [], connectors = [] }) {
-	const base = buildLiveSources(channelMap, connectors)
+export function renderLiveTab(listEl, {
+	channelMap,
+	decklinkInputsStatus,
+	liveAudioInputsStatus,
+	liveAudioConfigured,
+	extraSources = [],
+	connectors = [],
+}) {
+	const base = buildLiveSources(channelMap, connectors, liveAudioConfigured)
 	const existing = new Set(base.map((s) => String(s.value || '')))
 	const extras = Array.isArray(extraSources) ? extraSources.filter((s) => s && s.value && !existing.has(String(s.value))) : []
 	const sources = [...extras, ...base]
 
 	const renderKey = JSON.stringify({
-		sources: sources.map(s => ({ value: s.value, label: s.label, res: s.resolution })),
-		status: decklinkInputsStatus
+		sources: sources.map((s) => ({ value: s.value, label: s.label, res: s.resolution, type: s.type })),
+		status: decklinkInputsStatus,
+		liveAudioStatus: liveAudioInputsStatus,
 	})
 	if (listEl._lastRenderKey === renderKey) return
 	listEl._lastRenderKey = renderKey
@@ -20,7 +34,12 @@ export function renderLiveTab(listEl, { channelMap, decklinkInputsStatus, extraS
 	listEl.innerHTML = ''
 	if (!sources.length) { listEl.innerHTML = '<p class="sources-empty">No live sources</p>'; return }
 	const hintParts = []
-	if (sources.some(s => s.routeType === 'decklink')) hintParts.push('DeckLink tiles match Settings. Use Stop to clear layer.')
+	if (sources.some((s) => s.routeType === 'decklink')) {
+		hintParts.push('DeckLink tiles match Settings. Use Stop to clear layer.')
+	}
+	if (sources.some((s) => s.routeType === 'live_audio')) {
+		hintParts.push('Live audio: configure in Settings → live audio, then drag onto looks.')
+	}
 	if (sources.some(s => s.routeType === 'layer')) hintParts.push('Layer routes: Looks row ↗ (Shift+↗ = PGM bus, Ctrl+↗ = PRV). Drag onto another layer.')
 	if (hintParts.length) listEl.innerHTML = `<p class="sources-live-hint">${hintParts.join(' ')}</p>`
 	sources.forEach(s => {
@@ -35,7 +54,12 @@ export function renderLiveTab(listEl, { channelMap, decklinkInputsStatus, extraS
 		}
 		const meta = metaItems.filter(Boolean).join(' · ')
 		
-		const slotMsg = (s.routeType === 'decklink' && s.decklinkSlot != null) ? decklinkSlotStatusMessage(decklinkInputsStatus, s.decklinkSlot) : ''
+		let slotMsg = ''
+		if (s.routeType === 'decklink' && s.decklinkSlot != null) {
+			slotMsg = decklinkSlotStatusMessage(decklinkInputsStatus, s.decklinkSlot)
+		} else if (s.routeType === 'live_audio' && s.liveAudioSlot != null) {
+			slotMsg = liveAudioSlotStatusMessage(liveAudioInputsStatus, s.liveAudioSlot)
+		}
 		
 		const ch = getLiveThumbnailChannelForSource(s)
 		let thumbHtml = ''
@@ -200,7 +224,28 @@ export function renderLiveTab(listEl, { channelMap, decklinkInputsStatus, extraS
 			})
 		}
 		
-		if (s.routeType === 'decklink' && s.inputsChannel != null && s.decklinkSlot != null) {
+		if (s.routeType === 'live_audio' && s.inputsChannel != null && s.liveAudioSlot != null) {
+			const cl = `${s.inputsChannel}-${s.inputsLayer ?? 10 + (s.liveAudioSlot - 1)}`
+			const btnGroup = document.createElement('div')
+			btnGroup.className = 'source-item__live-actions'
+			const applyBtn = Object.assign(document.createElement('button'), {
+				type: 'button',
+				className: 'source-item__live-btn',
+				title: 'Re-apply startup PLAY + PGM routes',
+				textContent: 'Apply',
+			})
+			applyBtn.onclick = async (e) => {
+				e.stopPropagation()
+				applyBtn.disabled = true
+				try {
+					await api.post('/api/audio/live-inputs/apply', {})
+				} finally {
+					applyBtn.disabled = false
+				}
+			}
+			btnGroup.appendChild(applyBtn)
+			el.appendChild(btnGroup)
+		} else if (s.routeType === 'decklink' && s.inputsChannel != null && s.decklinkSlot != null) {
 			const cl = `${s.inputsChannel}-${s.decklinkSlot}`
 			const btnGroup = document.createElement('div'); btnGroup.className = 'source-item__live-actions'
 			

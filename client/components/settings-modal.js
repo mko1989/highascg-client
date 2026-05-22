@@ -9,6 +9,7 @@ import { getOptionalSettingsTabs } from '../lib/optional-modules.js'
 import * as Templates from './settings-modal-templates.js'
 import * as Logic from './settings-modal-logic.js'
 import * as MountHw from './settings-modal-mount-hardware.js'
+import { mountLiveAudioSettingsPanel } from './settings-live-audio-panel.js'
 
 export function showSettingsModal(initialTab) {
 	if (document.getElementById('settings-modal')) return
@@ -19,7 +20,10 @@ export function showSettingsModal(initialTab) {
 
 	const optionalTabDefs = getOptionalSettingsTabs()
 	const optionalById = new Map(optionalTabDefs.map(t => [t.id, t]))
-	const optionalDisposers = []; const optionalMounted = new Set()
+	const optionalDisposers = []
+	const optionalMounted = new Set()
+	/** @type {(() => Promise<void>) | null} */
+	let refreshLiveAudioPanel = null
 	const tabsRow = modal.querySelector('.settings-tabs'); const varTab = tabsRow?.querySelector('[data-tab="variables"]')
 	const panesRow = modal.querySelector('.settings-panes'); const varPane = modal.querySelector('#settings-pane-variables')
 	
@@ -56,6 +60,15 @@ export function showSettingsModal(initialTab) {
 		}
 		if (tabName === 'system-hardware') void MountHw.refreshSystemHardwarePanel(modal)
 		if (tabName === 'decklink') void MountHw.refreshDecklinkPanel(modal)
+		if (tabName === 'live-audio') {
+			const pane = modal.querySelector('#settings-pane-live-audio')
+			if (pane && !optionalMounted.has('live-audio-inner')) {
+				optionalMounted.add('live-audio-inner')
+				void mountLiveAudioSettingsPanel(pane).then((fn) => {
+					refreshLiveAudioPanel = fn || null
+				})
+			} else if (refreshLiveAudioPanel) void refreshLiveAudioPanel()
+		}
 	}
 
 	modal.querySelector('#system-hw-nvidia-branch')?.addEventListener('change', (e) => {

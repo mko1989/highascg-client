@@ -7,6 +7,7 @@ import { api } from './lib/api-client.js'
 import StateStore from './lib/state-store.js'
 import { initSourcesPanel } from './components/sources-panel.js'
 import { sceneState } from './lib/scene-state.js'
+import { normalizeGlobalBordersArray } from './lib/scene-state-global-border.js'
 import { initScenesEditor } from './components/scenes-editor.js'
 import { initTimelineEditor } from './components/timeline-editor.js'
 import { initInspectorPanel } from './components/inspector-panel.js'
@@ -30,6 +31,7 @@ import { projectState } from './lib/project-state.js'
 import { timelineState } from './lib/timeline-state.js'
 import { initOptionalModules } from './lib/optional-modules.js'
 import { initDeviceView } from './components/device-view.js'
+import { initAudioMixerView } from './components/audio-mixer-view.js'
 import { placeholderState } from './lib/placeholder-state.js'
 import { markLocalProjectSaved } from './lib/project-remote-sync.js'
 
@@ -86,6 +88,7 @@ function initTabs() {
 		}
 		if (['scenes', 'multiview', 'pixelmap', 'timeline'].includes(target)) requestAnimationFrame(() => document.dispatchEvent(new CustomEvent(`${target === 'pixelmap' ? 'px' : (target === 'multiview' ? 'mv' : target)}-tab-activated`)))
 		if (target === 'device-view') initDeviceView(document.getElementById('tab-device-view'))
+		if (target === 'audio-mixer-view') initAudioMixerView(document.getElementById('tab-audio-mixer-view'), stateStore)
 	}
 	tabs.forEach(tab => tab.addEventListener('click', () => activateTab(tab.dataset.tab)))
 	
@@ -149,6 +152,7 @@ async function init() {
 	sceneState.on('imported', () => { appLogic.scheduleSceneDeckSync(); scheduleAutosave() })
 	sceneState.on('previewScene', () => { appLogic.scheduleSceneDeckSync(); scheduleAutosave() })
 	sceneState.on('softChange', () => { appLogic.scheduleSceneDeckSync(); scheduleAutosave() })
+	document.addEventListener('highascg-global-border-config-save', () => scheduleAutosave())
 	sceneState.on('persisted', () => {
 		appLogic.scheduleSceneDeckSync()
 		const project = projectState.exportProject(sceneState, timelineState, multiviewState, programOutputState)
@@ -260,6 +264,9 @@ async function init() {
 			appLogic.syncMultiviewCanvas(state.channelMap)
 			appLogic.scheduleMultiviewRefresh(); appLogic.emitCasparConnectedIfNeeded(state)
 			if (state.scene?.live) sceneState.applyServerLiveChannels(state.scene.live, state.channelMap)
+			if (Array.isArray(state.scene?.globalBorders)) {
+				sceneState.globalBorders = normalizeGlobalBordersArray(state.scene.globalBorders)
+			}
 			httpConnected = true; appLogic.updateStatus(true); appLogic.refreshEye()
 		}
 		if (!settings?.offline_mode) {

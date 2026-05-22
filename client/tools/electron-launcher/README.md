@@ -2,7 +2,7 @@
 
 Operator **prep kit** (flash / exFAT guides) plus **embedded control UI** (`dist-web/`).
 
-The playout machine runs **API only** (`HIGHASCG_HEADLESS=true`). This app hosts the Web UI and points it at the server with `window.__HIGHASCG_API_ORIGIN__`.
+The playout machine runs **API only** (`HIGHASCG_HEADLESS=true`). This app hosts the Web UI on port **4350** (`client/lib/webui-port.json`) and points it at the server with `window.__HIGHASCG_API_ORIGIN__`.
 
 ## Prepare UI bundle
 

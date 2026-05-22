@@ -3,14 +3,14 @@
  * How many pairs are valid follows Settings → Audio → Master → channel layout.
  */
 export const AUDIO_OUTPUT_ROUTES = [
-	{ value: '1+2', label: 'Master (ch 1+2)' },
-	{ value: '3+4', label: 'Ch 3+4' },
-	{ value: '5+6', label: 'Ch 5+6' },
-	{ value: '7+8', label: 'Ch 7+8' },
-	{ value: '9+10', label: 'Ch 9+10' },
-	{ value: '11+12', label: 'Ch 11+12' },
-	{ value: '13+14', label: 'Ch 13+14' },
-	{ value: '15+16', label: 'Ch 15+16' },
+	{ value: '1+2', label: 'ch1+2' },
+	{ value: '3+4', label: 'ch3+4' },
+	{ value: '5+6', label: 'ch5+6' },
+	{ value: '7+8', label: 'ch7+8' },
+	{ value: '9+10', label: 'ch9+10' },
+	{ value: '11+12', label: 'ch11+12' },
+	{ value: '13+14', label: 'ch13+14' },
+	{ value: '15+16', label: 'ch15+16' },
 ]
 
 /** Master layout (from `audioRouting.programLayout`) → number of stereo pairs available for routing. */

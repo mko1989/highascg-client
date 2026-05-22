@@ -38,7 +38,8 @@ export function renderConnectorInspector(h, conn, ctx, {
 	const summary = { in: edges.filter((e) => e.sinkId === conn.id), out: edges.filter((e) => e.sourceId === conn.id) }
 	
 	const isGpu = conn?.kind === 'gpu_out' || conn?.kind === 'gpu_output'
-	
+	const isDecklinkPort = conn?.kind === 'decklink_io' || conn?.kind === 'decklink_out'
+
 	h.append(
 		Object.assign(document.createElement('div'), {
 			className: 'device-view__inspector-title',
@@ -46,7 +47,7 @@ export function renderConnectorInspector(h, conn, ctx, {
 		})
 	)
 
-	if (!isGpu) {
+	if (!isGpu && !isDecklinkPort) {
 		const rows = readableConnectorRows(conn, ctx)
 		rows.push({ label: 'Out cables', value: String(summary.out.length) }, { label: 'In cables', value: String(summary.in.length) })
 		h.append(buildInspectorTable(rows))

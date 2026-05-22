@@ -46,6 +46,6 @@ fi
 
 echo "Disk:        ${DISK}  (${BYTES} bytes)"
 echo "ISO margin:  start exFAT at ${START_MIB} MiB"
-echo "START_SECTOR=${START_SEC}    # type this at fdisk edit (sector mode)"
+echo "START_SECTOR=${START_SEC}    # fdisk: edit last free MBR slot (often 4), sector mode"
 echo "END_SECTOR=${END_SEC}        # last sector of the new partition"
 echo "SIZE_SECTORS=${SIZE_SEC}"

@@ -117,12 +117,16 @@ export function renderComposeScene(scene, opts) {
 			sceneState.removeLayer(scene.id, idx)
 			return
 		}
+		const srcType = data.type || 'media'
 		sceneState.setLayerSource(scene.id, idx, {
 			...data,
-			type: data.type || 'media',
+			type: srcType,
 			value: data.value,
 			label: data.label || data.value,
 		})
+		if (srcType === 'live_audio') {
+			sceneState.patchLayer(scene.id, idx, { opacity: 0 })
+		}
 		await applyNativeFillForSource(idx, sourcePayloadForFill(data))
 		const updated = sceneState.getScene(scene.id)
 		const layer = updated?.layers?.[idx]

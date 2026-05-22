@@ -1,6 +1,76 @@
 /**
  * SVG Cable Overlay logic for Device View.
  */
+import { collectDecklinkKeyFillVirtualEdges } from '../lib/device-view-decklink-keyfill.js'
+
+const DECKLINK_KEY_LINK_COLOR = '#58a6ff'
+const DECKLINK_KEY_LINK_GAP = 26
+
+/** Side rail between fill and key ports (not a hanging cable). */
+function buildDecklinkKeyFillSideLink(x1, y1, x2, y2, surfaceW = 0, surfaceH = 0) {
+	const dy = Math.abs(y2 - y1)
+	const dx = Math.abs(x2 - x1)
+	if (dy >= dx) {
+		const midX = (x1 + x2) / 2
+		const railOnLeft = surfaceW > 0 ? midX < surfaceW * 0.5 : true
+		const railX = railOnLeft ? Math.min(x1, x2) - DECKLINK_KEY_LINK_GAP : Math.max(x1, x2) + DECKLINK_KEY_LINK_GAP
+		return {
+			pts: [
+				{ x: x1, y: y1 },
+				{ x: railX, y: y1 },
+				{ x: railX, y: y2 },
+				{ x: x2, y: y2 },
+			],
+			railOnLeft,
+		}
+	}
+	const midY = (y1 + y2) / 2
+	const railAbove = surfaceH > 0 ? midY < surfaceH * 0.5 : true
+	const railY = railAbove ? Math.min(y1, y2) - DECKLINK_KEY_LINK_GAP : Math.max(y1, y2) + DECKLINK_KEY_LINK_GAP
+	return {
+		pts: [
+			{ x: x1, y: y1 },
+			{ x: x1, y: railY },
+			{ x: x2, y: railY },
+			{ x: x2, y: y2 },
+		],
+		railOnLeft: railAbove,
+	}
+}
+
+const DECKLINK_KEY_LABEL_OFFSET = 12
+
+function decklinkKeyFillLabelPlacement(link) {
+	const pts = link?.pts
+	if (!pts || pts.length < 4) return null
+	const verticalRail = Math.abs(pts[1].x - pts[2].x) < 0.5
+	if (verticalRail) {
+		const railX = pts[1].x
+		const cy = (pts[1].y + pts[2].y) / 2
+		return { x: railX + DECKLINK_KEY_LABEL_OFFSET, y: cy, anchor: 'start' }
+	}
+	const railY = pts[1].y
+	const cx = (pts[1].x + pts[2].x) / 2
+	return { x: cx + DECKLINK_KEY_LABEL_OFFSET, y: railY, anchor: 'start' }
+}
+
+function appendDecklinkKeyFillLabel(group, link) {
+	const place = decklinkKeyFillLabelPlacement(link)
+	if (!place) return
+
+	const g = document.createElementNS('http://www.w3.org/2000/svg', 'g')
+	g.setAttribute('class', 'device-view__decklink-kf-link-label')
+
+	const text = document.createElementNS('http://www.w3.org/2000/svg', 'text')
+	text.setAttribute('x', String(place.x))
+	text.setAttribute('y', String(place.y))
+	text.setAttribute('text-anchor', place.anchor)
+	text.setAttribute('dominant-baseline', 'middle')
+	text.textContent = 'Key'
+
+	g.append(text)
+	group.append(g)
+}
 
 export function connectorCenter(surfaceEl, connId) {
 	if (!connId || !surfaceEl) return null
@@ -280,15 +350,17 @@ export function renderCableOverlay(ctx) {
 	cableOverlay.setAttribute('height', String(h))
 
 	const edges = lastPayload?.graph?.edges || []
+	const keyFillEdges = collectDecklinkKeyFillVirtualEdges(lastPayload)
 	const numLoops = parseInt(messiness) || 0
-	
-	for (const e of edges) {
-		if (!e || !e.sourceId || !e.sinkId) continue
+
+	const drawCable = (e, { decklinkKeyFill = false } = {}) => {
+		if (!e || !e.sourceId || !e.sinkId) return
 		const a = connectorCenter(surface, e.sourceId)
 		const b = connectorCenter(surface, e.sinkId)
-		if (!a || !b) continue
+		if (!a || !b) return
 
-		const pts = getOrBuild(e.id, a.x, a.y, b.x, b.y, numLoops)
+		const keyFillLink = decklinkKeyFill ? buildDecklinkKeyFillSideLink(a.x, a.y, b.x, b.y, w, h) : null
+		const pts = decklinkKeyFill ? keyFillLink.pts : getOrBuild(e.id, a.x, a.y, b.x, b.y, numLoops)
 		const d = 'M ' + pts.map((p) => `${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' L ')
 
 		const path = document.createElementNS('http://www.w3.org/2000/svg', 'path')
@@ -296,24 +368,32 @@ export function renderCableOverlay(ctx) {
 
 		const activeByEdge = (hoveredEdgeId && e.id === hoveredEdgeId) || (selectedEdgeId && e.id === selectedEdgeId)
 		const activeByConnector = selectedConnectorId && (e.sourceId === selectedConnectorId || e.sinkId === selectedConnectorId)
+		const active = activeByEdge || activeByConnector
 
 		path.setAttribute(
 			'class',
-			`device-view__cable-line${activeByEdge || activeByConnector ? ' device-view__cable-line--active' : ''}`
+			`device-view__cable-line${decklinkKeyFill ? ' device-view__decklink-kf-link' : ''}${active ? ' device-view__cable-line--active' : ''}`
 		)
-		
-		const color = getCableColor(e.id)
+
+		const color = decklinkKeyFill ? DECKLINK_KEY_LINK_COLOR : getCableColor(e.id)
 		path.style.setProperty('--cable-color', color)
-		path.style.stroke = color // Always use the cable's own color
+		path.style.stroke = color
 
 		path.setAttribute('data-edge-id', e.id || '')
-		path.addEventListener('click', (ev) => {
-			ev.preventDefault()
-			ev.stopPropagation()
-			selectEdgeById(e.id)
-		})
+		if (!decklinkKeyFill) {
+			path.addEventListener('click', (ev) => {
+				ev.preventDefault()
+				ev.stopPropagation()
+				selectEdgeById(e.id)
+			})
+		}
 		group.append(path)
+
+		if (decklinkKeyFill && keyFillLink) appendDecklinkKeyFillLabel(group, keyFillLink)
 	}
+
+	for (const e of edges) drawCable(e)
+	for (const e of keyFillEdges) drawCable(e, { decklinkKeyFill: true })
 	if (cableSourceId && cablePointer && Number.isFinite(cablePointer.x) && Number.isFinite(cablePointer.y)) {
 		const a = connectorCenter(surface, cableSourceId)
 		if (a) {

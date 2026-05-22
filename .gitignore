@@ -24,3 +24,5 @@ dist/
 
 # Reference clones (nested git) — under not-needed/
 not-needed/
+from_server/
+to_server/

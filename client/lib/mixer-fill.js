@@ -277,6 +277,14 @@ export function getContentResolution(source, stateStore, screenIdx = 0) {
 		const m = findMediaRow(media, source.value)
 		return parseResolutionString(m?.resolution) || null
 	}
+	if (source.type === 'live_audio') {
+		const inputsCh = channelMap.inputsCh
+		if (inputsCh != null) {
+			const ir = channelMap.inputsResolution
+			return ir ? { w: ir.w, h: ir.h } : { w: 1920, h: 1080 }
+		}
+		return { w: 1920, h: 1080 }
+	}
 	if (source.type === 'route' || String(source.value || '').startsWith('route://')) {
 		const match = String(source.value || '').match(/route:\/\/(\d+)(?:-(\d+))?/)
 		if (match) {

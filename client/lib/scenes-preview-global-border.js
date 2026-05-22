@@ -29,12 +29,13 @@ export function createScenesPreviewGlobalBorder(deps) {
 
 	function globalBorderActivePgmLayerNumber(mIdx) {
 		const gb = sceneState.getGlobalBorderForScreen(mIdx)
-		return gb.activePgmLayer === 996 ? GB_LAYER_PGM_B : GB_LAYER_PGM_A
+		return gb?.activePgmLayer === 996 ? GB_LAYER_PGM_B : GB_LAYER_PGM_A
 	}
 
 	/** @returns {{ channel: number, layer: number }[]} */
 	function globalBorderCasparSlots(mIdx) {
 		const gb = sceneState.getGlobalBorderForScreen(mIdx)
+		if (!gb) return []
 		const mirror = gb.mirrorBorderOnPrv === true
 		const pgmCh = physicalPgmChannelForMain(mIdx)
 		const prvCh = physicalPrvChannelForMain(mIdx)
@@ -64,6 +65,7 @@ export function createScenesPreviewGlobalBorder(deps) {
 
 	function globalBorderSlotsForPreviewPush(mIdx, forcePrvBus, borderEnabled) {
 		const gb = sceneState.getGlobalBorderForScreen(mIdx)
+		if (!gb) return []
 		const mirror = gb.mirrorBorderOnPrv === true
 		const pgmCh = physicalPgmChannelForMain(mIdx)
 		const prvCh = physicalPrvChannelForMain(mIdx)
@@ -96,6 +98,7 @@ export function createScenesPreviewGlobalBorder(deps) {
 		const preset = sceneState.getGlobalBorderPreset(mIdx, slotNum)
 		if (!preset?.data) return { ok: false, error: 'empty_slot' }
 		const gb = sceneState.getGlobalBorderForScreen(mIdx)
+		if (!gb) return { ok: false, error: 'no_border_slot' }
 		const pgmCh = physicalPgmChannelForMain(mIdx)
 		if (!pgmCh) return { ok: false, error: 'no_pgm' }
 
@@ -145,11 +148,30 @@ export function createScenesPreviewGlobalBorder(deps) {
 		return { ok: true }
 	}
 
+	function borderSlicesKey(globalBorder) {
+		const slices = globalBorder?.slices
+		if (!Array.isArray(slices) || slices.length === 0) return ''
+		return JSON.stringify(
+			slices.map((s) => ({
+				x: Number(s.x) || 0,
+				y: Number(s.y) || 0,
+				w: Number(s.w) || 0,
+				h: Number(s.h) || 0,
+			})),
+		)
+	}
+
 	function borderUsesCgUpdate(slot, sceneId, borderEnabled, globalBorder) {
 		if (!borderEnabled || !globalBorder) return false
 		const prev = lastGlobalBorderPushMeta.get(borderMetaKey(slot.channel, slot.layer))
 		const ty = String(globalBorder.type || '').toLowerCase()
-		return !!(prev && String(prev.sceneId) === String(sceneId) && String(prev.borderType || '').toLowerCase() === ty)
+		const sk = borderSlicesKey(globalBorder)
+		return !!(
+			prev &&
+			String(prev.sceneId) === String(sceneId) &&
+			String(prev.borderType || '').toLowerCase() === ty &&
+			String(prev.slicesKey ?? '') === sk
+		)
 	}
 
 	function stripMirrorFromBorderPayload(gb) {
@@ -158,10 +180,24 @@ export function createScenesPreviewGlobalBorder(deps) {
 		return rest
 	}
 
+	function normalizeBorderSlices(slices) {
+		if (!Array.isArray(slices) || slices.length === 0) return []
+		return slices.map((s) => ({
+			x: Number(s.x) || 0,
+			y: Number(s.y) || 0,
+			w: Math.max(0.001, Number(s.w) || 1),
+			h: Math.max(0.001, Number(s.h) || 1),
+		}))
+	}
+
 	function borderPayloadForBorderLines(gb, borderEnabled) {
 		const fd = Math.max(0, parseInt(String(gb?.fadeDuration ?? 25), 10) || 25)
-		if (!borderEnabled) return { enabled: false, fadeDuration: fd }
-		return { ...stripMirrorFromBorderPayload(gb), fadeDuration: fd }
+		if (!borderEnabled || !gb) return { enabled: false, fadeDuration: fd }
+		const payload = { ...stripMirrorFromBorderPayload(gb), fadeDuration: fd }
+		const norm = normalizeBorderSlices(gb.slices)
+		if (norm.length) payload.slices = norm
+		else delete payload.slices
+		return payload
 	}
 
 	function recordBorderPushMeta(slots, sceneId, borderEnabled, globalBorder) {
@@ -170,7 +206,11 @@ export function createScenesPreviewGlobalBorder(deps) {
 			if (!borderEnabled) {
 				lastGlobalBorderPushMeta.delete(k)
 			} else {
-				lastGlobalBorderPushMeta.set(k, { sceneId: String(sceneId), borderType: String(globalBorder.type || '') })
+				lastGlobalBorderPushMeta.set(k, {
+					sceneId: String(sceneId),
+					borderType: String(globalBorder.type || ''),
+					slicesKey: borderSlicesKey(globalBorder),
+				})
 			}
 		}
 	}
@@ -231,6 +271,7 @@ export function createScenesPreviewGlobalBorder(deps) {
 							enabled: !!border.enabled,
 							type: border.type,
 							params: border.params,
+							slices: border.slices,
 							fadeDuration: border.fadeDuration,
 							artnetPatch: border.artnetPatch,
 							activePgmLayer: ln,

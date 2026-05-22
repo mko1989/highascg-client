@@ -11,6 +11,7 @@ import { getPipOverlaysFromLayer } from '../lib/pip-overlay-registry.js'
 import { showScenesToast } from './scenes-editor-support.js'
 import { getResolutionForScreen } from './inspector-channel-resolution.js'
 import { renderLayerPlaylistGroup } from './inspector-layer-playlist.js'
+import { appendLiveAudioSourceGroup } from './inspector-live-audio-source.js'
 
 let activeInteractionAr = null
 let activeInteractionTimer = null
@@ -89,6 +90,7 @@ export function renderSceneLayerInspector(deps, sel) {
 	root.appendChild(styleGrp)
 
 	renderLayerPlaylistGroup(root, { sceneId, layerIndex, layer, rerenderSceneLayer, sel, stateStore })
+	appendLiveAudioSourceGroup(root, { sceneId, layerIndex, layer, stateStore, rerenderSceneLayer, sel })
 
 	function patchFillPx(partial) {
 		const sc = sceneState.getScene(sceneId)

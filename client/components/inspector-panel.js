@@ -265,6 +265,21 @@ export function initInspectorPanel(root, stateStore) {
 		}
 	})
 
+	window.addEventListener('global-border-state-changed', () => {
+		if (selection?.type === 'globalBorder' && selection.screenIndex != null) {
+			renderGlobalBorderInspector(root, selection.screenIndex, stateStore)
+		}
+	})
+
+	// Art-Net live updates: throttled, no sceneState `change`, skip while typing in inspector.
+	window.addEventListener('global-border-artnet', (e) => {
+		if (selection?.type !== 'globalBorder' || selection.screenIndex == null) return
+		const indices = e.detail?.screenIndices
+		if (Array.isArray(indices) && !indices.includes(selection.screenIndex)) return
+		if (root.querySelector('input:focus, select:focus, textarea:focus')) return
+		renderGlobalBorderInspector(root, selection.screenIndex, stateStore)
+	})
+
 	window.addEventListener('timeline-layer-select', (e) => {
 		const d = e.detail
 		if (d && d.timelineId && typeof d.layerIdx === 'number') {

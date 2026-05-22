@@ -2,6 +2,7 @@ import { defineConfig, loadEnv } from 'vite'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { WEBUI_PORT } from './client/lib/webui-port.js'
 
 const repoDir = path.dirname(fileURLToPath(import.meta.url))
 const clientDir = path.join(repoDir, 'client')
@@ -19,6 +20,7 @@ const STATIC_MIME = {
 	'.css': 'text/css',
 	'.js': 'application/javascript',
 	'.json': 'application/json',
+	'.txt': 'text/plain',
 }
 
 /** Copy trees the UI loads by URL (/assets/…, /fonts/…) — not only Vite-bundled imports. */
@@ -26,6 +28,7 @@ function copyClientStaticTreesPlugin() {
 	const trees = [
 		{ src: path.join(clientDir, 'assets'), urlPath: '/assets' },
 		{ src: path.join(clientDir, 'fonts'), urlPath: '/fonts' },
+		{ src: path.join(clientDir, 'fixtures'), urlPath: '/fixtures' },
 	]
 	return {
 		name: 'highascg-copy-client-static',
@@ -60,7 +63,7 @@ function copyClientStaticTreesPlugin() {
 
 /** @param {string} apiOrigin */
 function vendorImportMapEntries(apiOrigin) {
-	// Always use relative paths for vendor imports so they go through the same-origin proxy (port 3000/companion)
+	// Always use relative paths for vendor imports so they go through the same-origin proxy (Web UI port / companion)
 	// which avoids all CORS issues and works under any custom LAN IP configuration.
 	return {
 		three: '/vendor/three/build/three.module.js',
@@ -71,14 +74,14 @@ function vendorImportMapEntries(apiOrigin) {
 	}
 }
 
-/** Inject import map + meta for split dev (UI :3000 → API :4200). */
+/** Inject import map + meta for split dev (UI → API :4200). */
 function highascgApiOriginPlugin(apiOrigin) {
 	return {
 		name: 'highascg-api-origin',
 		transformIndexHtml(html) {
 			const origin = (apiOrigin || '').replace(/\/$/, '')
 			const map = JSON.stringify({ imports: vendorImportMapEntries(origin) }, null, '\t')
-			let out = html
+			let out = html.replace(/location\.port === '\d+'/, `location.port === '${WEBUI_PORT}'`)
 			if (html.includes('id="highascg-importmap-bootstrap"')) {
 				out = out.replace(
 					/<script type="importmap" id="highascg-importmap">[\s\S]*?<\/script>/,
@@ -101,8 +104,10 @@ function highascgApiOriginPlugin(apiOrigin) {
 
 export default defineConfig(({ mode }) => {
 	const env = loadEnv(mode, process.cwd(), '')
-	const apiOrigin = (env.VITE_HIGHASCG_API_ORIGIN || 'http://127.0.0.1:4200').replace(/\/$/, '')
-	const apiHttp = apiOrigin.startsWith('http') ? apiOrigin : `http://${apiOrigin}`
+	// Dev proxy target only — production UI must use same-origin / :4350 proxy (not baked loopback).
+	const proxyTarget = (env.VITE_HIGHASCG_API_ORIGIN || 'http://127.0.0.1:4200').replace(/\/$/, '')
+	const apiOrigin = mode === 'production' ? '' : proxyTarget
+	const apiHttp = proxyTarget.startsWith('http') ? proxyTarget : `http://${proxyTarget}`
 	const apiWs = apiHttp.replace(/^http/, 'ws')
 
 	return {
@@ -123,7 +128,7 @@ export default defineConfig(({ mode }) => {
 			},
 		},
 		server: {
-			port: 3000,
+			port: WEBUI_PORT,
 			host: true,
 			proxy: {
 				'/api/ws': { target: apiWs, ws: true },

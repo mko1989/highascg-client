@@ -109,12 +109,22 @@ export function createHeaderAudioMonitor(stateStore) {
 	async function renderServerMonitorMenu() {
 		const state = stateStore?.getState?.() || {}
 		const cm = state.channelMap || {}
-		if (!cm.monitorCh) {
+		const preview = cm.audioPreview || {}
+		const previewCh = cm.audioPreviewCh
+		const previewOn = preview.enabled === true || preview.enabled === 'true'
+		if (previewOn && previewCh != null) {
+			serverMonitorList.style.display = ''
+			serverMonitorList.innerHTML =
+				'<p class="header-audio__title" style="padding: 4px 8px; font-size: 10px; opacity: 0.5">Headphones (preview bus)</p>' +
+				`<p class="settings-note small" style="padding:0 8px 4px;margin:0">Solo routes to ch ${previewCh} (${preview.bus || 'preview'}). Clear solo restores ${preview.defaultSource || 'preview_1'}.</p>`
+		} else if (!cm.monitorCh) {
 			serverMonitorList.style.display = 'none'
 			return
+		} else {
+			serverMonitorList.style.display = ''
+			serverMonitorList.innerHTML =
+				'<p class="header-audio__title" style="padding: 4px 8px; font-size: 10px; opacity: 0.5">Server Hardware Monitor</p>'
 		}
-		serverMonitorList.style.display = ''
-		serverMonitorList.innerHTML = '<p class="header-audio__title" style="padding: 4px 8px; font-size: 10px; opacity: 0.5">Server Hardware Monitor</p>'
 		const opts = getMonitorChannelOptions()
 		for (const o of opts) {
 			const b = document.createElement('button')

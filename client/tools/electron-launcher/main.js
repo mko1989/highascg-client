@@ -14,8 +14,10 @@ ipcMain.on('update-api-origin', (event, origin) => {
   console.log('[Electron Main] WebUI API Origin updated to:', webuiApiOrigin)
 })
 
+const { WEBUI_PORT } = require('../../lib/webui-port.cjs')
+
 // WebUI Static Server served directly by client/launcher backend
-const PORT = 3000
+const PORT = WEBUI_PORT
 const distWebPath = path.resolve(__dirname, 'dist-web')
 
 function mapInstanceStaticPath(requestPath) {
@@ -334,14 +336,27 @@ function checkWindowsVolume(label) {
   return null
 }
 
+function findDarwinVolumeByLabel(label) {
+  const exact = path.join('/Volumes', label)
+  if (fs.existsSync(exact) && fs.statSync(exact).isDirectory()) return exact
+  try {
+    for (const name of fs.readdirSync('/Volumes')) {
+      if (name === label || name.startsWith(`${label} `)) {
+        const candidate = path.join('/Volumes', name)
+        if (fs.existsSync(candidate) && fs.statSync(candidate).isDirectory()) return candidate
+      }
+    }
+  } catch (_) {}
+  return null
+}
+
 ipcMain.handle('check-usb-status', async () => {
   const label = 'HIGHASCGEXF'
   const platform = process.platform
   let mountedPath = null
 
   if (platform === 'darwin') {
-    const vol = path.join('/Volumes', label)
-    if (fs.existsSync(vol) && fs.statSync(vol).isDirectory()) mountedPath = vol
+    mountedPath = findDarwinVolumeByLabel(label)
   } else if (platform === 'win32') {
     mountedPath = checkWindowsVolume(label)
   } else if (platform === 'linux') {

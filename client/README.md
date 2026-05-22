@@ -20,11 +20,11 @@ API and UI run on different ports. See [`not-needed/docs/PLAN_SERVER_CLIENT_SPLI
 # Playout / API host
 npm start
 
-# Operator machine — UI (Vite :3000 → API via VITE_HIGHASCG_API_ORIGIN)
+# Operator machine — UI (Vite :4350 → API via VITE_HIGHASCG_API_ORIGIN)
 npm run dev:client
 ```
 
-Open **http://localhost:3000/** (or your LAN IP when Vite uses `host: true`). Copy `.env.development.example` → `.env.development`; set `VITE_HIGHASCG_API_ORIGIN` to the playout host (e.g. `http://192.168.0.2:4200`).
+Open **http://localhost:4350/** (or your LAN IP when Vite uses `host: true`). Copy `.env.development.example` → `.env.development`; set `VITE_HIGHASCG_API_ORIGIN` to the playout host (e.g. `http://192.168.0.2:4200`).
 
 ## Production operator path
 

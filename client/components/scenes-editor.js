@@ -102,6 +102,8 @@ export function initScenesEditor(root, stateStore, opts = {}) {
 		void previewRuntime.recallGlobalBorderPreset(Number(d.screenIndex), Number(d.slot))
 	})
 
+	window.addEventListener('highascg-global-border-push', () => previewRuntime.pushBorderOnly())
+
 	async function captureOnDemandForDroppedSource(data) {
 		if (!data || !data.type) return
 		const mainIdx = sceneState.activeScreenIndex

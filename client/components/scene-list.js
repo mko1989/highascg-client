@@ -6,6 +6,20 @@ import { mountLookTransitionControls } from './scenes-shared.js'
 import { escapeHtml } from './scenes-editor-support.js'
 
 /**
+ * Clear-preview only when clicking unused grid area inside a `.scenes-deck` (gaps, empty placeholder).
+ * @param {EventTarget | null} target
+ */
+function isScenesDeckBlankClick(target) {
+	const t = /** @type {HTMLElement | null} */ (target)
+	if (!t?.closest) return false
+	if (!t.closest('.scenes-deck')) return false
+	if (t.closest('.scenes-card')) return false
+	if (t.closest('.scenes-deck__add-look')) return false
+	if (t.closest('button, input, select, textarea, a, [role="button"]')) return false
+	return true
+}
+
+/**
  * @param {object} ctx
  * @param {HTMLElement} ctx.mainHost
  * @param {import('../lib/scene-state.js').SceneState} ctx.sceneState
@@ -155,21 +169,6 @@ export function renderSceneDeck(ctx) {
 	})
 
 
-	mainHost.addEventListener('click', (e) => {
-		if (e.defaultPrevented) return
-		const t = /** @type {HTMLElement | null} */ (e.target)
-		if (!t?.closest) return
-		if (t.closest('.scenes-card') || t.closest('.scenes-deck__add-look')) return
-		if (t.closest('.scenes-deck-col__head')) return
-		// If clicking in a column, the colEl listener will handle it and prevent default.
-		// If clicking entirely outside any column (e.g. blank padding of mainHost), clear active.
-		if (t.closest('.scenes-deck-col')) return
-		
-		if (typeof clearPreviewBusForMain === 'function') {
-			void clearPreviewBusForMain(sceneState.activeScreenIndex, { full: true })
-		}
-	})
-
 	mainHost.appendChild(deckWrap)
 
 	function applyRowAspect(el) {
@@ -219,9 +218,14 @@ export function renderSceneDeck(ctx) {
 		
 		const chk = document.createElement('input')
 		chk.type = 'checkbox'
-		chk.checked = !!gb.enabled
+		chk.checked = !!(gb && gb.enabled)
 		chk.addEventListener('click', (e) => e.stopPropagation())
 		chk.addEventListener('change', () => {
+			const cur = sceneState.getGlobalBorderForScreen(col)
+			if (!cur) {
+				if (chk.checked) sceneState.setGlobalBorderForScreen(col, { enabled: true })
+				return
+			}
 			sceneState.setGlobalBorderForScreen(col, { enabled: chk.checked })
 		})
 		
@@ -374,13 +378,13 @@ export function renderSceneDeck(ctx) {
 		grid.appendChild(addTile)
 
 		if (typeof clearPreviewBusForMain === 'function') {
-			colEl.addEventListener('click', (e) => {
+			grid.addEventListener('click', (e) => {
 				if (e.defaultPrevented) return
+				if (!isScenesDeckBlankClick(e.target)) return
 				const t = /** @type {HTMLElement | null} */ (e.target)
-				if (!t?.closest) return
-				if (t.closest('.scenes-card') || t.closest('.scenes-deck__add-look')) return
-				if (t.closest('.scenes-deck-col__head')) return
-				e.preventDefault() // prevent mainHost fallback
+				const onEmptyPlaceholder = !!t?.closest?.('.scenes-deck__empty--clear-prv')
+				if (!onEmptyPlaceholder && !sceneState.getPreviewSceneIdForMain(col)) return
+				e.preventDefault()
 				ensureMainForColumn(col)
 				void clearPreviewBusForMain(col, { full: true })
 			})

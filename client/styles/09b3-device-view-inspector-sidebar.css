@@ -154,6 +154,49 @@
 	font-size: 11px;
 	padding: 4px 8px;
 }
+.device-view__decklink-io-heading {
+	margin: 0 0 4px;
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: rgba(148, 163, 184, 0.95);
+}
+.device-view__decklink-io-note {
+	margin: 0 0 8px;
+	font-size: 11px;
+	line-height: 1.45;
+	color: rgba(203, 213, 225, 0.88);
+}
+.device-view__decklink-io-section + .device-view__decklink-io-section {
+	margin-top: 4px;
+}
+.device-view__decklink-kf {
+	margin-top: 0;
+}
+.device-view__decklink-kf-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 12px;
+}
+.device-view__decklink-kf-row select {
+	min-width: 4.5rem;
+	margin-left: auto;
+}
+.device-view__decklink-input-setup {
+	margin-top: 8px;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+.device-view__decklink-input-row {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 8px;
+	font-size: 12px;
+}
 .device-view__section-divider {
 	border: none;
 	border-top: 1px dashed rgba(148, 163, 184, 0.25);

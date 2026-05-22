@@ -3,6 +3,11 @@
  */
 import { consumeSkipRemoteProjectSync } from './project-remote-sync.js'
 import { loadDeferredCatalogOverWs } from './deferred-catalog-ws.js'
+import { applyRemoteGlobalBordersArray } from './scene-state-global-border.js'
+import {
+	ingestArtnetGlobalBorderSync,
+	ingestArtnetGlobalBordersArray,
+} from './global-border-artnet-ws.js'
 
 /**
  * @param {unknown} data
@@ -18,6 +23,9 @@ function applyWsStateSideEffects(data, { sceneState, programOutputState, appLogi
 	appLogic.scheduleMultiviewRefresh()
 	appLogic.emitCasparConnectedIfNeeded(data)
 	if (data.scene?.live) sceneState.applyServerLiveChannels(data.scene.live, data.channelMap)
+	if (Array.isArray(data.scene?.globalBorders)) {
+		applyRemoteGlobalBordersArray(sceneState, data.scene.globalBorders, { source: 'project' })
+	}
 	appLogic.updateStatus(true, null)
 	appLogic.refreshStatusLine()
 	appLogic.refreshEye()
@@ -46,6 +54,9 @@ export function attachWsHandlers(ws, { stateStore, sceneState, timelineState, mu
 		if (!data || data.path == null) return
 		stateStore.applyChange(data.path, data.value)
 		if (data.path === 'scene.live' && data.value) sceneState.applyServerLiveChannels(data.value, stateStore.getState()?.channelMap)
+		if (data.path === 'scene.globalBorders' && Array.isArray(data.value)) {
+			ingestArtnetGlobalBordersArray(sceneState, data.value)
+		}
 		if (data.path === 'channelMap') {
 			if (data.value?.programResolutions) {
 				sceneState.setCanvasResolutions(data.value.programResolutions)
@@ -64,6 +75,10 @@ export function attachWsHandlers(ws, { stateStore, sceneState, timelineState, mu
 
 	ws.on('timeline.tick', (data) => stateStore.applyChange('timeline.tick', data))
 	ws.on('timeline.playback', (pb) => stateStore.applyChange('timeline.playback', pb))
+
+	ws.on('global_border_sync', (data) => {
+		ingestArtnetGlobalBorderSync(sceneState, data)
+	})
 
 	ws.on('project_sync', (project) => {
 		if (!project || project.error || !project.version || consumeSkipRemoteProjectSync()) return

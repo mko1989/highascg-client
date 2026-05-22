@@ -3,6 +3,19 @@ import { PIP_OVERLAY_MAP } from '../lib/pip-overlay-registry.js'
 import { renderParamEditor } from './inspector-pip-overlay.js'
 import { showScenesToast } from './scenes-editor-support.js'
 import { getResolutionForScreen } from './inspector-channel-resolution.js'
+import globalBorderFixtureText from '../fixtures/global-border.txt?raw'
+import {
+	GLOBAL_BORDER_ARTNET_CHANNEL_DEFS,
+	normalizeArtnetChannelMap,
+} from '../lib/global-border-artnet-map.js'
+
+function requestGlobalBorderPush() {
+	window.dispatchEvent(new CustomEvent('highascg-global-border-push'))
+}
+
+function scheduleGlobalBorderConfigSave() {
+	window.dispatchEvent(new CustomEvent('highascg-global-border-config-save'))
+}
 
 export function renderGlobalBorderInspector(root, screenIndex, stateStore) {
 	root.innerHTML = ''
@@ -12,7 +25,31 @@ export function renderGlobalBorderInspector(root, screenIndex, stateStore) {
 	root.appendChild(title)
 
 	const gbNow = () => sceneState.getGlobalBorderForScreen(screenIndex)
-	const gb = gbNow()
+	let gb = gbNow()
+
+	if (!gb) {
+		const setup = document.createElement('div')
+		setup.className = 'inspector-group'
+		setup.innerHTML =
+			'<div class="inspector-group__title">Not configured</div><p class="inspector-field inspector-field--hint">This screen has no global border. Enable it here or check “Global Border” on the scene deck column header.</p>'
+		const enableBtn = Object.assign(document.createElement('button'), {
+			type: 'button',
+			className: 'scenes-btn',
+			textContent: 'Enable global border on this screen',
+		})
+		enableBtn.addEventListener('click', () => {
+			sceneState.setGlobalBorderForScreen(screenIndex, { enabled: true })
+			requestGlobalBorderPush()
+			renderGlobalBorderInspector(root, screenIndex, stateStore)
+		})
+		setup.appendChild(enableBtn)
+		root.appendChild(setup)
+		return
+	}
+
+	const patchGlobalBorder = (patch) => {
+		sceneState.setGlobalBorderForScreen(screenIndex, patch)
+	}
 
 	const borderGrp = document.createElement('div')
 	borderGrp.className = 'inspector-group'
@@ -34,7 +71,7 @@ export function renderGlobalBorderInspector(root, screenIndex, stateStore) {
 		typeSel.appendChild(opt)
 	})
 	typeSel.addEventListener('change', () => {
-		sceneState.setGlobalBorderForScreen(screenIndex, { type: typeSel.value })
+		patchGlobalBorder({ type: typeSel.value })
 		renderGlobalBorderInspector(root, screenIndex, stateStore)
 	})
 	typeLab.appendChild(typeSel)
@@ -55,7 +92,7 @@ export function renderGlobalBorderInspector(root, screenIndex, stateStore) {
 	fadeInp.value = gb.fadeDuration ?? 25
 	fadeInp.addEventListener('change', () => {
 		const val = parseInt(fadeInp.value, 10)
-		sceneState.setGlobalBorderForScreen(screenIndex, { fadeDuration: isNaN(val) ? 25 : val })
+		patchGlobalBorder({ fadeDuration: isNaN(val) ? 25 : val })
 	})
 	fadeLab.appendChild(fadeInp)
 	fadeWrap.appendChild(fadeLab)
@@ -72,7 +109,7 @@ export function renderGlobalBorderInspector(root, screenIndex, stateStore) {
 	mirrorChk.type = 'checkbox'
 	mirrorChk.checked = gb.mirrorBorderOnPrv === true
 	mirrorChk.addEventListener('change', () => {
-		sceneState.setGlobalBorderForScreen(screenIndex, { mirrorBorderOnPrv: mirrorChk.checked })
+		patchGlobalBorder({ mirrorBorderOnPrv: mirrorChk.checked })
 		renderGlobalBorderInspector(root, screenIndex, stateStore)
 	})
 	const prvCh = stateStore?.getState?.()?.channelMap?.previewChannels?.[screenIndex]
@@ -95,14 +132,34 @@ export function renderGlobalBorderInspector(root, screenIndex, stateStore) {
 			const curVal = gb.params?.[schema.key] ?? schema.default
 			renderParamEditor(paramsBlock, schema, curVal, (newVal) => {
 				const cur = gbNow()
-				sceneState.setGlobalBorderForScreen(screenIndex, {
-					params: { ...cur.params, [schema.key]: newVal, side: 'inside' }
+				if (!cur) return
+				patchGlobalBorder({
+					params: { ...cur.params, [schema.key]: newVal, side: 'inside' },
 				})
 			})
 		}
 		borderGrp.appendChild(paramsBlock)
 	}
 	root.appendChild(borderGrp)
+
+	const screenActions = document.createElement('div')
+	screenActions.className = 'inspector-group'
+	screenActions.style.marginTop = '8px'
+	const removeBtn = Object.assign(document.createElement('button'), {
+		type: 'button',
+		className: 'scenes-btn scenes-btn--danger',
+		textContent: 'Remove border from this screen',
+	})
+	removeBtn.title = 'Clears this screen from globalBorders (null slot). Art-Net and PGM border stop for this screen.'
+	removeBtn.addEventListener('click', () => {
+		if (!window.confirm(`Remove global border configuration from Screen ${screenIndex + 1}?`)) return
+		sceneState.setGlobalBorderForScreen(screenIndex, { __clearSlot: true })
+		requestGlobalBorderPush()
+		window.dispatchEvent(new CustomEvent('global-border-state-changed'))
+		renderGlobalBorderInspector(root, screenIndex, stateStore)
+	})
+	screenActions.appendChild(removeBtn)
+	root.appendChild(screenActions)
 
 	const presetGrp = document.createElement('div')
 	presetGrp.className = 'inspector-group'
@@ -179,17 +236,38 @@ export function renderGlobalBorderInspector(root, screenIndex, stateStore) {
 	slicesBody.style.flexDirection = 'column'
 	slicesBody.style.gap = '10px'
 
-	const slices = gb.slices || []
 	const res = getResolutionForScreen(stateStore)
 
-	if (slices.length === 0) {
-		const empty = document.createElement('div')
-		empty.className = 'inspector-field inspector-field--hint'
-		empty.textContent = 'No slices defined. Defaulting to full canvas (0,0 100×100).'
-		slicesBody.appendChild(empty)
-	}
+	const sliceBtns = document.createElement('div')
+	sliceBtns.style.display = 'flex'
+	sliceBtns.style.gap = '8px'
+	sliceBtns.style.marginTop = '4px'
 
-	slices.forEach((s, idx) => {
+	const addBtn = document.createElement('button')
+	addBtn.type = 'button'
+	addBtn.className = 'scenes-btn scenes-btn--sm'
+	addBtn.textContent = '+ Add Slice'
+	addBtn.addEventListener('click', () => {
+		const currentSlices = gbNow()?.slices || []
+		patchGlobalBorder({ slices: [...currentSlices, { x: 0, y: 0, w: 0.5, h: 1 }] })
+		renderSliceRows()
+	})
+
+	const fullBtn = document.createElement('button')
+	fullBtn.type = 'button'
+	fullBtn.className = 'scenes-btn scenes-btn--sm'
+	fullBtn.textContent = 'Full Canvas'
+	fullBtn.title = 'Reset to full screen border'
+	fullBtn.addEventListener('click', () => {
+		patchGlobalBorder({ slices: [] })
+		renderSliceRows()
+	})
+
+	sliceBtns.appendChild(addBtn)
+	sliceBtns.appendChild(fullBtn)
+	slicesBody.appendChild(sliceBtns)
+
+	function appendSliceRow(s, idx) {
 		const row = document.createElement('div')
 		row.className = 'inspector-slice-row'
 		row.style.display = 'flex'
@@ -217,11 +295,11 @@ export function renderGlobalBorderInspector(root, screenIndex, stateStore) {
 			i.max = maxRes
 			i.value = Math.round(val * maxRes)
 			i.addEventListener('change', () => {
-				const currentSlices = sceneState.getGlobalBorderForScreen(screenIndex).slices || []
+				const currentSlices = gbNow()?.slices || []
 				const next = [...currentSlices]
 				if (next[idx]) {
 					next[idx] = { ...next[idx], [key]: Math.max(0, Math.min(maxRes, parseFloat(i.value) || 0)) / maxRes }
-					sceneState.setGlobalBorderForScreen(screenIndex, { slices: next })
+					patchGlobalBorder({ slices: next })
 				}
 			})
 			w.appendChild(l)
@@ -242,56 +320,63 @@ export function renderGlobalBorderInspector(root, screenIndex, stateStore) {
 		del.textContent = '×'
 		del.title = 'Remove slice'
 		del.addEventListener('click', () => {
-			const currentSlices = sceneState.getGlobalBorderForScreen(screenIndex).slices || []
-			const next = currentSlices.filter((_, i) => i !== idx)
-			sceneState.setGlobalBorderForScreen(screenIndex, { slices: next })
-			renderGlobalBorderInspector(root, screenIndex, stateStore)
+			const currentSlices = gbNow()?.slices || []
+			patchGlobalBorder({ slices: currentSlices.filter((_, i) => i !== idx) })
+			renderSliceRows()
 		})
 		row.appendChild(del)
-		slicesBody.appendChild(row)
-	})
+		slicesBody.insertBefore(row, sliceBtns)
+	}
 
-	const sliceBtns = document.createElement('div')
-	sliceBtns.style.display = 'flex'
-	sliceBtns.style.gap = '8px'
-	sliceBtns.style.marginTop = '4px'
+	function renderSliceRows() {
+		slicesBody.querySelectorAll('.inspector-slice-row').forEach((el) => el.remove())
+		slicesBody.querySelectorAll('.inspector-field--hint').forEach((el) => el.remove())
+		const slices = gbNow()?.slices || []
+		if (slices.length === 0) {
+			const empty = document.createElement('div')
+			empty.className = 'inspector-field inspector-field--hint'
+			empty.textContent = 'No slices defined. Defaulting to full canvas (0,0 100×100).'
+			slicesBody.insertBefore(empty, sliceBtns)
+		}
+		slices.forEach((s, idx) => appendSliceRow(s, idx))
+	}
 
-	const addBtn = document.createElement('button')
-	addBtn.type = 'button'
-	addBtn.className = 'scenes-btn scenes-btn--sm'
-	addBtn.textContent = '+ Add Slice'
-	addBtn.addEventListener('click', () => {
-		const currentSlices = sceneState.getGlobalBorderForScreen(screenIndex).slices || []
-		// Default to half-width, full-height
-		const next = [...currentSlices, { x: 0, y: 0, w: 0.5, h: 1 }]
-		sceneState.setGlobalBorderForScreen(screenIndex, { slices: next })
-		renderGlobalBorderInspector(root, screenIndex, stateStore)
-	})
-
-	const fullBtn = document.createElement('button')
-	fullBtn.type = 'button'
-	fullBtn.className = 'scenes-btn scenes-btn--sm'
-	fullBtn.textContent = 'Full Canvas'
-	fullBtn.title = 'Reset to full screen border'
-	fullBtn.addEventListener('click', () => {
-		sceneState.setGlobalBorderForScreen(screenIndex, { slices: [] })
-		renderGlobalBorderInspector(root, screenIndex, stateStore)
-	})
-
-	sliceBtns.appendChild(addBtn)
-	sliceBtns.appendChild(fullBtn)
-	slicesBody.appendChild(sliceBtns)
+	renderSliceRows()
 
 	slicesGrp.appendChild(slicesBody)
 	root.appendChild(slicesGrp)
 
 	const patchGrp = document.createElement('div')
 	patchGrp.className = 'inspector-group'
-	patchGrp.innerHTML = '<div class="inspector-group__title">Art-Net Patch</div>'
-	
+	patchGrp.innerHTML = '<div class="inspector-group__title">Art-Net</div>'
+
 	const patchBlock = document.createElement('div')
 	patchBlock.className = 'inspector-effect-card__params'
-	
+
+	const listenWrap = document.createElement('div')
+	listenWrap.className = 'inspector-field'
+	const listenLab = document.createElement('label')
+	listenLab.className = 'inspector-field__label'
+	listenLab.style.display = 'flex'
+	listenLab.style.alignItems = 'center'
+	listenLab.style.gap = '8px'
+	const listenChk = document.createElement('input')
+	listenChk.type = 'checkbox'
+	listenChk.checked = gb.artnetListenEnabled !== false
+	listenChk.addEventListener('change', () => {
+		patchGlobalBorder({ artnetListenEnabled: listenChk.checked })
+		scheduleGlobalBorderConfigSave()
+	})
+	const listenTxt = document.createElement('span')
+	listenTxt.textContent =
+		'Listen for Art-Net on this screen (uncheck to freeze border from DMX; UI controls still work)'
+	listenLab.appendChild(listenChk)
+	listenLab.appendChild(listenTxt)
+	listenWrap.appendChild(listenLab)
+	patchBlock.appendChild(listenWrap)
+
+	let patchStartCh = Number(gb.artnetPatch?.startChannel) || 1
+
 	const scWrap = document.createElement('div')
 	scWrap.className = 'inspector-field'
 	const scLab = document.createElement('label')
@@ -303,14 +388,17 @@ export function renderGlobalBorderInspector(root, screenIndex, stateStore) {
 	scInp.style.width = '60px'
 	scInp.min = 1
 	scInp.max = 512
-	scInp.value = gb.artnetPatch?.startChannel || 1
+	scInp.value = patchStartCh
 	scInp.addEventListener('change', () => {
 		const val = parseInt(scInp.value, 10)
 		const cur = gbNow()
-		sceneState.setGlobalBorderForScreen(screenIndex, {
-			artnetPatch: { ...cur.artnetPatch, startChannel: isNaN(val) ? 1 : val }
+		if (!cur) return
+		patchStartCh = isNaN(val) ? 1 : val
+		patchGlobalBorder({
+			artnetPatch: { ...cur.artnetPatch, startChannel: patchStartCh },
 		})
-		renderGlobalBorderInspector(root, screenIndex, stateStore)
+		scheduleGlobalBorderConfigSave()
+		rebuildMappingTable()
 	})
 	scLab.appendChild(scInp)
 	scWrap.appendChild(scLab)
@@ -327,35 +415,31 @@ export function renderGlobalBorderInspector(root, screenIndex, stateStore) {
 	uniInp.style.width = '60px'
 	uniInp.min = 0
 	uniInp.max = 16
-	uniInp.value = gb.artnetPatch?.universe || 0
+	uniInp.value = gb.artnetPatch?.universe ?? 0
 	uniInp.addEventListener('change', () => {
 		const val = parseInt(uniInp.value, 10)
 		const cur = gbNow()
-		sceneState.setGlobalBorderForScreen(screenIndex, {
-			artnetPatch: { ...cur.artnetPatch, universe: isNaN(val) ? 0 : val }
+		if (!cur) return
+		patchGlobalBorder({
+			artnetPatch: { ...cur.artnetPatch, universe: isNaN(val) ? 0 : val },
 		})
+		scheduleGlobalBorderConfigSave()
 	})
 	uniLab.appendChild(uniInp)
 	uniWrap.appendChild(uniLab)
 	patchBlock.appendChild(uniWrap)
 
-	const start = gb.artnetPatch?.startChannel || 1
-	const mapping = [
-		{ label: 'On/Off', ch: start },
-		{ label: 'Effect Type', ch: start + 1 },
-		{ label: 'Opacity', ch: start + 2 },
-		{ label: 'Color (RGB)', ch: `${start + 3} - ${start + 5}` },
-		{ label: 'Width / Thickness', ch: start + 6 },
-		{ label: 'Speed', ch: start + 7 },
-		{ label: 'Spread / Blur', ch: start + 8 },
-		{ label: 'Glow Color (RGB)', ch: `${start + 9} - ${start + 11}` },
-		{ label: 'Radius', ch: start + 12 },
-		{ label: 'Count (edge strip)', ch: start + 13 },
-		{ label: 'Length (edge strip)', ch: start + 14 },
-		{ label: 'Segments / edge (glow/shadow)', ch: start + 15 },
-		{ label: 'Segment ease (glow/shadow)', ch: start + 16 },
-		{ label: 'Segmentation mode (glow/shadow)', ch: start + 17 },
-	]
+	const channelMapHint = document.createElement('p')
+	channelMapHint.className = 'inspector-field inspector-field--hint'
+	channelMapHint.style.marginTop = '8px'
+	channelMapHint.textContent =
+		'Uncheck a row to keep that parameter under UI control while Art-Net is on (server must honor artnetChannelMap).'
+	patchBlock.appendChild(channelMapHint)
+
+	const setChannelMap = (nextMap) => {
+		patchGlobalBorder({ artnetChannelMap: nextMap })
+		scheduleGlobalBorderConfigSave()
+	}
 
 	const table = document.createElement('table')
 	table.className = 'inspector-mapping-table'
@@ -363,36 +447,69 @@ export function renderGlobalBorderInspector(root, screenIndex, stateStore) {
 	table.style.marginTop = '10px'
 	table.style.fontSize = '0.8rem'
 	table.style.borderCollapse = 'collapse'
-	
+
+	table.addEventListener('change', (e) => {
+		if (e.target && e.target.type === 'checkbox' && e.target.dataset.offset != null) {
+			const offset = parseInt(e.target.dataset.offset, 10)
+			const cur = normalizeArtnetChannelMap(gbNow()?.artnetChannelMap)
+			cur[offset] = e.target.checked
+			setChannelMap(cur)
+		}
+	})
+
+	function rebuildMappingTable() {
+		const tbody = table.querySelector('tbody')
+		if (!tbody) return
+		const channelMap = normalizeArtnetChannelMap(gbNow()?.artnetChannelMap)
+		tbody.innerHTML = GLOBAL_BORDER_ARTNET_CHANNEL_DEFS.map((def) => {
+			const ch = patchStartCh + def.offset
+			const checked = channelMap[def.offset] !== false ? 'checked' : ''
+			return `<tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+				<td style="padding: 4px;">${def.label}</td>
+				<td style="padding: 4px;">${ch}</td>
+				<td style="padding: 4px; text-align: center;">
+					<input type="checkbox" data-offset="${def.offset}" ${checked} style="cursor: pointer; vertical-align: middle;" />
+				</td>
+			</tr>`
+		}).join('')
+	}
+
 	table.innerHTML = `
 		<thead>
 			<tr style="text-align: left; border-bottom: 1px solid rgba(255,255,255,0.1);">
 				<th style="padding: 4px;">Parameter</th>
-				<th style="padding: 4px;">Channel</th>
+				<th style="padding: 4px;">DMX channel</th>
+				<th style="padding: 4px; text-align: center;">Art-Net</th>
 			</tr>
 		</thead>
-		<tbody>
-			${mapping.map(m => `
-				<tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
-					<td style="padding: 4px;">${m.label}</td>
-					<td style="padding: 4px;">${m.ch}</td>
-				</tr>
-			`).join('')}
-		</tbody>
+		<tbody></tbody>
 	`
+	rebuildMappingTable()
 	patchBlock.appendChild(table)
 	
-	const dlLink = document.createElement('a')
-	dlLink.href = '/fixtures/global-border.txt'
-	dlLink.download = 'global-border.txt'
-	dlLink.textContent = 'Download Fixture File'
-	dlLink.style.display = 'block'
-	dlLink.style.marginTop = '15px'
-	dlLink.style.color = '#38bdf8'
-	dlLink.style.textDecoration = 'none'
-	dlLink.style.fontSize = '0.85rem'
-	dlLink.style.fontWeight = 'bold'
-	patchBlock.appendChild(dlLink)
+	const dlBtn = Object.assign(document.createElement('button'), {
+		type: 'button',
+		className: 'header-btn',
+		textContent: 'Download fixture file',
+	})
+	dlBtn.style.display = 'block'
+	dlBtn.style.marginTop = '15px'
+	dlBtn.addEventListener('click', () => {
+		try {
+			const blob = new Blob([globalBorderFixtureText], { type: 'text/plain;charset=utf-8' })
+			const url = URL.createObjectURL(blob)
+			const a = document.createElement('a')
+			a.href = url
+			a.download = 'global-border.txt'
+			document.body.appendChild(a)
+			a.click()
+			a.remove()
+			URL.revokeObjectURL(url)
+		} catch (e) {
+			showScenesToast(`Download failed: ${e?.message || e}`, 'warn')
+		}
+	})
+	patchBlock.appendChild(dlBtn)
 	
 	patchGrp.appendChild(patchBlock)
 	root.appendChild(patchGrp)

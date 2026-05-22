@@ -16,7 +16,19 @@ import { showPlaceholderModal } from './placeholder-modal.js'
 
 export function initSourcesPanel(root, stateStore, opts = {}) {
 	const wsClient = opts.wsClient; let previewFeedback = null; let currentTab = 'media'; let filter = ''; let mediaWithProbe = null; let usbBadgeTimer = null; let extraLiveSources = []
+	/** @type {object | null} */
+	let liveAudioConfiguredCache = null
 	const collapsedFolders = new Set()
+
+	async function fetchLiveAudioConfigured() {
+		try {
+			liveAudioConfiguredCache = await api.get('/api/audio/live-inputs')
+			stateStore?.applyChange?.('liveAudioConfigured', liveAudioConfiguredCache)
+		} catch {
+			liveAudioConfiguredCache = null
+		}
+		return liveAudioConfiguredCache
+	}
 	const selectedMedia = new Set()
 	const sendToPrv = async (s) => { const ch = (stateStore.getState()?.channelMap?.previewChannels?.[0] ?? 2); try { await api.post('/api/play', { channel: ch, layer: 1, clip: s.value }); const el = root.querySelector(`[data-source-value="${CSS.escape(s.value)}"]`); if (el) { el.classList.add('source-item--previewing'); clearTimeout(previewFeedback); previewFeedback = setTimeout(() => el.classList.remove('source-item--previewing'), 1200) } } catch {} }
 
@@ -118,7 +130,20 @@ export function initSourcesPanel(root, stateStore, opts = {}) {
 		else if (currentTab === 'templates') { renderTemplatesBrowser(listEl, s.templates || [], filter); mediaFooter.style.display = 'flex'; startUsb() }
 		else if (currentTab === 'placeholders') { renderPlaceholdersBrowser(listEl, window.placeholderState?.getAll() || [], filter); mediaFooter.style.display = 'flex'; stopUsb() }
 		else if (currentTab === 'effects') { stopUsb(); renderEffectsTab(listEl, filter); mediaFooter.style.display = 'none' }
-		else if (currentTab === 'live') { stopUsb(); renderLiveTab(listEl, { channelMap: s.channelMap || {}, decklinkInputsStatus: s.decklinkInputsStatus, extraSources: s.extraLiveSources || [], connectors: s.connectors || [] }); mediaFooter.style.display = 'none' }
+		else if (currentTab === 'live') {
+			stopUsb()
+			const liveCfg = s.liveAudioConfigured || liveAudioConfiguredCache
+			if (!liveCfg) void fetchLiveAudioConfigured().then(() => render())
+			renderLiveTab(listEl, {
+				channelMap: s.channelMap || {},
+				decklinkInputsStatus: s.decklinkInputsStatus,
+				liveAudioInputsStatus: s.liveAudioInputsStatus,
+				liveAudioConfigured: liveCfg,
+				extraSources: s.extraLiveSources || [],
+				connectors: s.connectors || [],
+			})
+			mediaFooter.style.display = 'none'
+		}
 		else { stopUsb(); renderSourceList(listEl, (timelineState.getAll() || s.timelines || []).map(t => ({ id: t.id || t.name, label: t.name || t.id })), 'timeline', filter, null); mediaFooter.style.display = 'none' }
 		root.querySelector('.sources-search').style.display = (['live'].includes(currentTab) ? 'none' : 'block')
 	}

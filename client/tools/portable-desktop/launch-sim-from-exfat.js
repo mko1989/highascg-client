@@ -58,6 +58,16 @@ function resolveExfatVolumeRoot() {
 	if (platform === 'darwin') {
 		const vol = path.join('/Volumes', label)
 		if (fs.existsSync(vol) && fs.statSync(vol).isDirectory()) return vol
+		try {
+			for (const name of fs.readdirSync('/Volumes')) {
+				if (name === label || name.startsWith(`${label} `)) {
+					const candidate = path.join('/Volumes', name)
+					if (fs.existsSync(candidate) && fs.statSync(candidate).isDirectory()) return candidate
+				}
+			}
+		} catch (_) {
+			/* ignore */
+		}
 	}
 	if (platform === 'win32') {
 		const drive = getWindowsDriveForLabel(label)

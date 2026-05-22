@@ -214,8 +214,11 @@ export class SceneState {
 
 	setPreviewSceneId(id, mainIdx) {
 		const m = mainIdx != null && mainIdx >= 0 && mainIdx < 4 ? Math.floor(mainIdx) : this.activeScreenIndex
-		this.previewSceneIdByMain[m] = id ? String(id) : null
-		this._persist(); this._emit('previewScene')
+		const next = id ? String(id) : null
+		if (this.previewSceneIdByMain[m] === next) return
+		this.previewSceneIdByMain[m] = next
+		this._persist()
+		this._emit('previewScene')
 	}
 
 	copyLayerStyle(sceneId, layerIndex) {

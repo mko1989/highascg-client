@@ -8,7 +8,7 @@ Operator **browser UI** and **Electron launcher** for a remote HighAsCG playout 
 |------|------|
 | [`client/`](client/) | Static ES modules: dashboards, scenes, device view, settings |
 | [`client/tools/electron-launcher/`](client/tools/electron-launcher/) | Production UI host (`npm run launcher`) |
-| [`vite.config.js`](vite.config.js) | Dev server :3000, build → `dist-web/` |
+| [`vite.config.js`](vite.config.js) | Dev server :4350, build → `dist-web/` |
 | [`not-needed/`](not-needed/) | Server, config, templates, eggs/smoke — not used for UI-only work |
 
 ## Requirements
@@ -28,12 +28,12 @@ Copy [`.env.development.example`](.env.development.example) → `.env.developmen
 
 | Command | Purpose |
 |---------|---------|
-| `npm run dev:client` | Vite on **:3000**, proxies `/api` to `VITE_HIGHASCG_API_ORIGIN` |
+| `npm run dev:client` | Vite on **:4350**, proxies `/api` to `VITE_HIGHASCG_API_ORIGIN` |
 | `npm run build:client` | Production bundle in `dist-web/` |
 | `npm run launcher` | Electron app (syncs `dist-web/` into launcher bundle) |
 | `npm run release:github-client` | Pack `dist-web/` for GitHub |
 
-Open **http://localhost:3000/** in dev, or use the launcher in production and set the playout API host in the launcher UI.
+Open **http://localhost:4350/** in dev, or use the launcher in production and set the playout API host in the launcher UI.
 
 ## API contract
 

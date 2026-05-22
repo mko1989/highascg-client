@@ -15,6 +15,7 @@ export function getMainModalHtml() {
 					<button class="settings-tab" data-tab="media-usb">media/usb</button>
 					<button class="settings-tab" data-tab="system-hardware">system</button>
 					<button class="settings-tab" data-tab="decklink">decklink</button>
+					<button class="settings-tab" data-tab="live-audio">live audio</button>
 					<button class="settings-tab" data-tab="plugins">Plugins</button>
 					<button class="settings-tab" data-tab="variables">Variables</button>
 					<button class="settings-tab" data-tab="nuclear">Nuclear</button>
@@ -85,6 +86,7 @@ export function getMainModalHtml() {
 						</div>
 						<p class="settings-note" id="system-hw-nvidia-status" style="margin-top:0.35rem"></p>
 					</div>
+					<div class="settings-pane" id="settings-pane-live-audio"></div>
 					<div class="settings-pane" id="settings-pane-decklink">
 						<h3 class="settings-category">Blackmagic DeckLink</h3>
 						<p class="settings-note">Discovery uses ffmpeg DeckLink list and recent Caspar log when present. Buttons open GUIs on <code>:0</code> (needs X session). If nuclear password protection is on, set it under <strong>Nuclear</strong> first.</p>
