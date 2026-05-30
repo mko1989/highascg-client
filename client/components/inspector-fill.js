@@ -21,6 +21,68 @@ export const SCENE_CONTENT_FIT_OPTIONS = /** @type {const} */ ([
 	{ value: 'stretch', label: 'Stretch' },
 ])
 
+/** @type {const} */
+export const LAYER_ALIGN_MODES = [
+	'left',
+	'right',
+	'top',
+	'bottom',
+	'center-h',
+	'center-v',
+	'center',
+]
+
+/** Icons under client/assets/ — filenames match user-provided alignment artwork. */
+const LAYER_ALIGN_ICONS = {
+	left: 'left-alignment.svg',
+	right: 'align-right.svg',
+	top: 'top-alignment.svg',
+	bottom: 'bottom-alignment.svg',
+	'center-h': 'alignment-center-h.svg',
+	'center-v': 'alignment-center-v.svg',
+	center: 'alignment-center.svg',
+}
+
+const LAYER_ALIGN_TITLES = {
+	left: 'Align left',
+	right: 'Align right',
+	top: 'Align top',
+	bottom: 'Align bottom',
+	'center-h': 'Center horizontally',
+	'center-v': 'Center vertically',
+	center: 'Center on canvas',
+}
+
+function layerAlignIconUrl(file) {
+	return `/assets/${encodeURIComponent(file)}`
+}
+
+/**
+ * @param {(mode: typeof LAYER_ALIGN_MODES[number]) => void} onAlign
+ */
+export function appendLayerAlignButtons(parent, onAlign) {
+	const alignRow = document.createElement('div')
+	alignRow.className = 'inspector-align-row'
+	for (const mode of LAYER_ALIGN_MODES) {
+		const file = LAYER_ALIGN_ICONS[mode]
+		const b = document.createElement('button')
+		b.type = 'button'
+		b.className = 'inspector-align-btn'
+		b.title = LAYER_ALIGN_TITLES[mode] || mode
+		b.setAttribute('aria-label', b.title)
+		const img = document.createElement('img')
+		img.src = layerAlignIconUrl(file)
+		img.alt = ''
+		img.className = 'inspector-align-btn__icon'
+		img.draggable = false
+		b.appendChild(img)
+		b.addEventListener('click', () => onAlign(mode))
+		alignRow.appendChild(b)
+	}
+	parent.appendChild(alignRow)
+	return alignRow
+}
+
 /**
  * @param {HTMLElement} root
  * @param {object} opts
@@ -59,26 +121,7 @@ export function appendSceneLayerFillGroup(root, opts) {
 	fillGrp.className = 'inspector-group'
 	fillGrp.innerHTML = '<div class="inspector-group__title">Position / size (canvas px)</div>'
 
-	const alignRow = document.createElement('div')
-	alignRow.className = 'inspector-align-row'
-	const alignBtns = [
-		['L', 'left'],
-		['R', 'right'],
-		['T', 'top'],
-		['B', 'bottom'],
-		['Cx', 'center-h'],
-		['Cy', 'center-v'],
-		['C', 'center'],
-	]
-	for (const [label, mode] of alignBtns) {
-		const b = document.createElement('button')
-		b.type = 'button'
-		b.className = 'inspector-align-btn'
-		b.textContent = label
-		b.addEventListener('click', () => patchFillAlign(/** @type {'left' | 'right' | 'top' | 'bottom' | 'center-h' | 'center-v' | 'center'} */ (mode)))
-		alignRow.appendChild(b)
-	}
-	fillGrp.appendChild(alignRow)
+	appendLayerAlignButtons(fillGrp, patchFillAlign)
 
 	const xInp = createDragInput({
 		label: 'X',
