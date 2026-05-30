@@ -7,7 +7,6 @@ import { setStatus } from './device-view-ui-utils.js'
 import * as Actions from './device-view-actions.js'
 import { renderCasparBand } from './device-view-caspar-render.js'
 import { renderMappingsBand } from './device-view-mappings-render.js'
-import { buildGpuSelectablePortEntries } from '../lib/device-view-gpu-port-list.js'
 
 /**
  * @param {'left' | 'right'} [dotSide] — input/sink ports: dot on the left; output/source: right (default)
@@ -26,87 +25,6 @@ function addPortNodeDot(portEl, connectorId, onPortStartCable, key, data, dotSid
 	})
 	portEl.appendChild(dot)
 	if (dotSide === 'left') portEl.classList.add('device-view__port--connector-dot-left')
-}
-
-function appendGpuPortButton(gpuPorts, entry, ctx) {
-	const { isConnectorVisible, selectedKey, cableSourceId, onPortClick, onPortStartCable } = ctx
-	const cid = String(entry.connectorId || '').trim()
-	if (!cid || !isConnectorVisible(cid)) return
-
-	const b = document.createElement('button')
-	b.type = 'button'
-	b.className = 'device-view__port'
-	const k = `gpu_list:${cid}`
-	b.dataset.portKey = k
-	b.setAttribute('data-connector-id', cid)
-
-	const title = document.createElement('span')
-	title.textContent = entry.label || cid
-	b.appendChild(title)
-
-	const sub = document.createElement('small')
-	const bits = []
-	if (entry.resolution) bits.push(entry.resolution)
-	if (Number.isFinite(entry.refreshHz)) bits.push(`${entry.refreshHz} Hz`)
-	bits.push(entry.connected ? 'connected' : 'disconnected')
-	sub.textContent = bits.filter(Boolean).join(' · ')
-	b.appendChild(sub)
-
-	b.addEventListener('click', () =>
-		onPortClick(k, cid, {
-			type: 'gpu',
-			connectorId: cid,
-			display: { name: entry.monitor || entry.pairs?.[0] || cid, resolution: entry.resolution, connected: entry.connected },
-			index: entry.index,
-		}),
-	)
-	addPortNodeDot(
-		b,
-		cid,
-		onPortStartCable,
-		k,
-		{ type: 'gpu', connectorId: cid, index: entry.index },
-		'left',
-	)
-	if (selectedKey === k) b.classList.add('device-view__port--selected')
-	if (cableSourceId && cid === cableSourceId) b.classList.add('device-view__port--cable-armed')
-	if (entry.connected) b.classList.add('device-view__port--ok')
-	gpuPorts.append(b)
-}
-
-export function renderGpuBand(ctx) {
-	const { live, lastPayload, isConnectorVisible, selectedKey, cableSourceId, onPortClick, onPortStartCable } = ctx
-	const gpuBand = document.createElement('div')
-	gpuBand.className = 'device-view__band'
-	gpuBand.innerHTML = '<h3>GPU / screen consumer outputs</h3><div class="device-view__ports" data-gpu-ports></div>'
-	const gpuPorts = gpuBand.querySelector('[data-gpu-ports]')
-
-	const suggestedGpuOuts = (lastPayload?.suggested?.connectors || []).filter((c) => c?.kind === 'gpu_out')
-	const entries = buildGpuSelectablePortEntries({ live, suggestedGpuOuts })
-
-	if (!entries.length) {
-		gpuPorts.appendChild(
-			Object.assign(document.createElement('p'), {
-				className: 'device-view__note',
-				textContent: 'No GPU outputs reported (check playout host xrandr/DRM or refresh).',
-			}),
-		)
-		return gpuBand
-	}
-
-	const portCtx = { isConnectorVisible, selectedKey, cableSourceId, onPortClick, onPortStartCable }
-	const visible = entries.filter((e) => !e.hidden)
-	for (const entry of visible) appendGpuPortButton(gpuPorts, entry, portCtx)
-	if (!visible.length && entries.length) {
-		gpuPorts.appendChild(
-			Object.assign(document.createElement('p'), {
-				className: 'device-view__note',
-				textContent: 'All GPU outputs are hidden — open rear panel edit mode and uncheck Hide, or use Show all below.',
-			}),
-		)
-	}
-
-	return gpuBand
 }
 
 export function renderDeckLinkBand(ctx) {
@@ -467,7 +385,6 @@ export function renderBands(mappingPanel, rearPanel, ctx, { currentSettings, sta
 	}
 	const proc = appendSegment(mappingPanel, '')
 	proc.append(renderMappingsBand(internalCtx))
-	proc.append(renderGpuBand(internalCtx))
 
 	const eq = appendSegment(rearPanel, '')
 	eq.parentElement?.classList.add('device-view__segment--rear-only')
