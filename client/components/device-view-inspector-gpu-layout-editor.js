@@ -1,4 +1,12 @@
 import * as Actions from './device-view-actions.js'
+import {
+	buildGpuSelectablePortEntries,
+	collectGpuPortNameOptions,
+	GPU_CUSTOM_LAYOUT_KEY,
+	hasDrmGpuPhysicalMap,
+	layoutItemsFromGpuEntries,
+} from '../lib/device-view-gpu-port-list.js'
+import { exportGpuLayoutFile, saveGpuLayoutToStorage } from './device-view-caspar-render-gpu-doc-listeners.js'
 
 /**
  * When the Caspar device band is in edit mode, append the GPU layout drag/drop editor to `wrapCtl`.
@@ -8,7 +16,6 @@ export function appendGpuLayoutEditorIfEditMode(wrapCtl, { load, lastPayload }) 
 	if (!editMode) return
 
 	const editGroup = Object.assign(document.createElement('div'), { style: 'border: 1px solid #555; padding: 8px; border-radius: 4px; background: #333; margin-bottom: 8px;' })
-	editGroup.innerHTML = '<div style="font-weight:bold; margin-bottom: 6px; font-size: 11px; color: #aaa;">GPU Layout Editor (Drag slots to reorder)</div>'
 
 	const gpuModel = String(lastPayload?.live?.gpu?.model || '').toUpperCase()
 	const gpuLayoutPresets = {
@@ -26,11 +33,24 @@ export function appendGpuLayoutEditorIfEditMode(wrapCtl, { load, lastPayload }) 
 		],
 	}
 	const defaultGpuItems = gpuModel.includes('2080') ? gpuLayoutPresets['2080'] : gpuLayoutPresets['DEFAULT']
-	const savedLayout = localStorage.getItem('gpu_custom_layout')
-	let customGpuItems = savedLayout ? JSON.parse(savedLayout) : [...defaultGpuItems]
-	defaultGpuItems.forEach((def) => {
-		if (!customGpuItems.find((x) => x.id === def.id)) customGpuItems.push({ ...def })
-	})
+	const live = lastPayload?.live
+	const useDrmLayout = hasDrmGpuPhysicalMap(live)
+	const savedLayout = localStorage.getItem(GPU_CUSTOM_LAYOUT_KEY)
+	let customGpuItems = useDrmLayout
+		? layoutItemsFromGpuEntries(buildGpuSelectablePortEntries({ live, suggestedGpuOuts: [] }))
+		: savedLayout
+			? JSON.parse(savedLayout)
+			: [...defaultGpuItems]
+	if (!useDrmLayout) {
+		defaultGpuItems.forEach((def) => {
+			if (!customGpuItems.find((x) => x.id === def.id)) customGpuItems.push({ ...def })
+		})
+	}
+	const portNameOptions = collectGpuPortNameOptions(live)
+
+	editGroup.innerHTML = useDrmLayout
+		? '<div style="font-weight:bold; margin-bottom: 6px; font-size: 11px; color: #aaa;">GPU layout (from server DRM map — drag to reorder)</div>'
+		: '<div style="font-weight:bold; margin-bottom: 6px; font-size: 11px; color: #aaa;">GPU Layout Editor (Drag slots to reorder)</div>'
 
 	const listContainer = Object.assign(document.createElement('div'), { style: 'display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px;' })
 
@@ -45,8 +65,30 @@ export function appendGpuLayoutEditorIfEditMode(wrapCtl, { load, lastPayload }) 
 	}
 
 	const saveAndRefresh = () => {
-		localStorage.setItem('gpu_custom_layout', JSON.stringify(customGpuItems))
+		saveGpuLayoutToStorage(customGpuItems)
 		if (load) load()
+	}
+
+	const setAllHidden = (hidden) => {
+		customGpuItems.forEach((item) => {
+			item.hidden = hidden
+		})
+		saveAndRefresh()
+	}
+
+	const hideDisconnected = () => {
+		const connectedNames = new Set(
+			(Array.isArray(live?.gpu?.displays) ? live.gpu.displays : [])
+				.filter((d) => d?.connected)
+				.map((d) => String(d.name || '').trim().toUpperCase())
+				.filter(Boolean),
+		)
+		customGpuItems.forEach((item) => {
+			const pairs = Array.isArray(item.pairs) ? item.pairs : []
+			const connected = pairs.some((p) => connectedNames.has(String(p).trim().toUpperCase()))
+			item.hidden = !connected
+		})
+		saveAndRefresh()
 	}
 
 	const renderList = () => {
@@ -91,7 +133,7 @@ export function appendGpuLayoutEditorIfEditMode(wrapCtl, { load, lastPayload }) 
 			const portASel = Object.assign(document.createElement('select'), { className: 'device-view__destinations-type', style: 'flex:1' })
 			const portBSel = Object.assign(document.createElement('select'), { className: 'device-view__destinations-type', style: 'flex:1' })
 
-			const portOptions = ['None', ...Array.from({ length: 8 }, (_, i) => `DP-${i}`), ...Array.from({ length: 4 }, (_, i) => `HDMI-${i}`)]
+			const portOptions = ['None', ...portNameOptions]
 			const renderOptions = (selVal) => portOptions.map((p) => {
 				const val = p === 'None' ? '' : p
 				return `<option value="${val}" ${val === selVal ? 'selected' : ''}>${p}</option>`
@@ -111,13 +153,22 @@ export function appendGpuLayoutEditorIfEditMode(wrapCtl, { load, lastPayload }) 
 				const newPairs = [a, b].filter(Boolean)
 				let newLabel = item.id
 				if (newPairs.length) {
-					const isHdmi = newPairs.some((p) => p.includes('HDMI'))
-					const nums = newPairs.map((p) => p.split('-')[1]).join('/')
-					newLabel = `${isHdmi ? 'HDMI' : 'DP'} ${nums}`
+					const isHdmi = newPairs.some((p) => /HDMI/i.test(p))
+					const isEdp = newPairs.some((p) => /EDP/i.test(p))
+					if (isEdp) {
+						newLabel = newPairs.join(' · ')
+					} else {
+						const nums = newPairs.map((p) => p.split('-').slice(1).join('-')).join('/')
+						newLabel = `${isHdmi ? 'HDMI' : 'DP'} ${nums}`
+					}
 				}
 				item.pairs = newPairs
 				item.label = newLabel
-				item.type = newPairs.some((p) => p.includes('HDMI')) ? 'hdmi' : 'dp'
+				item.type = newPairs.some((p) => /HDMI/i.test(p))
+					? 'hdmi'
+					: newPairs.some((p) => /EDP/i.test(p))
+						? 'edp'
+						: 'dp'
 				item.hidden = hideIn.checked
 				saveAndRefresh()
 			}
@@ -136,6 +187,27 @@ export function appendGpuLayoutEditorIfEditMode(wrapCtl, { load, lastPayload }) 
 
 	renderList()
 
+	const bulkRow = Object.assign(document.createElement('div'), { style: 'display:flex; gap:4px; margin-top:6px; flex-wrap:wrap' })
+	const showAllBtn = Object.assign(document.createElement('button'), {
+		className: 'header-btn',
+		textContent: 'Show all',
+		title: 'Show every GPU port on the rear panel and in the outputs list',
+	})
+	const hideDiscBtn = Object.assign(document.createElement('button'), {
+		className: 'header-btn',
+		textContent: 'Hide disconnected',
+		title: 'Hide ports with no active display',
+	})
+	const hideAllBtn = Object.assign(document.createElement('button'), {
+		className: 'header-btn',
+		textContent: 'Hide all',
+		title: 'Hide every GPU port (use Show all to restore)',
+	})
+	showAllBtn.onclick = () => setAllHidden(false)
+	hideDiscBtn.onclick = () => hideDisconnected()
+	hideAllBtn.onclick = () => setAllHidden(true)
+	bulkRow.append(showAllBtn, hideDiscBtn, hideAllBtn)
+
 	const actionsRow = Object.assign(document.createElement('div'), { style: 'display:flex; gap:4px; margin-top:8px; flex-wrap:wrap' })
 	const saveBtn = Object.assign(document.createElement('button'), { className: 'header-btn', textContent: 'Save' })
 	const exportBtn = Object.assign(document.createElement('button'), { className: 'header-btn', textContent: 'Export' })
@@ -145,12 +217,8 @@ export function appendGpuLayoutEditorIfEditMode(wrapCtl, { load, lastPayload }) 
 	fileIn.style.display = 'none'
 	actionsRow.append(saveBtn, exportBtn, loadBtn, resetLayoutBtn, fileIn)
 
-	saveBtn.onclick = () => {
-		document.dispatchEvent(new CustomEvent('gpu-layout-save', { detail: { items: customGpuItems } }))
-	}
-	exportBtn.onclick = () => {
-		document.dispatchEvent(new CustomEvent('gpu-layout-export', { detail: { items: customGpuItems } }))
-	}
+	saveBtn.onclick = () => saveAndRefresh()
+	exportBtn.onclick = () => exportGpuLayoutFile(customGpuItems, gpuModel || live?.gpu?.model)
 
 	loadBtn.onclick = () => fileIn.click()
 	fileIn.onchange = async () => {
@@ -164,7 +232,7 @@ export function appendGpuLayoutEditorIfEditMode(wrapCtl, { load, lastPayload }) 
 				return
 			}
 			customGpuItems = mergeLoadedGpuLayout(parsed)
-			localStorage.setItem('gpu_custom_layout', JSON.stringify(customGpuItems))
+			localStorage.setItem(GPU_CUSTOM_LAYOUT_KEY, JSON.stringify(customGpuItems))
 			alert('GPU layout loaded from file.')
 			if (load) await load()
 		} catch (e) {
@@ -176,7 +244,7 @@ export function appendGpuLayoutEditorIfEditMode(wrapCtl, { load, lastPayload }) 
 			try {
 				const res = await Actions.resetGpuLayout()
 				if (res && res.pairs && res.pairs.length > 0) {
-					localStorage.setItem('gpu_custom_layout', JSON.stringify(res.pairs))
+					localStorage.setItem(GPU_CUSTOM_LAYOUT_KEY, JSON.stringify(res.pairs))
 					if (load) load()
 				} else {
 					alert('Failed to fetch layout or no output from xrandr.')
@@ -188,6 +256,6 @@ export function appendGpuLayoutEditorIfEditMode(wrapCtl, { load, lastPayload }) 
 		}
 	}
 
-	editGroup.append(listContainer, actionsRow)
+	editGroup.append(listContainer, bulkRow, actionsRow)
 	wrapCtl.append(editGroup)
 }

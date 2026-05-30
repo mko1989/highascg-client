@@ -8,6 +8,12 @@ import {
 	resolveCanonicalGpuConnectorId,
 	createCasparRearMarkerStatusResolver,
 } from './device-view-caspar-render-helpers.js'
+import {
+	buildGpuSelectablePortEntries,
+	entryToRearPanelGpuItem,
+	hasDrmGpuPhysicalMap,
+	layoutItemsFromGpuEntries,
+} from '../lib/device-view-gpu-port-list.js'
 import { bindCasparGpuLayoutDocumentListeners } from './device-view-caspar-render-gpu-doc-listeners.js'
 import { buildCasparRearMarkerLayoutItems, appendCasparRearPanelMarkers } from './device-view-caspar-render-markers.js'
 
@@ -85,9 +91,15 @@ export function renderCasparBand(ctx) {
 
 	const resolveStatusClass = createCasparRearMarkerStatusResolver({ live, lastPayload })
 
+	const connectedDisplays = live?.gpu?.displays || []
+
+	const drmListEntries = buildGpuSelectablePortEntries({ live, suggestedGpuOuts: gpuOuts })
+	const useDrmList = hasDrmGpuPhysicalMap(live) && drmListEntries.length > 0
+	const gpuLayoutItems = useDrmList ? layoutItemsFromGpuEntries(drmListEntries) : customGpuItems
+
 	bindCasparGpuLayoutDocumentListeners({
 		casparOverlay,
-		customGpuItems,
+		customGpuItems: gpuLayoutItems,
 		gpuPhysicalPorts,
 		gpuOuts,
 		live,
@@ -95,33 +107,33 @@ export function renderCasparBand(ctx) {
 		getGpuEditMode: () => gpuEditMode,
 	})
 
-	const connectedDisplays = live?.gpu?.displays || []
+	const items = useDrmList
+		? drmListEntries.map((entry) => entryToRearPanelGpuItem(entry, connectedDisplays))
+		: customGpuItems.map((item, i) => {
+				const connected = item.pairs.some((pName) =>
+					connectedDisplays.some((d) => d.connected && normRandrCaspar(d.name) === normRandrCaspar(pName)),
+				)
+				const disp = connectedDisplays.find(
+					(d) => d.connected && item.pairs.some((p) => normRandrCaspar(p) === normRandrCaspar(d.name)),
+				)
+				const canonicalId = resolveCanonicalGpuConnectorId(item.pairs, gpuPhysicalPorts, gpuOuts) || item.id
 
-	const items = customGpuItems.map((item, i) => {
-		const connected = item.pairs.some((pName) =>
-			connectedDisplays.some((d) => d.connected && normRandrCaspar(d.name) === normRandrCaspar(pName))
-		)
-		const disp = connectedDisplays.find(
-			(d) => d.connected && item.pairs.some((p) => normRandrCaspar(p) === normRandrCaspar(d.name))
-		)
-		const canonicalId = resolveCanonicalGpuConnectorId(item.pairs, gpuPhysicalPorts, gpuOuts) || item.id
-
-		return {
-			id: canonicalId,
-			layoutSlotId: item.id,
-			icon: item.type === 'hdmi' ? '/assets/hdmi-port-icon.svg' : '/assets/display-port-icon.svg',
-			label: item.label,
-			kind: 'gpu_out',
-			index: i,
-			connected,
-			hidden: item.hidden,
-			pairs: item.pairs,
-			monitor: disp?.displayName || '',
-			resolution: disp?.resolution || '',
-			refreshHz: disp?.refreshHz || null,
-			isVirtual: !connected,
-		}
-	})
+				return {
+					id: canonicalId,
+					layoutSlotId: item.id,
+					icon: item.type === 'hdmi' ? '/assets/hdmi-port-icon.svg' : '/assets/display-port-icon.svg',
+					label: item.label,
+					kind: 'gpu_out',
+					index: i,
+					connected,
+					hidden: item.hidden,
+					pairs: item.pairs,
+					monitor: disp?.displayName || disp?.name || '',
+					resolution: disp?.resolution || '',
+					refreshHz: disp?.refreshHz || null,
+					isVirtual: !connected,
+				}
+			})
 
 	slots.push({ title: 'GPU', items })
 	let decklinkRearOrderIds = []
@@ -224,8 +236,8 @@ export function renderCasparBand(ctx) {
 						}
 					})
 
-					if (gpuEditMode && customGpuItems.length > 0) {
-						const firstItem = customGpuItems[0]
+					if (gpuEditMode && gpuLayoutItems.length > 0) {
+						const firstItem = gpuLayoutItems[0]
 						const connected = firstItem.pairs.some((pName) =>
 							connectedDisplays.some((d) => d.connected && normRandrCaspar(d.name) === normRandrCaspar(pName))
 						)
@@ -336,7 +348,7 @@ export function renderCasparBand(ctx) {
 		resolveStatusClass,
 		getGpuEditMode: () => gpuEditMode,
 		getDecklinkEditMode: () => decklinkEditMode,
-		customGpuItems,
+		customGpuItems: gpuLayoutItems,
 		decklinkRearOrderIds,
 		selectedConnectorId,
 		cableSourceId,

@@ -6,4 +6,4 @@ if [[ ! -f package.json ]]; then
   osascript -e 'display dialog "Open this from sim/highascg on HIGHASCGEXF (package.json missing)."'
   exit 1
 fi
-exec node tools/portable-desktop/launch-sim-from-exfat.js "$@"
+exec node tools/portable-desktop/launch-sim-from-exfat.cjs "$@"

@@ -26,9 +26,9 @@
         <div class="header-connection-controls">
           <div class="header-input-group">
             <span class="input-label">Server:</span>
-            <input type="text" id="header-server-ip" class="header-input" value="localhost" placeholder="localhost">
+            <input type="text" id="header-server-ip" class="header-input" value="127.0.0.1" placeholder="127.0.0.1">
             <span class="input-separator">:</span>
-            <input type="number" id="header-server-port" class="header-input" value="4200" min="80" max="65535" placeholder="4200">
+            <input type="number" id="header-server-port" class="header-input" value="4200" min="80" max="65535" placeholder="4200" readonly tabindex="-1">
           </div>
           
           <div class="header-status-pill" id="header-conn-status">
@@ -47,16 +47,10 @@
     <div class="launcher-body">
       <!-- Sidebar Navigation -->
       <aside class="sidebar">
-        <div class="sidebar-header">
-          <div class="logo">
-            <span class="logo-text">Prep Studio</span>
-          </div>
-        </div>
-      
       <nav class="nav-menu">
-        <button class="nav-item active" data-tab="dashboard">
-          <svg class="nav-icon" viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
-          Dashboard
+        <button class="nav-item active" data-tab="simulation">
+          <svg class="nav-icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></svg>
+          Simulation Center
         </button>
         <button class="nav-item" data-tab="flash">
           <svg class="nav-icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H7c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.04-.42 1.99-1.07 2.75z"/></svg>
@@ -66,10 +60,6 @@
           <svg class="nav-icon" viewBox="0 0 24 24"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H8V4h12v12z"/></svg>
           Partitioning & exFAT
         </button>
-        <button class="nav-item" data-tab="simulation">
-          <svg class="nav-icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></svg>
-          Simulation Center
-        </button>
       </nav>
 
       <div class="sidebar-footer">
@@ -78,7 +68,7 @@
             <span class="indicator-dot status-warning" id="usb-indicator"></span>
             <span class="status-label" id="usb-label-text">Checking USB Stick...</span>
           </div>
-          <p class="status-desc" id="usb-desc-text">Probing filesystem mount...</p>
+          <p class="status-desc" id="usb-desc-text">Optional — probe from Flash or Partition tabs.</p>
         </div>
       </div>
     </aside>
@@ -89,92 +79,18 @@
       <!-- Top Header -->
       <header class="top-header">
         <div class="header-title">
-          <h1 id="page-title">Operator Dashboard</h1>
-          <p id="page-subtitle">Quick overview of system preparation state</p>
+          <h1 id="page-title">Simulation Center</h1>
+          <p id="page-subtitle">Run HighAsCG locally in simulated offline mode</p>
         </div>
-        <div class="header-actions" style="display: flex; gap: 8px;">
+        <div class="header-actions">
           <button class="btn btn-secondary btn-icon-only" id="btn-open-github" title="Open GitHub Repository">
-            <svg viewBox="0 0 24 24" style="width:18px;height:18px;"><path fill="currentColor" d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.9-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33.85 0 1.71.11 2.5.33 1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2z"/></svg>
+            <svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.9-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33.85 0 1.71.11 2.5.33 1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2z"/></svg>
           </button>
           <button class="btn btn-secondary btn-icon-only" id="btn-open-logs" title="Open logs directory">
             <svg viewBox="0 0 24 24"><path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z"/></svg>
           </button>
         </div>
       </header>
-
-      <!-- TAB: Dashboard -->
-      <section class="tab-pane active" id="tab-dashboard">
-        <div class="dashboard-grid">
-          
-          <!-- System Status Card -->
-          <div class="card status-panel-card">
-            <h2>Preparation Checklist</h2>
-            <div class="checklist-items">
-              <div class="check-item checked" id="check-node">
-                <span class="check-box">✓</span>
-                <div class="check-details">
-                  <h3>Node.js Ready</h3>
-                  <p>System runtime environment verified (Node.js &gt;= 20)</p>
-                </div>
-              </div>
-              <div class="check-item" id="check-usb">
-                <span class="check-box">!</span>
-                <div class="check-details">
-                  <h3>HIGHASCGEXF USB Volume</h3>
-                  <p id="check-usb-details">USB drive with exFAT partition not detected. Connect stick or run local dev mode.</p>
-                </div>
-              </div>
-              <div class="check-item" id="check-payload">
-                <span class="check-box">!</span>
-                <div class="check-details">
-                  <h3>Application Payload</h3>
-                  <p id="check-payload-details">Release folder sim/highascg/package.json not yet detected on the USB stick.</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Shortcuts Panel -->
-          <div class="card action-shortcuts-card">
-            <h2>Getting Started Shortcuts</h2>
-            <div class="shortcut-buttons">
-              <button class="shortcut-btn" data-go-tab="flash">
-                <span class="shortcut-number">1</span>
-                <div class="shortcut-text">
-                  <h3>Flash Live ISO</h3>
-                  <p>Learn how to burn the hybrid ISO boot disk</p>
-                </div>
-              </button>
-              <button class="shortcut-btn" data-go-tab="partition">
-                <span class="shortcut-number">2</span>
-                <div class="shortcut-text">
-                  <h3>Configure exFAT Drive</h3>
-                  <p>Partition USB and label it HIGHASCGEXF</p>
-                </div>
-              </button>
-              <button class="shortcut-btn" data-go-tab="simulation">
-                <span class="shortcut-number">3</span>
-                <div class="shortcut-text">
-                  <h3>Launch Local Simulator</h3>
-                  <p>Run simulated playout control offline</p>
-                </div>
-              </button>
-            </div>
-          </div>
-
-        </div>
-
-        <div class="card splash-card">
-          <div class="splash-content">
-            <h2>Welcome to HighAsCG Prep Studio</h2>
-            <p>This desktop kit allows production operators and designers to prepare layouts, edit device mappings, configure cabling matrices, and test scenes entirely offline in simulation mode without playout hardware. When ready, plug your stick into the physical studio hardware to auto-sync operations.</p>
-            <div class="btn-group">
-              <button class="btn btn-primary" id="btn-quick-sim">Start Simulator Now</button>
-              <button class="btn btn-secondary" id="btn-open-readme">Open Manual Stick Guide</button>
-            </div>
-          </div>
-        </div>
-      </section>
 
       <!-- TAB: Flashing Guide -->
       <section class="tab-pane" id="tab-flash">
@@ -192,8 +108,8 @@
               <p>Download the official <code>highascg_*.iso</code> build. Open Balena Etcher and click <strong>Flash from file</strong> to select the ISO image.</p>
               
               <!-- SCREENSHOT PLACEHOLDER -->
-              <div class="screenshot-placeholder" style="position: relative; overflow: hidden;">
-                <img src="images/flash_step1_load_iso.png" alt="Loading ISO in Etcher" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 2;" onerror="this.style.display='none'">
+              <div class="screenshot-placeholder">
+                <img src="images/flash_step1_load_iso.png" alt="Loading ISO in Etcher" onerror="this.style.display='none'">
                 <div class="placeholder-overlay">
                   <svg class="placeholder-icon" viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
                   <span class="placeholder-title">Screenshot: Loading ISO in Etcher</span>
@@ -211,8 +127,8 @@
               <p>Click <strong>Select target</strong> and choose your plugged USB flash drive. <strong>CAUTION:</strong> Triple check that you select the correct removable USB drive by model and capacity to prevent erasing other data.</p>
               
               <!-- SCREENSHOT PLACEHOLDER -->
-              <div class="screenshot-placeholder" style="position: relative; overflow: hidden;">
-                <img src="images/flash_step2_select_usb.png" alt="Target USB Selection" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 2;" onerror="this.style.display='none'">
+              <div class="screenshot-placeholder">
+                <img src="images/flash_step2_select_usb.png" alt="Target USB Selection" onerror="this.style.display='none'">
                 <div class="placeholder-overlay">
                   <svg class="placeholder-icon" viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
                   <span class="placeholder-title">Screenshot: Target USB Selection</span>
@@ -233,8 +149,8 @@
               </div>
 
               <!-- SCREENSHOT PLACEHOLDER -->
-              <div class="screenshot-placeholder" style="position: relative; overflow: hidden;">
-                <img src="images/flash_step3_verify_success.png" alt="Flashing Verification Success" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 2;" onerror="this.style.display='none'">
+              <div class="screenshot-placeholder">
+                <img src="images/flash_step3_verify_success.png" alt="Flashing Verification Success" onerror="this.style.display='none'">
                 <div class="placeholder-overlay">
                   <svg class="placeholder-icon" viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
                   <span class="placeholder-title">Screenshot: Flashing Verification Success</span>
@@ -249,8 +165,19 @@
       <!-- TAB: Partitioning Guide -->
       <section class="tab-pane" id="tab-partition">
         <div class="guide-intro">
-          <h2>Setting up the exFAT Partition (WO-47)</h2>
+          <h2>Setting up the exFAT Partition</h2>
           <p>After flashing, you must create a readable exFAT partition in the leftover unallocated space at the end of the stick. This partition carrying your offline simulator files and configurations must be labelled exactly <strong><code>HIGHASCGEXF</code></strong>.</p>
+
+          <div class="alert alert-info">
+            <strong>USB Playout Stick Architecture (Three Layers Required):</strong>
+            <p>Production playout sticks must be partitioned with the following layout:</p>
+            <ul class="alert-list">
+              <li><strong>Layer 1 (Boot Live ISO):</strong> ~5 GiB hybrid ISO partition (Label: <code>highascg</code>) — <em>Do not format or delete.</em></li>
+              <li><strong>Layer 2 (Live Persistence):</strong> 2 GiB ext4 partition (Label: <code>persistence</code>) — <em>OS overlay (drivers, configs, home).</em></li>
+              <li><strong>Layer 3 (Operator Data):</strong> Rest of the disk formatted as exFAT (Label: <code>HIGHASCGEXF</code>) — <em>Server updates, media, and simulation files.</em></li>
+            </ul>
+            <p class="alert-subtext">The manual steps below focus on partition creation and mounting for the exFAT data partition (Layer 3) to seed your simulator configurations and operator files.</p>
+          </div>
           
           <!-- Inner OS Tabs Toggle -->
           <div class="inner-tabs">
@@ -268,8 +195,8 @@
                 <h3>Open Disk Management</h3>
                 <p>Press <code>Win + X</code> and select <strong>Disk Management</strong>. Look for your USB drive under the lower list (labeled <strong>Removable</strong>). Do not touch NVMe Disk 0.</p>
                 
-                <div class="screenshot-placeholder" style="position: relative; overflow: hidden;">
-                <img src="images/win_partition_step1_disk_mgmt.png" alt="Disk Management Layout" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 2;" onerror="this.style.display='none'">
+                <div class="screenshot-placeholder">
+                  <img src="images/win_partition_step1_disk_mgmt.png" alt="Disk Management Layout" onerror="this.style.display='none'">
                   <div class="placeholder-overlay">
                     <svg class="placeholder-icon" viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
                     <span class="placeholder-title">Screenshot: Disk Management Layout</span>
@@ -285,8 +212,8 @@
                 <h3>Create New Simple Volume</h3>
                 <p>Right-click the black bar showing <strong>Unallocated space</strong> at the very end of your USB disk, and select <strong>New Simple Volume...</strong></p>
                 
-                <div class="screenshot-placeholder" style="position: relative; overflow: hidden;">
-                <img src="images/win_partition_step2_new_volume.png" alt="Unallocated Simple Volume Wizard" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 2;" onerror="this.style.display='none'">
+                <div class="screenshot-placeholder">
+                  <img src="images/win_partition_step2_new_volume.png" alt="Unallocated Simple Volume Wizard" onerror="this.style.display='none'">
                   <div class="placeholder-overlay">
                     <svg class="placeholder-icon" viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
                     <span class="placeholder-title">Screenshot: Unallocated Right-Click Context Menu</span>
@@ -302,8 +229,8 @@
                 <h3>Format Options & exFAT Label</h3>
                 <p>Follow the wizard. At the formatting step, select <strong>File system: exFAT</strong>. In <strong>Volume label</strong>, type exactly <strong><code>HIGHASCGEXF</code></strong> (case-sensitive, no spaces, 11-char limit).</p>
                 
-                <div class="screenshot-placeholder" style="position: relative; overflow: hidden;">
-                <img src="images/win_partition_step3_format_exfat.png" alt="Simple Volume Format settings" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 2;" onerror="this.style.display='none'">
+                <div class="screenshot-placeholder">
+                  <img src="images/win_partition_step3_format_exfat.png" alt="Simple Volume Format settings" onerror="this.style.display='none'">
                   <div class="placeholder-overlay">
                     <svg class="placeholder-icon" viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
                     <span class="placeholder-title">Screenshot: Simple Volume Formatting Settings</span>
@@ -319,8 +246,8 @@
                 <h3>Seed Folders & App Payload</h3>
                 <p>Open the new drive in File Explorer. Create folders inside: <code>sim/highascg</code>, <code>drop-config</code>, <code>media</code>, <code>templates</code>, and <code>configs</code>. Unzip the HighAsCG release zip directly inside <code>sim/highascg/</code>, so that <code>package.json</code> sits directly under that path.</p>
                 
-                <div class="screenshot-placeholder" style="position: relative; overflow: hidden;">
-                <img src="images/win_partition_step4_folder_layout.png" alt="Root exFAT File Layout" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 2;" onerror="this.style.display='none'">
+                <div class="screenshot-placeholder">
+                  <img src="images/win_partition_step4_folder_layout.png" alt="Root exFAT File Layout" onerror="this.style.display='none'">
                   <div class="placeholder-overlay">
                     <svg class="placeholder-icon" viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
                     <span class="placeholder-title">Screenshot: Root exFAT File Layout</span>
@@ -335,7 +262,7 @@
         <!-- macOS Sub-guide (Terminal — transparent steps after hybrid ISO flash) -->
         <div class="os-guide" id="guide-macos">
           <div class="steps-container">
-            <div class="guide-step-card" style="border-color: #2a4a3a; background: rgba(42,74,58,0.2);">
+            <div class="guide-step-card guide-step-card--info">
               <div class="step-num">✓</div>
               <div class="step-content">
                 <h3>What this does (and does not do)</h3>
@@ -355,14 +282,6 @@
                   <button type="button" class="cmd-copy-btn">Copy</button>
                 </div>
                 <p class="step-note">Pick the row that matches your stick capacity (e.g. 32&nbsp;GB). Note the whole-disk id (<span class="inline-code">disk2</span>) — not a slice like <span class="inline-code">disk2s2</span>.</p>
-              </div>
-            </div>
-
-            <div class="guide-step-card" style="border-color: #4a3a2a; background: rgba(74,58,42,0.2);">
-              <div class="step-num">!</div>
-              <div class="step-content">
-                <h3>No Homebrew <span class="inline-code">parted</span></h3>
-                <p class="step-note"><strong><span class="inline-code">brew install parted</span> does not work on macOS</strong> (no formula; your brew error is expected). Use Apple’s built-in <span class="inline-code">fdisk</span> below — already on your Mac.</p>
               </div>
             </div>
 
@@ -403,14 +322,18 @@
             <div class="guide-step-card">
               <div class="step-num">4</div>
               <div class="step-content">
-                <h3>Calculate start/end sectors (read-only)</h3>
-                <p class="step-note safe">Safe — prints numbers only. Default start is 6144&nbsp;MiB (6&nbsp;GiB). Edit path to your repo if needed.</p>
+                <h3>Read disk total sector size (read-only)</h3>
+                <p class="step-note safe">Safe — only prints information about your disk.</p>
                 <div class="cmd-copy">
-                  <pre class="cmd-copy-pre">bash /path/to/highascg/client/tools/live-usb/macos/calc-exfat-mbr-sectors.sh disk2</pre>
+                  <pre class="cmd-copy-pre">diskutil info disk2</pre>
                   <button type="button" class="cmd-copy-btn">Copy</button>
                 </div>
-                <p class="step-note">Write down <strong>START_SECTOR</strong> and <strong>END_SECTOR</strong> from the output. You will type those numbers in step 6 (do not paste the whole fdisk session).</p>
-                <p class="step-note">Larger ISO: <span class="inline-code">EXFAT_START_MIB=7168 bash …/calc-exfat-mbr-sectors.sh disk2</span> (copy as one line if needed).</p>
+                <p class="step-note">Look for the line: <strong><code>Disk Size: ... (exactly N 512-Byte-Sectors)</code></strong>.</p>
+                <p class="step-note">Calculate sectors manually:</p>
+                <ul class="alert-list">
+                  <li><strong>START_SECTOR</strong>: Type exactly <code>12582912</code> (for standard 6 GiB offset).</li>
+                  <li><strong>END_SECTOR</strong>: Subtract 1 from the total number of sectors <strong><code>N</code></strong> (e.g. <code>61440000 - 1 = 61439999</code>).</li>
+                </ul>
               </div>
             </div>
 
@@ -479,7 +402,7 @@
                   <pre class="cmd-copy-pre">diskutil mount disk2s4</pre>
                   <button type="button" class="cmd-copy-btn">Copy</button>
                 </div>
-                <p class="step-note warn">If Finder shows <strong>HIGHASCGEXF 1</strong> (macOS name clash — another <span class="inline-code">HIGHASCGEXF</span> was already mounted), eject other copies of the stick, then rename so the mount path and volume label match WO‑47:</p>
+                <p class="step-note warn">If Finder shows <strong>HIGHASCGEXF 1</strong> (macOS name clash — another <span class="inline-code">HIGHASCGEXF</span> was already mounted), eject other copies of the stick, then rename so the mount path and volume label match the expected name:</p>
                 <div class="cmd-copy">
                   <pre class="cmd-copy-pre">diskutil rename "HIGHASCGEXF 1" HIGHASCGEXF</pre>
                   <button type="button" class="cmd-copy-btn">Copy</button>
@@ -491,16 +414,12 @@
               <div class="step-num">9</div>
               <div class="step-content">
                 <h3>Create operator folders</h3>
-                <p class="step-note">Writes only on the exFAT volume. Resolves the mount path if macOS used <span class="inline-code">HIGHASCGEXF 1</span>.</p>
+                <p class="step-note">Creates standard directories inside the exFAT volume root directory manually.</p>
                 <div class="cmd-copy">
-                  <pre class="cmd-copy-pre">VOL="/Volumes/HIGHASCGEXF"
-[[ -d "$VOL" ]] || VOL="$(ls -d /Volumes/HIGHASCGEXF* 2>/dev/null | head -1)"
-if [[ -d "$VOL" &amp;&amp; "$(basename "$VOL")" != "HIGHASCGEXF" ]]; then
-  diskutil rename "$(basename "$VOL")" HIGHASCGEXF &amp;&amp; VOL="/Volumes/HIGHASCGEXF"
-fi
-mkdir -p "$VOL/sim/highascg" "$VOL/drop-config" "$VOL/media" "$VOL/templates" "$VOL/configs" "$VOL/snapshots/rear-panels"</pre>
+                  <pre class="cmd-copy-pre">mkdir -p /Volumes/HIGHASCGEXF/{sim/highascg,drop-config,media,templates,configs,snapshots/rear-panels}</pre>
                   <button type="button" class="cmd-copy-btn">Copy</button>
                 </div>
+                <p class="step-note">Note: If your volume mounted as <span class="inline-code">HIGHASCGEXF 1</span> instead, replace the path above with <span class="inline-code">/Volumes/HIGHASCGEXF\ 1/</span>.</p>
               </div>
             </div>
 
@@ -508,32 +427,26 @@ mkdir -p "$VOL/sim/highascg" "$VOL/drop-config" "$VOL/media" "$VOL/templates" "$
               <div class="step-num">10</div>
               <div class="step-content">
                 <h3>Copy the HighAsCG release</h3>
-                <p class="step-note">Choose one method. Edit the source path before running. Run the <span class="inline-code">VOL=…</span> lines from step 9 first if this is a new Terminal window.</p>
+                <p class="step-note">Choose one method to seed files into the volume. Edit the source paths as needed.</p>
                 <p class="step-note"><strong>From unpacked folder:</strong></p>
                 <div class="cmd-copy">
-                  <pre class="cmd-copy-pre">VOL="/Volumes/HIGHASCGEXF"
-[[ -d "$VOL" ]] || VOL="$(ls -d /Volumes/HIGHASCGEXF* 2>/dev/null | head -1)"
-ditto "/path/to/highascg-main/." "$VOL/sim/highascg"</pre>
+                  <pre class="cmd-copy-pre">ditto "/path/to/highascg-main/." "/Volumes/HIGHASCGEXF/sim/highascg"</pre>
                   <button type="button" class="cmd-copy-btn">Copy</button>
                 </div>
                 <p class="step-note"><strong>From tarball:</strong></p>
                 <div class="cmd-copy">
-                  <pre class="cmd-copy-pre">VOL="/Volumes/HIGHASCGEXF"
-[[ -d "$VOL" ]] || VOL="$(ls -d /Volumes/HIGHASCGEXF* 2>/dev/null | head -1)"
-tar -xzf ~/Downloads/highascg_*.tar.gz -C "$VOL/sim/highascg"</pre>
+                  <pre class="cmd-copy-pre">tar -xzf ~/Downloads/highascg_*.tar.gz -C "/Volumes/HIGHASCGEXF/sim/highascg"</pre>
                   <button type="button" class="cmd-copy-btn">Copy</button>
                 </div>
                 <p class="step-note"><strong>Verify package.json exists:</strong></p>
                 <div class="cmd-copy">
-                  <pre class="cmd-copy-pre">VOL="/Volumes/HIGHASCGEXF"
-[[ -d "$VOL" ]] || VOL="$(ls -d /Volumes/HIGHASCGEXF* 2>/dev/null | head -1)"
-test -f "$VOL/sim/highascg/package.json" &amp;&amp; echo OK</pre>
+                  <pre class="cmd-copy-pre">test -f "/Volumes/HIGHASCGEXF/sim/highascg/package.json" &amp;&amp; echo OK</pre>
                   <button type="button" class="cmd-copy-btn">Copy</button>
                 </div>
               </div>
             </div>
 
-            <div class="guide-step-card" style="border-color: #3a3a4a; background: rgba(40,40,50,0.35);">
+            <div class="guide-step-card guide-step-card--secondary">
               <div class="step-num">?</div>
               <div class="step-content">
                 <h3>Optional: Disk Utility (only if Partition is not greyed out)</h3>
@@ -545,7 +458,7 @@ test -f "$VOL/sim/highascg/package.json" &amp;&amp; echo OK</pre>
       </section>
 
       <!-- TAB: Simulation Center -->
-      <section class="tab-pane" id="tab-simulation">
+      <section class="tab-pane active" id="tab-simulation">
         <div class="sim-dashboard-layout">
           
           <!-- Simulation Configurations -->
@@ -555,7 +468,7 @@ test -f "$VOL/sim/highascg/package.json" &amp;&amp; echo OK</pre>
               
               <div class="form-group">
                 <label for="server-ip">Server IP / Host</label>
-                <input type="text" id="server-ip" value="localhost" placeholder="e.g. localhost or 192.168.1.10">
+                <input type="text" id="server-ip" value="127.0.0.1" placeholder="127.0.0.1 or playout host">
                 <span class="field-hint">IP address or hostname of the HighAsCG server</span>
               </div>
 
@@ -565,14 +478,7 @@ test -f "$VOL/sim/highascg/package.json" &amp;&amp; echo OK</pre>
                 <span class="field-hint">The port the server will bind to locally</span>
               </div>
 
-              <div class="form-group">
-                <label class="toggle-switch">
-                  <input type="checkbox" id="sim-offline" checked>
-                  <span class="slider"></span>
-                  <span class="toggle-label">Prep Offline Mode</span>
-                </label>
-                <p class="field-hint">Defaults off CasparCG AMCP TCP playout connections (TIMELINE ONLY)</p>
-              </div>
+              <p class="field-hint" id="sim-runtime-hint">Local sim uses the launcher bundle (sim-server/), not the USB stick. From repo root: <code>npm run launcher:prepare</code>, then <code>npm run launcher:sim-install</code>, then <code>npm run launcher</code>.</p>
 
               <div class="sim-actions-grid">
                 <button class="btn btn-success btn-large" id="btn-start-sim">
@@ -606,7 +512,10 @@ test -f "$VOL/sim/highascg/package.json" &amp;&amp; echo OK</pre>
                   <span class="term-dot dot-green"></span>
                 </div>
                 <span class="terminal-title">Simulation Node Log Output</span>
-                <button class="btn-clear-term" id="btn-clear-terminal" title="Clear console buffer">Clear</button>
+                <div class="terminal-header-actions">
+                  <button type="button" class="btn-clear-term" id="btn-copy-terminal" title="Copy log to clipboard">Copy log</button>
+                  <button type="button" class="btn-clear-term" id="btn-clear-terminal" title="Clear console buffer">Clear</button>
+                </div>
               </div>
               <div class="terminal-body" id="terminal-body-box">
                 <pre class="terminal-output" id="terminal-output-text">[Idle] Simulation has not been started. Select configurations and hit 'Start Simulation'.</pre>

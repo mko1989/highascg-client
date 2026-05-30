@@ -65,7 +65,7 @@ You still pick the USB device and confirm wipes in those scripts.
 | `tools/live-usb/windows/make-highascg-stick.ps1` | Raw ISO write + `diskpart` exFAT, optional `-TarGzPath` / `-AppSourceDirectory` |
 | `tools/portable-desktop/launch-sim-from-exfat.js` | WO‑50 simulation from `HIGHASCGEXF/sim/highascg` or `--use-cwd` |
 
-GUI / manual path: **`tools/live-usb/MANUAL_STICK_WINDOWS_MACOS.md`** (Etcher + Disk Utility).
+GUI / manual path: embedded guides in **`npm run launcher`**, or [`../live-usb/USB_STICK_AFTER_FLASH.md`](../live-usb/USB_STICK_AFTER_FLASH.md) (Etcher + exFAT + server drop + launcher releases).
 
 ## Environment
 

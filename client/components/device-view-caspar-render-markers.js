@@ -1,4 +1,5 @@
 import { DECKLINK_REAR_ORDER_KEY } from '../lib/device-view-decklink-order.js'
+import { GPU_CUSTOM_LAYOUT_KEY } from '../lib/device-view-gpu-port-list.js'
 import { casparRearKindTitle, casparRearKindToIcon } from './device-view-caspar-render-helpers.js'
 
 export function buildCasparRearMarkerLayoutItems(slots, casparConnectors) {
@@ -251,6 +252,9 @@ export function appendCasparRearPanelMarkers({
 								const temp = customGpuItems[dragIdx]
 								customGpuItems[dragIdx] = customGpuItems[dropIdx]
 								customGpuItems[dropIdx] = temp
+								try {
+									localStorage.setItem(GPU_CUSTOM_LAYOUT_KEY, JSON.stringify(customGpuItems))
+								} catch (_) {}
 							}
 						}
 					}

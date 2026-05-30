@@ -2,7 +2,7 @@
 /**
  * Cross-platform helper for GitHub/release operators (Mac / Windows):
  *   · prepare-stick — ISO -> USB + HIGHASCGEXF + optional tarball or folder -> sim/highascg
- *   · sim — delegates to tools/portable-desktop/launch-sim-from-exfat.js (same as portable:sim)
+ *   · sim — delegates to tools/portable-desktop/launch-sim-from-exfat.cjs (same as portable:sim)
  *
  * Lives at tools/operator-desktop/ (included in GitHub tarball releases).
  *
@@ -151,7 +151,7 @@ function main() {
 	}
 
 	if (cmd === 'sim' || cmd === 'simulate' || cmd === 'portable') {
-		const launcher = path.join(repoRoot(), 'client/tools/portable-desktop/launch-sim-from-exfat.js')
+		const launcher = path.join(repoRoot(), 'client/tools/portable-desktop/launch-sim-from-exfat.cjs')
 		const r = spawnSync(process.execPath, [launcher, ...argv.slice(1)], { stdio: 'inherit' })
 		process.exit(typeof r.status === 'number' ? r.status : 1)
 	}

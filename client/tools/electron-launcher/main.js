@@ -2,7 +2,17 @@ const { app, BrowserWindow, ipcMain, shell } = require('electron')
 const path = require('path')
 const fs = require('fs')
 const os = require('os')
-const { spawn, execFileSync } = require('child_process')
+const { spawn, execFile } = require('child_process')
+
+/** @param {string} file @param {string[]} args @param {import('child_process').ExecFileOptions} opts */
+function execFileAsync(file, args, opts = {}) {
+  return new Promise((resolve, reject) => {
+    execFile(file, args, opts, (err, stdout, stderr) => {
+      if (err) reject(err)
+      else resolve({ stdout: String(stdout || ''), stderr: String(stderr || '') })
+    })
+  })
+}
 const http = require('http')
 const url = require('url')
 
@@ -14,7 +24,31 @@ ipcMain.on('update-api-origin', (event, origin) => {
   console.log('[Electron Main] WebUI API Origin updated to:', webuiApiOrigin)
 })
 
-const { WEBUI_PORT } = require('../../lib/webui-port.cjs')
+const LAUNCHER_DIR = __dirname
+
+function requireLauncherModule(bundledRel, devRel) {
+  const bundled = path.join(LAUNCHER_DIR, bundledRel)
+  if (fs.existsSync(bundled)) {
+    return require(bundled)
+  }
+  return require(path.join(LAUNCHER_DIR, devRel))
+}
+
+const { WEBUI_PORT } = requireLauncherModule('lib/webui-port.cjs', '../../lib/webui-port.cjs')
+const {
+  resolveSimAppRoot,
+  formatSimRootHelp,
+  isServerAppRoot,
+  simPathOnVolume,
+} = requireLauncherModule('portable-sim/sim-app-root.cjs', '../portable-desktop/sim-app-root.cjs')
+
+const REPO_ROOT = app.isPackaged ? LAUNCHER_DIR : path.resolve(LAUNCHER_DIR, '../../..')
+const SIM_LAUNCHER_SCRIPT = path.join(
+  LAUNCHER_DIR,
+  fs.existsSync(path.join(LAUNCHER_DIR, 'portable-sim/launch-sim-from-exfat.cjs'))
+    ? 'portable-sim/launch-sim-from-exfat.cjs'
+    : '../portable-desktop/launch-sim-from-exfat.cjs',
+)
 
 // WebUI Static Server served directly by client/launcher backend
 const PORT = WEBUI_PORT
@@ -258,23 +292,40 @@ ipcMain.on('start-sim', (event, { port, offlineMode }) => {
 
   event.reply('sim-log', '[Launcher] Preparing to launch simulation...\n')
 
-  const repoRoot = path.resolve(__dirname, '../../..')
-  const launcherScript = path.join(repoRoot, 'client/tools/portable-desktop/launch-sim-from-exfat.js')
+  if (!fs.existsSync(SIM_LAUNCHER_SCRIPT)) {
+    event.reply('sim-log', `[Launcher] Missing simulation helper: ${SIM_LAUNCHER_SCRIPT}\n`)
+    event.reply('sim-status', { running: false, error: 'missing launcher script' })
+    return
+  }
 
-  event.reply('sim-log', `[Launcher] App root detected: ${repoRoot}\n`)
-  event.reply('sim-log', `[Launcher] Simulation helper: ${launcherScript}\n`)
+  const resolved = resolveSimAppRoot({
+    launcherDir: LAUNCHER_DIR,
+    repoRoot: REPO_ROOT,
+    allowExfatStick: false,
+  })
+  if (!resolved) {
+    event.reply('sim-log', `[Launcher] ${formatSimRootHelp({ repoRoot: REPO_ROOT, launcherDir: LAUNCHER_DIR })}\n`)
+    event.reply('sim-status', { running: false, error: 'no server tree' })
+    return
+  }
+
+  event.reply('sim-log', `[Launcher] Server app root (${resolved.source}): ${resolved.appRoot}\n`)
+  event.reply('sim-log', `[Launcher] Helper: ${SIM_LAUNCHER_SCRIPT}\n`)
 
   const env = {
     ...process.env,
-    HIGHASCG_LAUNCH_NO_BROWSER: '1', // We want Electron launcher to control browser open
+    ELECTRON_RUN_AS_NODE: '1',
+    HIGHASCG_LAUNCH_NO_BROWSER: '1',
     HIGHASCG_OFFLINE_MODE: offlineMode ? '1' : '0',
-    HTTP_PORT: String(port)
+    HTTP_PORT: String(port),
+    HIGHASCG_LAUNCHER_DIR: LAUNCHER_DIR,
+    HIGHASCG_SIM_APP_ROOT: resolved.appRoot,
   }
 
   try {
-    simProcess = spawn(process.execPath, [launcherScript], {
-      cwd: repoRoot,
-      env: env
+    simProcess = spawn(process.execPath, [SIM_LAUNCHER_SCRIPT], {
+      cwd: resolved.appRoot,
+      env,
     })
 
     simProcess.stdout.on('data', (data) => {
@@ -319,38 +370,89 @@ ipcMain.on('stop-sim', (event) => {
   event.reply('sim-log', '[Launcher] Simulation stopped by user.\n')
 })
 
-function checkWindowsVolume(label) {
-  const esc = String(label).replace(/'/g, "''")
-  const ps = `Get-Volume | Where-Object FileSystemLabel -eq '${esc}' | Select-Object -First 1 | ForEach-Object { $_.DriveLetter }`
-  try {
-    const out = execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', ps], {
-      encoding: 'utf8',
-      windowsHide: true,
-      timeout: 3000,
-    }).trim()
-    const letter = out.split(/\s+/).filter(Boolean)[0]
-    if (letter && /^[A-Za-z]$/.test(letter)) {
-      return `${letter.toUpperCase()}:`
-    }
-  } catch (_) {}
-  return null
+/** Fast drive-letter scan via `vol` (avoids blocking PowerShell Get-Volume on Windows). */
+async function checkWindowsVolume(label) {
+  const want = String(label).toUpperCase()
+  const letters = []
+  for (let code = 67; code <= 90; code++) letters.push(`${String.fromCharCode(code)}:`)
+
+  const hits = await Promise.all(
+    letters.map(
+      (drive) =>
+        new Promise((resolve) => {
+          execFile(
+            'cmd.exe',
+            ['/c', 'vol', drive],
+            { windowsHide: true, timeout: 400, maxBuffer: 64 * 1024 },
+            (err, stdout) => {
+              if (err || !stdout) {
+                resolve(null)
+                return
+              }
+              if (String(stdout).toUpperCase().includes(want)) {
+                resolve(`${drive}\\`)
+              } else {
+                resolve(null)
+              }
+            },
+          )
+        }),
+    ),
+  )
+  return hits.find(Boolean) || null
 }
 
 function findDarwinVolumeByLabel(label) {
+  const volumesDev = (() => {
+    try {
+      return fs.statSync('/Volumes').dev
+    } catch (_) {
+      return null
+    }
+  })()
+
   const exact = path.join('/Volumes', label)
-  if (fs.existsSync(exact) && fs.statSync(exact).isDirectory()) return exact
+  if (fs.existsSync(exact) && fs.statSync(exact).isDirectory()) {
+    if (volumesDev === null || fs.statSync(exact).dev !== volumesDev) {
+      return exact
+    }
+  }
   try {
     for (const name of fs.readdirSync('/Volumes')) {
       if (name === label || name.startsWith(`${label} `)) {
         const candidate = path.join('/Volumes', name)
-        if (fs.existsSync(candidate) && fs.statSync(candidate).isDirectory()) return candidate
+        if (fs.existsSync(candidate) && fs.statSync(candidate).isDirectory()) {
+          if (volumesDev === null || fs.statSync(candidate).dev !== volumesDev) {
+            return candidate
+          }
+        }
       }
     }
   } catch (_) {}
   return null
 }
 
-ipcMain.handle('check-usb-status', async () => {
+ipcMain.handle('check-sim-runtime', async () => {
+  const resolved = resolveSimAppRoot({
+    launcherDir: LAUNCHER_DIR,
+    repoRoot: REPO_ROOT,
+    allowExfatStick: false,
+  })
+  if (!resolved) {
+    return { ready: false, help: formatSimRootHelp({ repoRoot: REPO_ROOT, launcherDir: LAUNCHER_DIR }) }
+  }
+  const nm = path.join(resolved.appRoot, 'node_modules')
+  return {
+    ready: true,
+    appRoot: resolved.appRoot,
+    source: resolved.source,
+    hasNodeModules: fs.existsSync(nm),
+  }
+})
+
+let usbStatusInFlight = null
+
+async function probeUsbStatus() {
   const label = 'HIGHASCGEXF'
   const platform = process.platform
   let mountedPath = null
@@ -358,7 +460,7 @@ ipcMain.handle('check-usb-status', async () => {
   if (platform === 'darwin') {
     mountedPath = findDarwinVolumeByLabel(label)
   } else if (platform === 'win32') {
-    mountedPath = checkWindowsVolume(label)
+    mountedPath = await checkWindowsVolume(label)
   } else if (platform === 'linux') {
     const u = os.userInfo().username
     const tries = [
@@ -374,27 +476,36 @@ ipcMain.handle('check-usb-status', async () => {
     }
     if (!mountedPath) {
       try {
-        const out = execFileSync('findmnt', ['-n', '-o', 'TARGET', `-L${label}`], {
-          encoding: 'utf8',
+        const { stdout } = await execFileAsync('findmnt', ['-n', '-o', 'TARGET', `-L${label}`], {
           timeout: 2000,
-        }).trim()
+          windowsHide: true,
+        })
+        const out = stdout.trim()
         if (out && fs.existsSync(out)) mountedPath = out
-      } catch (_) {}
+      } catch (_) {
+        /* ignore */
+      }
     }
   }
 
   if (mountedPath) {
-    const simDir = path.join(mountedPath, 'sim/highascg')
-    const hasSim = fs.existsSync(simDir) && fs.existsSync(path.join(simDir, 'package.json'))
+    const simDir = simPathOnVolume(mountedPath)
+    const hasPayload = isServerAppRoot(simDir)
     return {
       mounted: true,
       path: mountedPath,
-      hasPayload: hasSim,
-      payloadPath: simDir
+      hasPayload,
+      payloadPath: simDir,
     }
   }
 
-  return {
-    mounted: false
-  }
+  return { mounted: false }
+}
+
+ipcMain.handle('check-usb-status', async () => {
+  if (usbStatusInFlight) return usbStatusInFlight
+  usbStatusInFlight = probeUsbStatus().finally(() => {
+    usbStatusInFlight = null
+  })
+  return usbStatusInFlight
 })

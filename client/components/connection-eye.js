@@ -139,6 +139,9 @@ export function createConnectionEye(container) {
 		redOpen: 'assets/red_eyes_open.svg',
 		redLeft: 'assets/red_left_closed.svg',
 		redRight: 'assets/red_right_closed.svg',
+		blueOpen: 'assets/eyes_blue_open.svg',
+		blueLeft: 'assets/eyes_blue_l_closed.svg',
+		blueRight: 'assets/eyes_blue_r_closed.svg',
 	}
 
 	function inConnectionCelebration() {
@@ -180,6 +183,12 @@ export function createConnectionEye(container) {
 	function resolveSrc() {
 		const blinkL = el.classList.contains('blink-l')
 		const blinkR = el.classList.contains('blink-r')
+
+		if (isOffline) {
+			if (blinkL) return ASSETS.blueLeft
+			if (blinkR) return ASSETS.blueRight
+			return ASSETS.blueOpen
+		}
 
 		if (isConnected) {
 			if (inConnectionCelebration() && celebrationEye) {

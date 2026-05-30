@@ -421,9 +421,9 @@ optgroup {
 	object-position: center;
 }
 
-/* Offline draft mode: green eyes with a blue tint */
+/* Offline draft mode: uses the dedicated eyes_blue assets (no CSS filter tint required) */
 .connection-eye.offline .connection-eye__img {
-	filter: brightness(0) saturate(100%) invert(40%) sepia(1) saturate(3) hue-rotate(175deg) brightness(1.05);
+	filter: none;
 }
 
 /* Position (fixed) and placement are set in connection-eye.js so the header does not reflow. */

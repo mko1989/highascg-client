@@ -14,6 +14,9 @@ npm-debug.log*
 
 # Electron launcher copy of Vite output (npm run launcher:prepare)
 client/tools/electron-launcher/dist-web/
+client/tools/electron-launcher/lib/
+client/tools/electron-launcher/portable-sim/
+client/tools/electron-launcher/sim-server/
 
 # Vite / packager outputs
 dist-web/

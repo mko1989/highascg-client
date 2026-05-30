@@ -7,7 +7,7 @@
  * so `npm run portable:sim` works from a normal repo clone without the stick plugged in.
  *
  * Usage:
- *   node tools/portable-desktop/launch-sim-from-exfat.js [extra args … passed to index.js]
+ *   node tools/portable-desktop/launch-sim-from-exfat.cjs [extra args … passed to index.js]
  *   HIGHASCG_EXFAT_ROOT=E:\  node ...
  *   SIM_USE_CWD=1 node ...        # force cwd as app root
  *   --use-cwd                      # same, as flag
@@ -21,127 +21,13 @@
 
 const fs = require('fs')
 const path = require('path')
-const os = require('os')
 const net = require('net')
-const { spawn, execFileSync } = require('child_process')
+const { spawn } = require('child_process')
 
-const DEFAULT_LABEL = process.env.HIGHASCG_EXFAT_LABEL || 'HIGHASCGEXF'
+const { resolveSimAppRoot, formatSimRootHelp } = require('./sim-app-root.cjs')
+
 const DEFAULT_PORT_FALLBACK = 4200
 const DEFAULT_BIND_ADDRESS = '0.0.0.0'
-
-function getWindowsDriveForLabel(label) {
-	const esc = String(label).replace(/'/g, "''")
-	const ps = `Get-Volume | Where-Object FileSystemLabel -eq '${esc}' | Select-Object -First 1 | ForEach-Object { $_.DriveLetter }`
-	try {
-		const out = execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', ps], {
-			encoding: 'utf8',
-			windowsHide: true,
-			timeout: 15000,
-		}).trim()
-		const letter = out.split(/\s+/).filter(Boolean)[0]
-		if (letter && /^[A-Za-z]$/.test(letter)) {
-			return `${letter.toUpperCase()}:`
-		}
-	} catch (_) {
-		/* ignore */
-	}
-	return null
-}
-
-function resolveExfatVolumeRoot() {
-	const override = process.env.HIGHASCG_EXFAT_ROOT
-	if (override) {
-		return path.resolve(override.replace(/[/\\]+$/, ''))
-	}
-	const label = DEFAULT_LABEL
-	const platform = process.platform
-	if (platform === 'darwin') {
-		const vol = path.join('/Volumes', label)
-		if (fs.existsSync(vol) && fs.statSync(vol).isDirectory()) return vol
-		try {
-			for (const name of fs.readdirSync('/Volumes')) {
-				if (name === label || name.startsWith(`${label} `)) {
-					const candidate = path.join('/Volumes', name)
-					if (fs.existsSync(candidate) && fs.statSync(candidate).isDirectory()) return candidate
-				}
-			}
-		} catch (_) {
-			/* ignore */
-		}
-	}
-	if (platform === 'win32') {
-		const drive = getWindowsDriveForLabel(label)
-		if (drive && fs.existsSync(drive)) return drive
-	}
-	if (platform === 'linux') {
-		const u = os.userInfo().username
-		const tries = [
-			path.join('/media', u, label),
-			path.join('/run/media', u, label),
-			path.join('/mnt', label),
-		]
-		for (const t of tries) {
-			if (fs.existsSync(t) && fs.statSync(t).isDirectory()) return t
-		}
-		try {
-			const out = execFileSync('findmnt', ['-n', '-o', 'TARGET', `-L${label}`], {
-				encoding: 'utf8',
-				timeout: 5000,
-			}).trim()
-			if (out && fs.existsSync(out)) return out
-		} catch (_) {
-			/* ignore */
-		}
-	}
-	return null
-}
-
-/** @returns {{ appRoot: string, source: string }} */
-function resolveAppRoot() {
-	const override = process.env.HIGHASCG_EXFAT_APP_ROOT
-	if (override) {
-		const r = path.resolve(override)
-		if (fs.existsSync(path.join(r, 'package.json'))) return { appRoot: r, source: 'HIGHASCG_EXFAT_APP_ROOT' }
-		console.error('[HighAsCG sim] HIGHASCG_EXFAT_APP_ROOT missing package.json')
-		process.exit(1)
-	}
-	const volFromEnv = process.env.HIGHASCG_EXFAT_ROOT
-	if (volFromEnv) {
-		const vr = path.resolve(volFromEnv.replace(/[/\\]+$/, ''))
-		const sim = path.join(vr, 'sim', 'highascg')
-		if (fs.existsSync(path.join(sim, 'package.json'))) return { appRoot: sim, source: 'HIGHASCG_EXFAT_ROOT+sim/highascg' }
-		if (fs.existsSync(path.join(vr, 'package.json')))
-			return { appRoot: vr, source: 'HIGHASCG_EXFAT_ROOT(root=app)' }
-		console.error(`[HighAsCG sim] HIGHASCG_EXFAT_ROOT set but no package.json under ${sim} or ${vr}`)
-		process.exit(1)
-	}
-
-	const forceCwd =
-		process.argv.includes('--use-cwd') ||
-		process.env.SIM_USE_CWD === '1' ||
-		process.env.HIGHASCG_SIM_USE_CWD === '1'
-
-	if (!forceCwd) {
-		const vol = resolveExfatVolumeRoot()
-		if (vol) {
-			const sim = path.join(vol, 'sim', 'highascg')
-			if (fs.existsSync(path.join(sim, 'package.json'))) return { appRoot: sim, source: `volume ${DEFAULT_LABEL}` }
-		}
-	}
-
-	const cwd = process.cwd()
-	if (forceCwd && fs.existsSync(path.join(cwd, 'package.json'))) {
-		return { appRoot: cwd, source: 'SIM_USE_CWD (--use-cwd)' }
-	}
-	if (!forceCwd && fs.existsSync(path.join(cwd, 'package.json'))) {
-		return {
-			appRoot: cwd,
-			source: '(no labelled exFAT; using cwd — dev fallback — plug HIGHASCGEXF or set HIGHASCG_EXFAT_ROOT)',
-		}
-	}
-
-	return { appRoot: '', source: '' }
-}
 
 /**
  * HTTP listen targets for preflight + browser URL: follows `index.js` / `ConfigManager` enough
@@ -282,17 +168,23 @@ function openBrowser(url) {
 }
 
 async function main() {
-	const resolved = resolveAppRoot()
-	const appRoot = resolved.appRoot
-	if (!appRoot || !fs.existsSync(path.join(appRoot, 'package.json'))) {
+	const repoRoot = path.resolve(__dirname, '../../..')
+	const launcherDir = process.env.HIGHASCG_LAUNCHER_DIR
+		? path.resolve(process.env.HIGHASCG_LAUNCHER_DIR)
+		: null
+	const allowExfat =
+		process.env.HIGHASCG_SIM_ALLOW_EXFAT === '1' || process.env.HIGHASCG_SIM_ALLOW_EXFAT === 'true'
+	const resolved = resolveSimAppRoot({
+		repoRoot,
+		launcherDir: launcherDir || undefined,
+		allowExfatStick: allowExfat,
+	})
+	const appRoot = resolved?.appRoot || ''
+	if (!appRoot) {
 		console.error('')
-		console.error('[HighAsCG sim] Could not find app root (need package.json).')
-		console.error(`  Preferred: HIGHASCGEXF at .../sim/highascg (${DEFAULT_LABEL} volume).`)
-		console.error(
-			'  Or set HIGHASCG_EXFAT_ROOT to the stick root (e.g. E:\\ or /Volumes/HIGHASCGEXF), HIGHASCG_EXFAT_APP_ROOT to sim/highascg,',
-		)
-		console.error('  run from repo root (`npm run portable:sim`), or pass --use-cwd from sim/highascg.')
-		console.error('  See tools/portable-desktop/README.md')
+		console.error('[HighAsCG sim]', formatSimRootHelp({ repoRoot, launcherDir: launcherDir || undefined }))
+		console.error('')
+		console.error('  See client/tools/portable-desktop/README.md')
 		process.exit(1)
 	}
 
@@ -301,7 +193,7 @@ async function main() {
 
 	const nm = path.join(appRoot, 'node_modules')
 	if (!fs.existsSync(nm)) {
-		console.error(`[HighAsCG sim] Missing node_modules — run once: cd "${appRoot}" && npm ci`)
+		console.error(`[HighAsCG sim] Missing node_modules — from repo root: npm run launcher:sim-install`)
 		process.exit(1)
 	}
 	const indexJs = path.join(appRoot, 'index.js')

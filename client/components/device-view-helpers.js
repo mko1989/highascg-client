@@ -1,3 +1,5 @@
+import { hasDrmGpuPhysicalMap } from '../lib/device-view-gpu-port-list.js'
+
 export const CASPAR_HOST = 'caspar_host'
 
 /**
@@ -181,10 +183,15 @@ export function resolveConnectorId(lastPayload, type, data) {
  */
 export function isConnectorVisible(lastPayload, id) {
 	if (!id) return false
+	const sid = String(id).trim()
+	if (/^gpu_p\d+(_\d+)?$/i.test(sid) && hasDrmGpuPhysicalMap(lastPayload?.live)) {
+		const ports = lastPayload?.live?.gpu?.physicalMap?.ports || []
+		if (ports.some((p) => String(p?.physicalPortId || '').trim() === sid)) return true
+	}
 	const graphArr = lastPayload?.graph?.connectors || []
 	const suggestedArr = lastPayload?.suggested?.connectors || []
-	if (!graphArr.length) return suggestedArr.length ? suggestedArr.some(c => c.id === id) : true
-	return graphArr.some(c => c.id === id) || suggestedArr.some(c => c.id === id)
+	if (!graphArr.length) return suggestedArr.length ? suggestedArr.some((c) => c.id === id) : true
+	return graphArr.some((c) => c.id === id) || suggestedArr.some((c) => c.id === id)
 }
 
 /**

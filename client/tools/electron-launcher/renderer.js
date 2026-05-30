@@ -1,5 +1,21 @@
 const { ipcRenderer } = require('electron')
-const { WEBUI_PORT } = require('../../lib/webui-port.cjs')
+const path = require('path')
+const fs = require('fs')
+
+function loadWebuiPort() {
+  const candidates = [
+    path.join(__dirname, 'lib/webui-port.cjs'),
+    path.join(__dirname, '../../lib/webui-port.cjs'),
+  ]
+  for (const c of candidates) {
+    if (fs.existsSync(c)) {
+      return require(c).WEBUI_PORT
+    }
+  }
+  return 4350
+}
+
+const WEBUI_PORT = loadWebuiPort()
 
 // Tab Navigation
 const navItems = document.querySelectorAll('.nav-menu .nav-item')
@@ -8,15 +24,17 @@ const pageTitle = document.getElementById('page-title')
 const pageSubtitle = document.getElementById('page-subtitle')
 
 const pageMeta = {
-  dashboard: { title: 'Operator Dashboard', subtitle: 'Quick overview of system preparation state' },
   flash: { title: 'Flashing Guide', subtitle: 'How to flash the bootable live ISO image' },
   partition: { title: 'Partitioning & exFAT Guide', subtitle: 'Create the exFAT HIGHASCGEXF storage partition' },
   simulation: { title: 'Simulation Center', subtitle: 'Run HighAsCG locally in simulated offline mode' }
 }
 
 let isSimRunning = false
+let activeTab = 'simulation'
+let usbPollTimer = null
 
 function switchTab(tabId) {
+  activeTab = tabId
   navItems.forEach(item => {
     if (item.getAttribute('data-tab') === tabId) {
       item.classList.add('active')
@@ -37,6 +55,8 @@ function switchTab(tabId) {
     pageTitle.textContent = pageMeta[tabId].title
     pageSubtitle.textContent = pageMeta[tabId].subtitle
   }
+
+  scheduleUsbPolling()
 }
 
 navItems.forEach(item => {
@@ -45,12 +65,7 @@ navItems.forEach(item => {
   })
 })
 
-// Shortcut navigation in Dashboard
-document.querySelectorAll('[data-go-tab]').forEach(btn => {
-  btn.addEventListener('click', () => {
-    switchTab(btn.getAttribute('data-go-tab'))
-  })
-})
+
 
 // Inner OS Tab Navigation (Partition Tab)
 const innerTabs = document.querySelectorAll('.inner-tab')
@@ -86,44 +101,86 @@ async function pollUsbStatus() {
   try {
     const status = await ipcRenderer.invoke('check-usb-status')
     if (status.mounted) {
-      usbIndicator.className = 'indicator-dot status-success'
-      usbLabelText.textContent = 'HIGHASCGEXF Connected'
-      usbDescText.textContent = `Mounted at ${status.path}`
+      if (usbIndicator) usbIndicator.className = 'indicator-dot status-success'
+      if (usbLabelText) usbLabelText.textContent = 'HIGHASCGEXF Connected'
+      if (usbDescText) usbDescText.textContent = `Mounted at ${status.path}`
 
-      checkUsb.classList.add('checked')
-      checkUsb.querySelector('.check-box').textContent = '✓'
-      checkUsbDetails.textContent = `USB stick detected exFAT volume mounted at: ${status.path}`
+      if (checkUsb) {
+        checkUsb.classList.add('checked')
+        const cb = checkUsb.querySelector('.check-box')
+        if (cb) cb.textContent = '✓'
+      }
+      if (checkUsbDetails) {
+        checkUsbDetails.textContent = `USB stick detected exFAT volume mounted at: ${status.path}`
+      }
 
       if (status.hasPayload) {
-        checkPayload.classList.add('checked')
-        checkPayload.querySelector('.check-box').textContent = '✓'
-        checkPayloadDetails.textContent = `Payload package.json verified at: ${status.payloadPath}`
+        if (checkPayload) {
+          checkPayload.classList.add('checked')
+          const cb = checkPayload.querySelector('.check-box')
+          if (cb) cb.textContent = '✓'
+        }
+        if (checkPayloadDetails) {
+          checkPayloadDetails.textContent = `Payload package.json verified at: ${status.payloadPath}`
+        }
       } else {
-        checkPayload.classList.remove('checked')
-        checkPayload.querySelector('.check-box').textContent = '!'
-        checkPayloadDetails.textContent = `Payload folder 'sim/highascg/' not found. Place the extracted release files on the stick.`
+        if (checkPayload) {
+          checkPayload.classList.remove('checked')
+          const cb = checkPayload.querySelector('.check-box')
+          if (cb) cb.textContent = '!'
+        }
+        if (checkPayloadDetails) {
+          checkPayloadDetails.textContent = `Payload folder 'sim/highascg/' not found. Place the extracted release files on the stick.`
+        }
       }
     } else {
-      usbIndicator.className = 'indicator-dot status-warning'
-      usbLabelText.textContent = 'USB Stick Offline'
-      usbDescText.textContent = 'HIGHASCGEXF volume not detected'
+      if (usbIndicator) usbIndicator.className = 'indicator-dot status-warning'
+      if (usbLabelText) usbLabelText.textContent = 'USB Stick Offline'
+      if (usbDescText) usbDescText.textContent = 'HIGHASCGEXF volume not detected'
 
-      checkUsb.classList.remove('checked')
-      checkUsb.querySelector('.check-box').textContent = '!'
-      checkUsbDetails.textContent = `USB drive with exFAT partition not detected. Connect stick or run in local dev mode.`
+      if (checkUsb) {
+        checkUsb.classList.remove('checked')
+        const cb = checkUsb.querySelector('.check-box')
+        if (cb) cb.textContent = '!'
+      }
+      if (checkUsbDetails) {
+        checkUsbDetails.textContent = `USB drive with exFAT partition not detected. Connect stick or run in local dev mode.`
+      }
 
-      checkPayload.classList.remove('checked')
-      checkPayload.querySelector('.check-box').textContent = '!'
-      checkPayloadDetails.textContent = `Application payload not verified. Please configure your exFAT stick.`
+      if (checkPayload) {
+        checkPayload.classList.remove('checked')
+        const cb = checkPayload.querySelector('.check-box')
+        if (cb) cb.textContent = '!'
+      }
+      if (checkPayloadDetails) {
+        checkPayloadDetails.textContent = `Application payload not verified. Please configure your exFAT stick.`
+      }
     }
   } catch (e) {
     console.error('Probing USB status error:', e)
   }
 }
 
-// Run initial status check and poll every 3 seconds
-pollUsbStatus()
-setInterval(pollUsbStatus, 3000)
+function setUsbSidebarIdle() {
+  if (usbIndicator) usbIndicator.className = 'indicator-dot status-warning'
+  if (usbLabelText) usbLabelText.textContent = 'USB check paused'
+  if (usbDescText) {
+    usbDescText.textContent = 'Open Flashing or Partition tab to probe HIGHASCGEXF (optional for simulation).'
+  }
+}
+
+function scheduleUsbPolling() {
+  if (usbPollTimer) {
+    clearInterval(usbPollTimer)
+    usbPollTimer = null
+  }
+  if (activeTab === 'flash' || activeTab === 'partition') {
+    pollUsbStatus()
+    usbPollTimer = setInterval(pollUsbStatus, 8000)
+  } else {
+    setUsbSidebarIdle()
+  }
+}
 
 // Simulation controls & Global Header bindings
 const serverIpInput = document.getElementById('server-ip')
@@ -135,6 +192,8 @@ const btnOpenWebui = document.getElementById('btn-open-webui')
 const terminalOutput = document.getElementById('terminal-output-text')
 const terminalBody = document.getElementById('terminal-body-box')
 const btnClearTerminal = document.getElementById('btn-clear-terminal')
+const btnCopyTerminal = document.getElementById('btn-copy-terminal')
+const simRuntimeHint = document.getElementById('sim-runtime-hint')
 
 // New Global Header elements
 const headerIpInput = document.getElementById('header-server-ip')
@@ -168,7 +227,7 @@ function loadServerPrefs() {
 
 function saveServerPrefs() {
   try {
-    const ip = (headerIpInput.value || 'localhost').trim()
+    const ip = (headerIpInput.value || '127.0.0.1').trim()
     const port = parseInt(headerPortInput.value, 10) || 4200
     localStorage.setItem(LS_SERVER_IP, ip)
     localStorage.setItem(LS_SERVER_PORT, String(Math.max(80, Math.min(65535, port))))
@@ -180,7 +239,7 @@ function saveServerPrefs() {
 loadServerPrefs()
 
 function getTargetUrl() {
-  const ip = (headerIpInput.value || 'localhost').trim()
+  const ip = (headerIpInput.value || '127.0.0.1').trim()
   const port = headerPortInput.value || 4200
   return `http://${ip}:${port}/`
 }
@@ -218,18 +277,18 @@ syncInputs(simPortInput, headerPortInput)
 
 // Live Connection Polling
 async function checkServerConnection() {
-  const ip = (headerIpInput.value || 'localhost').trim()
+  const ip = (headerIpInput.value || '127.0.0.1').trim()
   const port = headerPortInput.value || 4200
   const url = `http://${ip}:${port}/api/settings`
-  
+
   try {
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 1000)
-    
-    const response = await fetch(url, { 
+    const timeoutId = setTimeout(() => controller.abort(), 2500)
+
+    const response = await fetch(url, {
       method: 'GET',
       signal: controller.signal,
-      headers: { 'Accept': 'application/json' }
+      headers: { Accept: 'application/json' },
     })
     
     clearTimeout(timeoutId)
@@ -273,7 +332,10 @@ function appendLog(text) {
 
 btnStartSim.addEventListener('click', () => {
   const port = parseInt(simPortInput.value, 10) || 4200
-  const offlineMode = simOfflineToggle.checked
+  const offlineMode = simOfflineToggle ? simOfflineToggle.checked : true
+  if (headerIpInput) headerIpInput.value = '127.0.0.1'
+  if (serverIpInput) serverIpInput.value = '127.0.0.1'
+  ipcRenderer.send('update-api-origin', getTargetUrl())
 
   terminalOutput.textContent = ''
   appendLog(`[Launcher] Starting HighAsCG in simulation mode on port ${port}...\n`)
@@ -283,7 +345,7 @@ btnStartSim.addEventListener('click', () => {
   simPortInput.disabled = true
   headerIpInput.disabled = true
   headerPortInput.disabled = true
-  simOfflineToggle.disabled = true
+  if (simOfflineToggle) simOfflineToggle.disabled = true
 
   ipcRenderer.send('start-sim', { port, offlineMode })
 })
@@ -297,8 +359,60 @@ btnClearTerminal.addEventListener('click', () => {
   terminalOutput.textContent = ''
 })
 
+if (btnCopyTerminal) {
+  btnCopyTerminal.addEventListener('click', async () => {
+    const text = terminalOutput.textContent || ''
+    try {
+      await navigator.clipboard.writeText(text)
+      btnCopyTerminal.textContent = 'Copied'
+      setTimeout(() => {
+        btnCopyTerminal.textContent = 'Copy log'
+      }, 2000)
+    } catch (err) {
+      console.error('Copy log failed:', err)
+      btnCopyTerminal.textContent = 'Failed'
+      setTimeout(() => {
+        btnCopyTerminal.textContent = 'Copy log'
+      }, 2000)
+    }
+  })
+}
+
+async function pollSimRuntime() {
+  if (!simRuntimeHint) return
+  try {
+    const rt = await ipcRenderer.invoke('check-sim-runtime')
+    if (rt.ready) {
+      const nm = rt.hasNodeModules ? 'ready' : 'run npm run launcher:sim-install from repo root'
+      simRuntimeHint.textContent = `Sim runtime: ${rt.source} — ${nm}`
+      simRuntimeHint.classList.remove('sim-runtime-warn')
+    } else {
+      simRuntimeHint.textContent =
+        'Sim runtime not ready — from repo root: npm run launcher:prepare, then npm run launcher:sim-install'
+      simRuntimeHint.classList.add('sim-runtime-warn')
+    }
+  } catch (e) {
+    console.warn('Sim runtime check failed:', e)
+  }
+}
+
+pollSimRuntime()
+setInterval(pollSimRuntime, 5000)
+
+function onSimLogMaybeReady(text) {
+  if (
+    /listening on|HTTP Server|Server running|HighAsCG.*started|127\.0\.0\.1:\d+/i.test(text)
+  ) {
+    setTimeout(() => {
+      checkServerConnection()
+      ipcRenderer.send('update-api-origin', getTargetUrl())
+    }, 600)
+  }
+}
+
 ipcRenderer.on('sim-log', (event, text) => {
   appendLog(text)
+  onSimLogMaybeReady(text)
 })
 
 ipcRenderer.on('sim-status', (event, status) => {
@@ -315,7 +429,7 @@ ipcRenderer.on('sim-status', (event, status) => {
     simPortInput.disabled = false
     headerIpInput.disabled = false
     headerPortInput.disabled = false
-    simOfflineToggle.disabled = false
+    if (simOfflineToggle) simOfflineToggle.disabled = false
     updateWebuiButton()
 
     if (status.error) {
@@ -335,22 +449,6 @@ if (headerBtnOpenWebui) {
     ipcRenderer.send('open-external-url', getWebuiUrl())
   })
 }
-
-// Quick Simulation Button on Dashboard
-document.getElementById('btn-quick-sim').addEventListener('click', () => {
-  switchTab('simulation')
-  // Autotrigger start if not running
-  if (!isSimRunning) {
-    setTimeout(() => {
-      btnStartSim.click()
-    }, 100)
-  }
-})
-
-// Quick links
-document.getElementById('btn-open-readme').addEventListener('click', () => {
-  switchTab('flash')
-})
 
 document.getElementById('btn-open-github').addEventListener('click', () => {
   ipcRenderer.send('open-external-url', 'https://github.com/mko1989/highascg')

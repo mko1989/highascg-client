@@ -10,7 +10,7 @@ if not exist "package.json" (
   pause
   exit /b 1
 )
-node tools\portable-desktop\launch-sim-from-exfat.js %*
+node tools\portable-desktop\launch-sim-from-exfat.cjs %*
 set ERR=%ERRORLEVEL%
 if %ERR% NEQ 0 pause
 exit /b %ERR%
