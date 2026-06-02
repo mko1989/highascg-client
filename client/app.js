@@ -75,12 +75,13 @@ const appLogic = {
 }
 
 function initTabs() {
-	const tabs = document.querySelectorAll('.tab'); const panes = document.querySelectorAll('.tab-pane')
 	const tabStorageKey = 'highascg_active_tab'
 	const activateTab = (target) => {
-		tabs.forEach(t => t.classList.remove('active'))
-		panes.forEach(p => p.classList.toggle('active', p.id === `tab-${target}`))
-		const tab = Array.from(tabs).find((t) => t.dataset.tab === target)
+		document.querySelectorAll('.workspace__tabs .tab').forEach((t) => t.classList.remove('active'))
+		document.querySelectorAll('.workspace__content .tab-pane').forEach((p) => {
+			p.classList.toggle('active', p.id === `tab-${target}`)
+		})
+		const tab = document.querySelector(`.workspace__tabs .tab[data-tab="${target}"]`)
 		if (tab) tab.classList.add('active')
 		try { localStorage.setItem(tabStorageKey, target) } catch { /* ignore */ }
 		if (target !== 'pixelmap') {
@@ -89,8 +90,17 @@ function initTabs() {
 		if (['scenes', 'multiview', 'pixelmap', 'timeline'].includes(target)) requestAnimationFrame(() => document.dispatchEvent(new CustomEvent(`${target === 'pixelmap' ? 'px' : (target === 'multiview' ? 'mv' : target)}-tab-activated`)))
 		if (target === 'device-view') initDeviceView(document.getElementById('tab-device-view'))
 		if (target === 'audio-mixer-view') initAudioMixerView(document.getElementById('tab-audio-mixer-view'), stateStore)
+		window.dispatchEvent(new CustomEvent('highascg-workspace-tab-activated', { detail: { tab: target } }))
 	}
-	tabs.forEach(tab => tab.addEventListener('click', () => activateTab(tab.dataset.tab)))
+	window.highascgActivateWorkspaceTab = activateTab
+	const tabBar = document.querySelector('.workspace__tabs')
+	if (tabBar) {
+		tabBar.addEventListener('click', (e) => {
+			const tab = e.target.closest('.tab')
+			if (!tab?.dataset?.tab) return
+			activateTab(tab.dataset.tab)
+		})
+	}
 	
 	window.addEventListener('highascg-open-pixel-mapping', (ev) => {
 		const nodeId = ev.detail?.nodeId
@@ -109,7 +119,8 @@ function initTabs() {
 	let initial = ''
 	try { initial = localStorage.getItem(tabStorageKey) || '' } catch { /* ignore */ }
 	if (!initial || !document.querySelector(`.tab[data-tab="${initial}"]`)) {
-		initial = document.querySelector('.tab.active')?.dataset.tab || tabs[0]?.dataset.tab || ''
+		const firstTab = document.querySelector('.workspace__tabs .tab')
+		initial = document.querySelector('.workspace__tabs .tab.active')?.dataset.tab || firstTab?.dataset.tab || ''
 	}
 	if (initial) activateTab(initial)
 }

@@ -52,6 +52,10 @@
           <svg class="nav-icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></svg>
           Simulation Center
         </button>
+        <button class="nav-item" data-tab="modules">
+          <svg class="nav-icon" viewBox="0 0 24 24"><path d="M4 8h4V4H4v4zm6 12h4v-4h-4v4zm-6 0h4v-4H4v4zm0-6h4v-4H4v4zm6 0h4v-4h-4v4zm6 10h4v-4h-4v4zm0-6h4v-4h-4v4zm0-6h4V4h-4v4zm6 6h4v-4h-4v4zm0-6h4V4h-4v4z"/></svg>
+          Modules
+        </button>
         <button class="nav-item" data-tab="flash">
           <svg class="nav-icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H7c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.04-.42 1.99-1.07 2.75z"/></svg>
           Flashing Guide
@@ -523,6 +527,22 @@
             </div>
           </div>
 
+        </div>
+      </section>
+
+      <!-- TAB: Optional Web UI modules -->
+      <section class="tab-pane" id="tab-modules">
+        <div class="modules-tab-layout">
+          <div class="card modules-card">
+            <h2>Web UI optional modules</h2>
+            <p class="field-hint modules-tab-intro">
+              Choose which feature modules load when you open the Web UI from this launcher (port 4350).
+              Disabled modules are not downloaded. Reload the Web UI browser tab after changing toggles.
+            </p>
+            <div class="optional-modules-list" id="optional-modules-list" aria-live="polite">
+              <p class="field-hint">Loading module list…</p>
+            </div>
+          </div>
         </div>
       </section>
 

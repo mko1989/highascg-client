@@ -1,4 +1,7 @@
 import { getApiBase, resolveApiUrl } from './api-origin.js'
+import { mergeClientOptionalModules } from './optional-modules-client-manifest.js'
+import { buildModulesApiPayload, getDefaultEnabledModuleIds } from './optional-modules-registry.js'
+import { readMetaEnabledModuleIds } from './optional-modules-meta.js'
 
 /**
  * Web-side loader for optional feature modules (WO-30 T30.4).
@@ -47,16 +50,26 @@ export async function initOptionalModules(ctx) {
 	const failed = []
 
 	let info
+	let modulesFetchFailed = false
 	try {
 		const res = await fetch(`${getApiBase()}/api/modules`, { credentials: 'same-origin' })
 		if (!res.ok) throw new Error(`HTTP ${res.status}`)
 		info = await res.json()
 	} catch (e) {
 		const msg = e && e.message ? e.message : String(e)
-		console.warn('[optional-modules] GET /api/modules failed:', msg, '- running with no optional modules')
-		_state.initialised = true
-		return { enabled: [], failed: [{ name: '*', error: msg }] }
+		modulesFetchFailed = true
+		const metaIds = readMetaEnabledModuleIds()
+		const fallbackIds = metaIds != null ? metaIds : getDefaultEnabledModuleIds()
+		console.warn(
+			'[optional-modules] GET /api/modules failed:',
+			msg,
+			`- using ${metaIds != null ? 'launcher meta' : 'registry defaults'}:`,
+			fallbackIds.join(', ') || '(none)',
+		)
+		info = buildModulesApiPayload(fallbackIds)
 	}
+
+	info = mergeClientOptionalModules(info)
 
 	_state.enabled = Array.isArray(info.enabled) ? info.enabled.slice() : []
 	_state.bundles = Array.isArray(info.bundles) ? info.bundles.slice() : []
@@ -65,7 +78,7 @@ export async function initOptionalModules(ctx) {
 
 	if (_state.enabled.length === 0) {
 		_state.initialised = true
-		return { enabled: [], failed: [] }
+		return { enabled: [], failed: modulesFetchFailed ? [{ name: '*', error: 'GET /api/modules failed' }] : [] }
 	}
 
 	for (const href of _state.styles) {
@@ -76,7 +89,21 @@ export async function initOptionalModules(ctx) {
 		injectStylesheet(styleUrl)
 	}
 
+	if (_state.enabled.includes('cg-studio')) {
+		try {
+			const mod = await import('../assets/modules/cg-studio/entry.js')
+			if (mod && typeof mod.default === 'function') {
+				await mod.default(_state.context)
+			}
+		} catch (e) {
+			const msg = e && e.message ? e.message : String(e)
+			console.warn('[optional-modules] cg-studio bundle failed:', msg)
+			failed.push({ name: 'cg-studio', error: msg })
+		}
+	}
+
 	for (const url of _state.bundles) {
+		if (!url || url.includes('cg-studio')) continue
 		const bundleUrl =
 			url.startsWith('http://') || url.startsWith('https://')
 				? url

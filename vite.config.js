@@ -23,6 +23,11 @@ const STATIC_MIME = {
 	'.txt': 'text/plain',
 }
 
+/** @param {string} rel — path under the copied tree, e.g. `/modules/cg-studio/entry.js` */
+function skipOptionalModuleBundleCopy(rel) {
+	return /^\/modules\/cg-studio\//.test(rel)
+}
+
 /** Copy trees the UI loads by URL (/assets/…, /fonts/…) — not only Vite-bundled imports. */
 function copyClientStaticTreesPlugin() {
 	const trees = [
@@ -37,7 +42,7 @@ function copyClientStaticTreesPlugin() {
 				if (!fs.existsSync(src)) continue
 				server.middlewares.use(urlPath, (req, res, next) => {
 					const rel = decodeURIComponent((req.url || '').split('?')[0] || '')
-					if (!rel || rel.includes('..')) return next()
+					if (!rel || rel.includes('..') || skipOptionalModuleBundleCopy(rel)) return next()
 					const file = path.join(src, rel)
 					if (!file.startsWith(src)) return next()
 					fs.readFile(file, (err, data) => {
@@ -55,7 +60,14 @@ function copyClientStaticTreesPlugin() {
 				if (!fs.existsSync(src)) continue
 				const dest = path.join(outDir, urlPath.replace(/^\//, ''))
 				fs.mkdirSync(dest, { recursive: true })
-				fs.cpSync(src, dest, { recursive: true })
+				fs.cpSync(src, dest, {
+					recursive: true,
+					filter: (srcPath) => {
+						const rel = path.relative(src, srcPath).replace(/\\/g, '/')
+						if (!rel || rel === '.') return true
+						return !skipOptionalModuleBundleCopy(`/${rel}`)
+					},
+				})
 			}
 		},
 	}
@@ -71,6 +83,104 @@ function vendorImportMapEntries(apiOrigin) {
 		'three/addons/': '/vendor/three/examples/jsm/',
 		grapesjs: '/vendor/grapesjs/dist/grapes.mjs',
 		'html-to-image': '/vendor/html-to-image/es/index.js',
+	}
+}
+
+const optionalModulesRegistryPath = path.join(clientDir, 'lib', 'optional-modules-registry.json')
+
+/** Dev: local GET /api/modules (before proxy) — set HIGHASCG_ENABLED_MODULES=cg-studio,previs */
+function optionalModulesDevApiPlugin() {
+	return {
+		name: 'highascg-optional-modules-dev-api',
+		configureServer(server) {
+			server.middlewares.use((req, res, next) => {
+				const urlPath = (req.url || '').split('?')[0]
+				if (urlPath !== '/api/modules' || req.method !== 'GET') return next()
+				let registry = []
+				try {
+					registry = JSON.parse(fs.readFileSync(optionalModulesRegistryPath, 'utf8')).modules || []
+				} catch {
+					/* ignore */
+				}
+				const visible = registry.filter((m) => m.launcherHidden !== true)
+				const env = process.env.HIGHASCG_ENABLED_MODULES
+				const enabledIds = env
+					? env.split(',').map((s) => s.trim()).filter(Boolean)
+					: visible.filter((m) => m.defaultEnabled).map((m) => m.id)
+				const allowed = new Set(enabledIds)
+				const enabled = []
+				const bundles = []
+				const styles = []
+				for (const mod of visible) {
+					if (!allowed.has(mod.id)) continue
+					enabled.push(mod.id)
+					if (mod.bundle && !bundles.includes(mod.bundle)) bundles.push(mod.bundle)
+					for (const href of mod.styles || []) {
+						if (!styles.includes(href)) styles.push(href)
+					}
+				}
+				res.setHeader('Content-Type', 'application/json')
+				res.end(JSON.stringify({ enabled, bundles, styles, wsNamespaces: enabled.filter((id) => id !== 'cg-studio') }))
+			})
+		},
+	}
+}
+
+/** Dev-only CG Studio API when playout server has no cg-studio routes (WO-32). */
+function cgStudioDevApiPlugin() {
+	const templatesDir = path.join(clientDir, 'fixtures', 'cg-studio-templates')
+	return {
+		name: 'highascg-cg-studio-dev-api',
+		configureServer(server) {
+			fs.mkdirSync(templatesDir, { recursive: true })
+			server.middlewares.use(async (req, res, next) => {
+				const url = (req.url || '').split('?')[0]
+				if (!url.startsWith('/api/cg-studio')) return next()
+
+				if (url === '/api/cg-studio/health' && req.method === 'GET') {
+					res.setHeader('Content-Type', 'application/json')
+					res.end(JSON.stringify({ ok: true, module: 'cg-studio', dev: true }))
+					return
+				}
+
+				if (url === '/api/cg-studio/save' && req.method === 'POST') {
+					let body = ''
+					req.on('data', (chunk) => {
+						body += chunk
+					})
+					req.on('end', () => {
+						try {
+							const payload = JSON.parse(body || '{}')
+							const name = String(payload.name || 'template')
+								.trim()
+								.replace(/[^\w.-]+/g, '_') || 'template'
+							const casparHtml = String(payload.casparHtml || '')
+							const projectJson = String(payload.projectJson || '{}')
+							const htmlPath = path.join(templatesDir, `${name}.html`)
+							const jsonPath = path.join(templatesDir, `${name}.project.json`)
+							fs.writeFileSync(htmlPath, casparHtml || payload.html || '', 'utf8')
+							fs.writeFileSync(jsonPath, projectJson, 'utf8')
+							res.setHeader('Content-Type', 'application/json')
+							res.end(
+								JSON.stringify({
+									ok: true,
+									name,
+									path: `/fixtures/cg-studio-templates/${name}.html`,
+								}),
+							)
+						} catch (err) {
+							res.statusCode = 400
+							res.setHeader('Content-Type', 'text/plain')
+							res.end(err && err.message ? err.message : String(err))
+						}
+					})
+					return
+				}
+
+				res.statusCode = 404
+				res.end('Not found')
+			})
+		},
 	}
 }
 
@@ -113,19 +223,26 @@ export default defineConfig(({ mode }) => {
 	return {
 		root: 'client',
 		base: './',
-		plugins: [highascgApiOriginPlugin(apiOrigin), copyClientStaticTreesPlugin()],
+		plugins: [
+			highascgApiOriginPlugin(apiOrigin),
+			copyClientStaticTreesPlugin(),
+			optionalModulesDevApiPlugin(),
+			cgStudioDevApiPlugin(),
+		],
 		build: {
 			outDir: '../dist-web',
 			emptyOutDir: true,
 			rollupOptions: {
 				external: [
 					'three',
-					'grapesjs',
 					'html-to-image',
 					'three/addons/controls/OrbitControls.js',
 					'three/addons/loaders/GLTFLoader.js',
 				],
 			},
+		},
+		optimizeDeps: {
+			include: ['grapesjs'],
 		},
 		server: {
 			port: WEBUI_PORT,

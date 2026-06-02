@@ -26,7 +26,8 @@ const pageSubtitle = document.getElementById('page-subtitle')
 const pageMeta = {
   flash: { title: 'Flashing Guide', subtitle: 'How to flash the bootable live ISO image' },
   partition: { title: 'Partitioning & exFAT Guide', subtitle: 'Create the exFAT HIGHASCGEXF storage partition' },
-  simulation: { title: 'Simulation Center', subtitle: 'Run HighAsCG locally in simulated offline mode' }
+  simulation: { title: 'Simulation Center', subtitle: 'Run HighAsCG locally in simulated offline mode' },
+  modules: { title: 'Modules', subtitle: 'Enable optional Web UI features loaded from this launcher' },
 }
 
 let isSimRunning = false
@@ -237,6 +238,66 @@ function saveServerPrefs() {
 }
 
 loadServerPrefs()
+
+const optionalModulesList = document.getElementById('optional-modules-list')
+const LS_OPTIONAL_MODULES = 'highascg.launcher.enabledModules'
+
+async function loadOptionalModulesUi() {
+	if (!optionalModulesList) return
+	try {
+		const { registry, enabled } = await ipcRenderer.invoke('get-optional-modules')
+		optionalModulesList.innerHTML = ''
+		if (!Array.isArray(registry) || registry.length === 0) {
+			optionalModulesList.innerHTML = '<p class="field-hint">No optional modules in registry.</p>'
+			return
+		}
+		const enabledSet = new Set(Array.isArray(enabled) ? enabled : [])
+		for (const mod of registry) {
+			const row = document.createElement('label')
+			row.className = 'optional-module-row'
+			const checked = enabledSet.has(mod.id)
+			row.innerHTML = `
+				<span class="optional-module-row__switch toggle-switch">
+					<input type="checkbox" data-module-id="${mod.id}" ${checked ? 'checked' : ''} />
+					<span class="slider" aria-hidden="true"></span>
+				</span>
+				<span class="optional-module-row__body">
+					<span class="optional-module-row__title">${mod.label || mod.id}</span>
+					<span class="optional-module-row__desc">${mod.description || ''}</span>
+				</span>
+			`
+			const input = row.querySelector('input')
+			input.addEventListener('change', () => {
+				void saveOptionalModulesFromUi()
+			})
+			optionalModulesList.appendChild(row)
+		}
+		try {
+			localStorage.setItem(LS_OPTIONAL_MODULES, JSON.stringify([...enabledSet]))
+		} catch {
+			/* ignore */
+		}
+	} catch (e) {
+		console.error('Optional modules UI failed:', e)
+		optionalModulesList.innerHTML = '<p class="field-hint">Could not load module settings.</p>'
+	}
+}
+
+async function saveOptionalModulesFromUi() {
+	if (!optionalModulesList) return
+	const enabled = []
+	optionalModulesList.querySelectorAll('input[data-module-id]:checked').forEach((input) => {
+		enabled.push(input.getAttribute('data-module-id'))
+	})
+	try {
+		await ipcRenderer.invoke('set-optional-modules', enabled)
+		localStorage.setItem(LS_OPTIONAL_MODULES, JSON.stringify(enabled))
+	} catch (e) {
+		console.error('Save optional modules failed:', e)
+	}
+}
+
+void loadOptionalModulesUi()
 
 function getTargetUrl() {
   const ip = (headerIpInput.value || '127.0.0.1').trim()

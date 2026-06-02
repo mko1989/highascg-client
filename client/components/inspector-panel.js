@@ -47,6 +47,11 @@ function isPixelMapTabActive() {
 	return !!(t && t.classList.contains('active'))
 }
 
+function isCgStudioTabActive() {
+	const t = document.querySelector('.workspace__tabs .tab[data-tab="cg-studio"]')
+	return !!(t && t.classList.contains('active'))
+}
+
 function redrawDmxCanvas() {
 	document.dispatchEvent(new CustomEvent('dmx-redraw'))
 }
@@ -99,6 +104,20 @@ export function initInspectorPanel(root, stateStore) {
 
 	function renderSelectionInspector() {
 		const data = selection
+		if (isCgStudioTabActive()) {
+			const evt = new CustomEvent('highascg-cg-studio-inspector-mount', {
+				detail: { root, handled: false },
+			})
+			window.dispatchEvent(evt)
+			if (evt.detail.handled) {
+				scheduleSelectionSync(stateStore, null)
+				return
+			}
+			root.innerHTML =
+				'<p class="inspector-empty">Open CG Studio to load blocks, layers, and styles here.</p>'
+			scheduleSelectionSync(stateStore, null)
+			return
+		}
 		if (isPixelMapTabActive()) {
 			renderFixtureInspector(root, redrawDmxCanvas)
 			scheduleSelectionSync(stateStore, selection)
@@ -389,6 +408,10 @@ export function initInspectorPanel(root, stateStore) {
 				redrawInspectorContent()
 			})
 		})
+	})
+
+	window.addEventListener('highascg-inspector-redraw', () => {
+		redrawInspectorContent()
 	})
 
 	dmxState.on('selection', () => {
