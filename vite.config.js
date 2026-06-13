@@ -126,6 +126,161 @@ function optionalModulesDevApiPlugin() {
 	}
 }
 
+/** Dev project files API — set HIGHASCG_DEV_PROJECT_FILES=1 in .env.development */
+function projectFilesDevApiPlugin() {
+	const projectsDir = path.join(clientDir, 'fixtures', 'project-files')
+	let activeId = 'demo-show'
+
+	function listFiles() {
+		if (!fs.existsSync(projectsDir)) return []
+		return fs
+			.readdirSync(projectsDir)
+			.filter((f) => f.endsWith('.json'))
+			.map((filename) => {
+				const id = filename.replace(/\.json$/i, '')
+				const full = path.join(projectsDir, filename)
+				let name = id
+				let savedAt = null
+				try {
+					const stat = fs.statSync(full)
+					savedAt = stat.mtime.toISOString()
+					const j = JSON.parse(fs.readFileSync(full, 'utf8'))
+					if (j?.name) name = String(j.name)
+					if (j?.savedAt) savedAt = String(j.savedAt)
+				} catch {
+					/* ignore */
+				}
+				const sizeBytes = fs.statSync(full).size
+				return {
+					id,
+					name,
+					filename,
+					savedAt,
+					modifiedAt: savedAt,
+					sizeBytes,
+					active: id === activeId,
+				}
+			})
+			.sort((a, b) => String(b.savedAt).localeCompare(String(a.savedAt)))
+	}
+
+	function readProject(id) {
+		const safe = String(id || '').replace(/[^\w.-]+/g, '')
+		const full = path.join(projectsDir, `${safe}.json`)
+		if (!full.startsWith(projectsDir) || !fs.existsSync(full)) return null
+		return JSON.parse(fs.readFileSync(full, 'utf8'))
+	}
+
+	return {
+		name: 'highascg-project-files-dev-api',
+		configureServer(server) {
+			if (process.env.HIGHASCG_DEV_PROJECT_FILES !== '1') return
+			fs.mkdirSync(projectsDir, { recursive: true })
+			server.middlewares.use(async (req, res, next) => {
+				const urlPath = (req.url || '').split('?')[0]
+				if (!urlPath.startsWith('/api/project')) return next()
+
+				if (urlPath === '/api/project/list' && req.method === 'GET') {
+					const files = listFiles()
+					res.setHeader('Content-Type', 'application/json')
+					res.end(JSON.stringify({ ok: true, activeId, files }))
+					return
+				}
+
+				const fileMatch = urlPath.match(/^\/api\/project\/file\/([^/]+)(\/download)?$/)
+				if (fileMatch && req.method === 'GET') {
+					const id = decodeURIComponent(fileMatch[1])
+					const project = readProject(id)
+					if (!project) {
+						res.statusCode = 404
+						res.setHeader('Content-Type', 'application/json')
+						res.end(JSON.stringify({ error: 'Project file not found' }))
+						return
+					}
+					const body = JSON.stringify(project, null, 2)
+					res.setHeader('Content-Type', 'application/json')
+					if (fileMatch[2]) {
+						res.setHeader(
+							'Content-Disposition',
+							`attachment; filename="${id}.json"`,
+						)
+					}
+					res.end(body)
+					return
+				}
+
+				if (urlPath === '/api/project/load' && req.method === 'POST') {
+					let body = ''
+					req.on('data', (chunk) => {
+						body += chunk
+					})
+					req.on('end', () => {
+						try {
+							const payload = JSON.parse(body || '{}')
+							const id = payload.id ? String(payload.id) : activeId
+							const project = readProject(id)
+							if (!project) {
+								res.statusCode = 404
+								res.setHeader('Content-Type', 'application/json')
+								res.end(JSON.stringify({ error: 'Project file not found' }))
+								return
+							}
+							activeId = id
+							res.setHeader('Content-Type', 'application/json')
+							res.end(JSON.stringify(project))
+						} catch (err) {
+							res.statusCode = 400
+							res.end(err?.message || String(err))
+						}
+					})
+					return
+				}
+
+				if (urlPath === '/api/project/save' && req.method === 'POST') {
+					let body = ''
+					req.on('data', (chunk) => {
+						body += chunk
+					})
+					req.on('end', () => {
+						try {
+							const payload = JSON.parse(body || '{}')
+							const project = payload.project
+							if (!project || typeof project !== 'object') {
+								res.statusCode = 400
+								res.end('Missing project')
+								return
+							}
+							const rawId =
+								payload.id ||
+								String(project.name || 'project')
+									.trim()
+									.toLowerCase()
+									.replace(/[^\w.-]+/g, '_') ||
+								'project'
+							const id = String(rawId).replace(/[^\w.-]+/g, '_') || 'project'
+							fs.mkdirSync(projectsDir, { recursive: true })
+							fs.writeFileSync(
+								path.join(projectsDir, `${id}.json`),
+								JSON.stringify(project, null, 2),
+								'utf8',
+							)
+							activeId = id
+							res.setHeader('Content-Type', 'application/json')
+							res.end(JSON.stringify({ ok: true, id, filename: `${id}.json` }))
+						} catch (err) {
+							res.statusCode = 400
+							res.end(err?.message || String(err))
+						}
+					})
+					return
+				}
+
+				next()
+			})
+		},
+	}
+}
+
 /** Dev-only CG Studio API when playout server has no cg-studio routes (WO-32). */
 function cgStudioDevApiPlugin() {
 	const templatesDir = path.join(clientDir, 'fixtures', 'cg-studio-templates')
@@ -227,11 +382,14 @@ export default defineConfig(({ mode }) => {
 			highascgApiOriginPlugin(apiOrigin),
 			copyClientStaticTreesPlugin(),
 			optionalModulesDevApiPlugin(),
+			projectFilesDevApiPlugin(),
 			cgStudioDevApiPlugin(),
 		],
 		build: {
 			outDir: '../dist-web',
 			emptyOutDir: true,
+			assetsInlineLimit: 4096,
+			chunkSizeWarningLimit: 600,
 			rollupOptions: {
 				external: [
 					'three',
@@ -239,6 +397,22 @@ export default defineConfig(({ mode }) => {
 					'three/addons/controls/OrbitControls.js',
 					'three/addons/loaders/GLTFLoader.js',
 				],
+				output: {
+					manualChunks(id) {
+						if (!id.includes('/client/')) return undefined
+						if (id.includes('/components/device-view') || id.includes('/lib/device-view-')) return 'device-view'
+						if (
+							id.includes('/components/scenes-') ||
+							id.includes('/components/timeline-') ||
+							id.includes('/components/preview-')
+						) {
+							return 'scenes'
+						}
+						if (id.includes('/assets/modules/cg-studio/')) return 'cg-studio'
+						if (id.includes('/components/previs-') || id.includes('/lib/previs-')) return 'previs'
+						return undefined
+					},
+				},
 			},
 		},
 		optimizeDeps: {

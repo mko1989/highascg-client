@@ -32,20 +32,22 @@ export async function refreshMediaMountPanel(modal) {
 	line.textContent = 'Loading…'
 	try {
 		const [dRes, mRes] = await Promise.all([
-			api.get('/api/system/block-devices'),
-			api.get('/api/system/media-mount/status'),
+			api.get('/api/usb/drives').catch((e) => { throw e }),
+			api.get('/api/system/media-mount/status').catch(() => null),
 		])
-		const devices = Array.isArray(dRes?.devices) ? dRes.devices : []
+		const devices = Array.isArray(dRes?.drives) ? dRes.drives : []
 		sel.innerHTML = '<option value="">— select —</option>'
 		for (const d of devices) {
 			const rm = d.removable ? 'removable' : 'internal'
 			const lbl = [d.label, d.mountpoint ? ` @ ${d.mountpoint}` : ''].join('').trim()
+			const pathStr = d.device || d.mountpoint || ''
+			const fsTypeStr = d.fsType || d.fstype || ''
 			const txt =
-				`[${rm}] ${d.path} ${d.size} ${d.fstype || ''}${lbl ? ' — ' + lbl : ''}`
+				`[${rm}] ${pathStr} ${d.size || ''} ${fsTypeStr}${lbl ? ' — ' + lbl : ''}`
 					.replace(/\s+/g, ' ')
 					.trim()
 			const opt = document.createElement('option')
-			opt.value = d.uuid
+			opt.value = d.id || d.uuid
 			opt.textContent = txt
 			sel.appendChild(opt)
 		}
@@ -58,6 +60,8 @@ export async function refreshMediaMountPanel(modal) {
 			lines.push(
 				`On host filesystem (${mRes.inheritsFromFilesystem}); no partition mounted solely at /home/casparcg/highascg/media/drive.`,
 			)
+		else if (!mRes)
+			lines.push('Mount status endpoint not available.')
 		else lines.push('Folder is not separately mounted.')
 		if (mRes?.savedUuid)
 			lines.push(
@@ -66,7 +70,7 @@ export async function refreshMediaMountPanel(modal) {
 		line.textContent = lines.join(' · ')
 		if (applyBtn) applyBtn.disabled = !sel.value
 	} catch (e) {
-		line.textContent = formatSettingsFetchError(e, '/api/system/block-devices')
+		line.textContent = formatSettingsFetchError(e, '/api/usb/drives')
 	}
 }
 
@@ -124,10 +128,8 @@ export async function refreshExfatSyncPanel(modal) {
 
 export async function refreshSystemHardwarePanel(modal) {
 	const summary = modal.querySelector('#system-hw-nvidia-summary')
-	const branchSel = modal.querySelector('#system-hw-nvidia-branch')
 	const stat = modal.querySelector('#system-hw-nvidia-status')
-	const applyBtn = modal.querySelector('#system-hw-nvidia-apply')
-	if (!summary || !branchSel) return
+	if (!summary) return
 	summary.textContent = 'Loading…'
 	try {
 		const r = await api.get('/api/system/gpu-nvidia')
@@ -136,28 +138,7 @@ export async function refreshSystemHardwarePanel(modal) {
 			r.nvidiaSmiLines.forEach((l) => lines.push(`nvidia-smi: ${l}`))
 		if (r?.loadedModuleVersion) lines.push(`modinfo nvidia version: ${r.loadedModuleVersion}`)
 		if (r?.dpkgDriverLine) lines.push(`dpkg: ${r.dpkgDriverLine}`)
-		if (r?.poolPath != null) lines.push(`pool: ${String(r.poolPath)}`)
-		const hp =
-			r?.helperPresent ?
-				`helper: OK (${String(r.helperScript || '')})`
-			:	`helper missing — run installer phase 4 (${String(r?.helperScript || '')})`
-		lines.push(hp)
 		summary.textContent = lines.length ? lines.join('\n') : '(no NVIDIA probes — GPU driver not loaded?)'
-		const poolBranches = Array.isArray(r?.poolBranches) ? r.poolBranches.slice().sort((a, b) => a - b) : []
-		const prev = branchSel.value
-		branchSel.innerHTML = ''
-		const optEmpty = document.createElement('option')
-		optEmpty.value = ''
-		optEmpty.textContent = poolBranches.length ? '— branch —' : '— populate /opt/nvidia-pool —'
-		branchSel.appendChild(optEmpty)
-		for (const b of poolBranches) {
-			const o = document.createElement('option')
-			o.value = String(b)
-			o.textContent = String(b)
-			branchSel.appendChild(o)
-		}
-		if (prev && [...branchSel.options].some((o) => o.value === prev)) branchSel.value = prev
-		if (applyBtn) applyBtn.disabled = poolBranches.length === 0 || !branchSel.value
 		if (stat) stat.textContent = ''
 	} catch (e) {
 		summary.textContent = e?.message || String(e)
@@ -180,13 +161,6 @@ export async function refreshDecklinkPanel(modal) {
 				line += `\tCaspar externalRef=${d.externalRef}`
 			rows.push(line)
 		}
-		if (r?.sourcesTried)
-			rows.push(
-				`sources tried: ffmpeg=${r.sourcesTried.ffmpeg} · casparLog=${r.sourcesTried.casparLog}${r.sourcesTried.casparLogPath ? ` (${r.sourcesTried.casparLogPath})` : ''}`,
-			)
-		if (Array.isArray(r?.warnings) && r.warnings.length)
-			rows.push(...r.warnings.map((w) => `warning: ${w}`))
-		if (r?.updaterPath) rows.push(`Detected updater binary: ${r.updaterPath}`)
 		summary.textContent = rows.join('\n')
 		if (stat) stat.textContent = ''
 	} catch (e) {

@@ -6,6 +6,12 @@ import { setStatus } from './device-view-ui-utils.js'
 import { resolveGpuScreenNumber } from './device-view-inspector-gpu-resolve.js'
 import { appendGpuLayoutEditorIfEditMode } from './device-view-inspector-gpu-layout-editor.js'
 import { populateGpuVideoModelineSection } from './device-view-inspector-gpu-video-modeline.js'
+import {
+	SCREEN_CONSUMER_DEFAULTS,
+	screenConsumerFlagsFromCasparServer,
+	screenConsumerDefaultsSettingsPatch,
+	shouldSeedScreenConsumerDefaults,
+} from '../lib/screen-consumer-defaults.js'
 
 export function renderGpuOutControls(h, conn, { currentSettings, lastPayload, statusEl, load, setCasparRestartDirty, connectorCtx }) {
 	const cs = currentSettings?.casparServer && typeof currentSettings.casparServer === 'object' ? currentSettings.casparServer : {}
@@ -28,9 +34,14 @@ export function renderGpuOutControls(h, conn, { currentSettings, lastPayload, st
 	const keyPosX = `screen_${screenN}_x`
 	const keyPosY = `screen_${screenN}_y`
 	const keyForceOsRes = `screen_${screenN}_force_os_resolution`
-	const windowedOn = cs[keyWindowed] !== false && cs[keyWindowed] !== 'false'
-	const vsyncOn = cs[keyVsync] !== false && cs[keyVsync] !== 'false'
-	const borderlessOn = cs[keyBorderless] === true || cs[keyBorderless] === 'true'
+	const seedConsumerDefaults = shouldSeedScreenConsumerDefaults(cs, screenN)
+	if (seedConsumerDefaults) {
+		void Actions.saveSettingsPatch(screenConsumerDefaultsSettingsPatch(screenN)).then(() => load?.())
+	}
+	const consumerFlags = seedConsumerDefaults
+		? SCREEN_CONSUMER_DEFAULTS
+		: screenConsumerFlagsFromCasparServer(cs, screenN)
+	const { windowed: windowedOn, vsync: vsyncOn, borderless: borderlessOn } = consumerFlags
 	const edidOverride = String(cs[keyEdid] || conn?.caspar?.edidOverride || '')
 	const stretchVal = String(cs[keyStretch] || 'none')
 	const keyOnlyOn = cs[keyKeyOnly] === true || cs[keyKeyOnly] === 'true'
@@ -50,7 +61,7 @@ export function renderGpuOutControls(h, conn, { currentSettings, lastPayload, st
 	const saveRef = {}
 	const runSave = () => void saveRef.invoke?.()
 
-	appendGpuLayoutEditorIfEditMode(wrapCtl, { load, lastPayload })
+	appendGpuLayoutEditorIfEditMode(wrapCtl, { load, lastPayload, statusEl })
 
 	const fullscreenCk = Object.assign(document.createElement('label'), { className: 'device-view__cablemode', title: 'Run in fullscreen mode' })
 	const fullscreenIn = Object.assign(document.createElement('input'), { type: 'checkbox' })
@@ -254,7 +265,8 @@ export function renderGpuOutControls(h, conn, { currentSettings, lastPayload, st
 		if (!confirm(`Are you sure you want to reset all settings for Screen ${screenN}?`)) return
 		const patch = {
 			casparServer: {
-				[keyMode]: null, [keyWindowed]: null, [keyVsync]: null, [keyBorderless]: null,
+				[keyMode]: null,
+				...screenConsumerDefaultsSettingsPatch(screenN).casparServer,
 				[keyCustomWidth]: null, [keyCustomHeight]: null, [keyCustomFps]: null, [keyEdid]: null,
 				[keySystemId]: null, [keyOsMode]: null, [keyOsRate]: null, [keyOsBackend]: null,
 				[keyOsTimingSource]: null,

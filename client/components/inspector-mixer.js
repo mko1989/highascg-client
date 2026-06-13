@@ -5,6 +5,10 @@
 import { sceneState } from '../lib/scene-state.js'
 import { sourceSupportsLoopPlayback } from '../lib/media-ext.js'
 import { audioOutputRoutesForLayout, normalizeAudioRouteForLayout } from '../lib/audio-routes.js'
+import { faderPercentToLinearGain, formatVolumeDb, linearGainToFaderPercent } from '../lib/audio-volume-scale.js'
+import { settingsState } from '../lib/settings-state.js'
+import { timelineState } from '../lib/timeline-state.js'
+import { createDragInput } from './inspector-common.js'
 
 /**
  * Shared Audio block: route (pair), mute, volume % — look layers + timeline clips.
@@ -59,22 +63,19 @@ export function appendAudioInspectorGroup(root, { getAudio, onPatch }) {
 	muteWrap.appendChild(muteLab)
 	grp.appendChild(muteWrap)
 
-	const volPct = Math.round((a.volume != null ? a.volume : 1) * 100)
+	const volGain = a.volume != null ? a.volume : 1
 	const volInp = createDragInput({
-		label: 'Volume %',
-		value: volPct,
+		label: `Volume (${formatVolumeDb(volGain)})`,
+		value: linearGainToFaderPercent(volGain),
 		min: 0,
 		max: 100,
 		step: 1,
 		decimals: 0,
-		onChange: (v) => onPatch({ volume: Math.max(0, Math.min(1, v / 100)) }),
+		onChange: (v) => onPatch({ volume: faderPercentToLinearGain(v) }),
 	})
 	grp.appendChild(volInp.wrap)
 	root.appendChild(grp)
 }
-import { settingsState } from '../lib/settings-state.js'
-import { timelineState } from '../lib/timeline-state.js'
-import { createDragInput } from './inspector-common.js'
 
 /**
  * @param {HTMLElement} root

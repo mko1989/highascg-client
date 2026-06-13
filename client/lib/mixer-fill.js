@@ -5,6 +5,7 @@
 
 import { fillToPixelRect } from './fill-math.js'
 import { api } from './api-client.js'
+import { inputChannelResolution, isAnyInputChannel } from './input-channels.js'
 
 /**
  * Layer fills are authored in program compose pixels; PRV may differ (letterbox / pillarbox).
@@ -278,21 +279,17 @@ export function getContentResolution(source, stateStore, screenIdx = 0) {
 		return parseResolutionString(m?.resolution) || null
 	}
 	if (source.type === 'live_audio') {
-		const inputsCh = channelMap.inputsCh
-		if (inputsCh != null) {
-			const ir = channelMap.inputsResolution
-			return ir ? { w: ir.w, h: ir.h } : { w: 1920, h: 1080 }
-		}
-		return { w: 1920, h: 1080 }
+		const slot = parseInt(String(source.value || '1'), 10) || 1
+		const res = inputChannelResolution(channelMap, channelMap?.liveAudioInputChannels?.[slot - 1])
+		return res?.w ? res : { w: 1920, h: 1080 }
 	}
 	if (source.type === 'route' || String(source.value || '').startsWith('route://')) {
 		const match = String(source.value || '').match(/route:\/\/(\d+)(?:-(\d+))?/)
 		if (match) {
 			const ch = parseInt(match[1], 10)
-			const inputsCh = channelMap.inputsCh
-			if (inputsCh != null && ch === inputsCh) {
-				const ir = channelMap.inputsResolution
-				return ir ? { w: ir.w, h: ir.h } : null
+			if (isAnyInputChannel(channelMap, ch)) {
+				const res = inputChannelResolution(channelMap, ch)
+				return res?.w ? res : { w: 1920, h: 1080 }
 			}
 			const programChannels = channelMap.programChannels || []
 			const previewChannels = channelMap.previewChannels || []

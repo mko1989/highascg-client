@@ -136,11 +136,21 @@
 .device-view__panel-marker--dlo {
 	background: rgba(139, 92, 246, 0.8);
 }
-.device-view__panel-marker--stream,
-.device-view__panel-marker--record {
+.device-view__panel-marker--stream {
 	width: 34px;
 	height: 34px;
 	background: rgba(245, 158, 11, 0.85);
+}
+.device-view__panel-marker--record {
+	width: 36px;
+	height: 36px;
+	background: rgba(245, 158, 11, 0.85);
+}
+.device-view__panel-marker--record .device-view__panel-connector-img {
+	filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.5));
+}
+.device-view__panel-marker--record:hover .device-view__panel-connector-img {
+	filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.75));
 }
 .device-view__panel-marker--audio {
 	width: 36px;

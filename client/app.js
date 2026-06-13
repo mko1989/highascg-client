@@ -7,6 +7,8 @@ import { api } from './lib/api-client.js'
 import StateStore from './lib/state-store.js'
 import { initSourcesPanel } from './components/sources-panel.js'
 import { sceneState } from './lib/scene-state.js'
+import { applyEditorDefaultsToRuntime } from './lib/editor-defaults.js'
+import { setAppRuntime } from './lib/app-runtime.js'
 import { normalizeGlobalBordersArray } from './lib/scene-state-global-border.js'
 import { initScenesEditor } from './components/scenes-editor.js'
 import { initTimelineEditor } from './components/timeline-editor.js'
@@ -14,10 +16,12 @@ import { initInspectorPanel } from './components/inspector-panel.js'
 import { initMultiviewEditor } from './components/multiview-editor.js'
 import { initWorkspaceLayout } from './lib/workspace-layout.js'
 import { initHeaderBar } from './components/header-bar.js'
+import { projectFileIdFromName } from './lib/project-files.js'
 import { initAudioMixerPanel } from './components/audio-mixer-panel.js'
+import { refreshLiveAudioConfigured } from './lib/live-audio-state.js'
 import { mountPgmTopLayerPlaybackTimer } from './components/playback-timer.js'
 import { programOutputState } from './lib/program-output-state.js'
-import { settingsState } from './lib/settings-state.js'
+import { applySettingsFromServer, settingsState } from './lib/settings-state.js'
 import { streamState, applyBrowserMonitorFromSettings } from './lib/stream-state.js'
 import { showSettingsModal } from './components/settings-modal.js'
 import { createConnectionEye } from './components/connection-eye.js'
@@ -33,7 +37,8 @@ import { initOptionalModules } from './lib/optional-modules.js'
 import { initDeviceView } from './components/device-view.js'
 import { initAudioMixerView } from './components/audio-mixer-view.js'
 import { placeholderState } from './lib/placeholder-state.js'
-import { markLocalProjectSaved } from './lib/project-remote-sync.js'
+import { importProjectWithHardwareReconcile } from './lib/project-import-flow.js'
+import { normalizeProjectPayload } from './lib/project-load.js'
 
 
 import * as Status from './lib/app-status.js'
@@ -44,6 +49,7 @@ import * as MvSync from './lib/app-multiview-sync.js'
 export const stateStore = new StateStore()
 export const ws = new WsClient()
 window.placeholderState = placeholderState
+settingsState.subscribe(() => applyEditorDefaultsToRuntime(sceneState))
 getVariableStore(ws)
 
 let _oscClient = null; let httpConnected = false; let _casparAmcpConnected = false; let connectionEye = null
@@ -138,7 +144,9 @@ async function init() {
 	})
 	initTabs(); initWorkspaceLayout()
 	void initOptionalModules({ stateStore, ws, api, sceneState, settingsState, streamState })
-	_oscClient = new OscClient({ wsClient: ws }); window.highascg_osc_client = _oscClient
+	_oscClient = new OscClient({ wsClient: ws })
+	window.highascg_osc_client = _oscClient
+	setAppRuntime({ ws, osc: _oscClient })
 
 	Handlers.attachWsHandlers(ws, { stateStore, sceneState, timelineState, multiviewState, programOutputState, projectState, dmxState, variableStore: getVariableStore(ws), appLogic })
 	let autosaveTimeout = null
@@ -167,8 +175,9 @@ async function init() {
 	sceneState.on('persisted', () => {
 		appLogic.scheduleSceneDeckSync()
 		const project = projectState.exportProject(sceneState, timelineState, multiviewState, programOutputState)
+		const id = projectFileIdFromName(project.name || projectState.getProjectName())
 		markLocalProjectSaved()
-		api.post('/api/project/save', { project })
+		api.post('/api/project/save', { project, id })
 			.catch(e => console.warn('[HighAsCG] Main save failed:', e.message))
 		scheduleAutosave()
 	})
@@ -255,7 +264,10 @@ async function init() {
 	window.__highascgApplyExtraLiveSources = (list) => {
 		if (Array.isArray(list)) stateStore.applyChange('extraLiveSources', list)
 	}
-	initScenesEditor(document.querySelector('#tab-scenes'), stateStore, { getOscClient: () => _oscClient })
+	initScenesEditor(document.querySelector('#tab-scenes'), stateStore, {
+		getOscClient: () => _oscClient,
+		getVariableStore: () => getVariableStore(ws),
+	})
 	initTimelineEditor(document.querySelector('#tab-timeline'), stateStore); initMultiviewEditor(document.querySelector('#tab-multiview'), stateStore)
 	initPixelMapEditor(document.querySelector('#tab-pixelmap'), stateStore); initInspectorPanel(document.getElementById('panel-inspector-scroll') || document.getElementById('panel-inspector-body') || document.querySelector('#panel-inspector .panel__body'), stateStore)
 	initAudioMixerPanel(stateStore, document.getElementById('panel-inspector-audio-mount'))
@@ -266,7 +278,11 @@ async function init() {
 	})
 
 	try {
-		const settings = await api.get('/api/settings'); if (settings) { Object.assign(settingsState.settings, settings); settingsState.notify() }
+		const settings = await api.get('/api/settings')
+		if (settings) {
+			applySettingsFromServer(settings)
+			settingsState.notify()
+		}
 		if (settings?.offline_mode) await stateStore.hydrateFromCache()
 		const state = await api.get('/api/state'); if (state) {
 			stateStore.setState(state); if (state.variables) getVariableStore(ws)?.mergeFromServer(state.variables)
@@ -281,8 +297,20 @@ async function init() {
 			httpConnected = true; appLogic.updateStatus(true); appLogic.refreshEye()
 		}
 		if (!settings?.offline_mode) {
+			void refreshLiveAudioConfigured(stateStore)
 			try {
-				const proj = await api.get('/api/project'); if (proj?.version) { projectState.importProject(proj, sceneState, timelineState, multiviewState, programOutputState); window.dispatchEvent(new Event('project-loaded')) }
+				const projRaw = await api.get('/api/project')
+				const proj = normalizeProjectPayload(projRaw)
+				if (proj?.version) {
+					await importProjectWithHardwareReconcile(proj, {
+						projectState,
+						sceneState,
+						timelineState,
+						multiviewState,
+						programOutputState,
+						source: 'boot',
+					})
+				}
 			} catch {}
 		}
 	} catch (err) { console.warn('[HighAsCG] Bootstrap failed:', err.message) }

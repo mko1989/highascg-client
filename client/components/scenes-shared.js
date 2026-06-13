@@ -3,9 +3,14 @@
  */
 
 import { TRANSITION_TYPES, TRANSITION_TWEENS, TRANSITION_TYPE_LABELS, migrateTransitionTypeToAnimate } from '../lib/program-output-state.js'
+import { linearGainToCasparDb } from '../lib/audio-volume-scale.js'
 import { parseNumberInput } from '../lib/math-input.js'
 import { sceneState } from '../lib/scene-state.js'
 import { getPipOverlaysFromLayer } from '../lib/pip-overlay-registry.js'
+import {
+	getLiveLayerPlayheadFrames,
+	playSeekFramesForRelativeToPrevious,
+} from '../lib/layer-playhead-resolve.js'
 
 export function amcpParam(str) {
 	if (str == null || str === '') return ''
@@ -143,26 +148,35 @@ export function clipAtTimelineMs(layer, ms) {
 }
 
 /**
- * Caspar SEEK frame for a program look take — from the timeline clip on the same layer index.
- * @param {object} timeline
- * @param {number} layerIdx
- * @param {number} positionMs
- * @param {'beginning' | 'relativeToPrevious' | undefined} [sceneLayerBehaviour] — look layer override (takes precedence over clip).
- * @returns {number | null} Frame index, or null to omit SEEK (use Caspar default).
+ * @param {'beginning' | 'relativeToPrevious' | undefined} sceneLayerBehaviour
+ * @param {'beginning' | 'relativeToPrevious' | undefined} clipStartBehaviour
  */
-export function playSeekFramesForSceneLayerFromTimeline(timeline, layerIdx, positionMs, sceneLayerBehaviour) {
-	const layer = timeline?.layers?.[layerIdx]
-	const clip = clipAtTimelineMs(layer, positionMs)
-	if (!clip) return null
+function effectiveStartBehaviour(sceneLayerBehaviour, clipStartBehaviour) {
+	if (sceneLayerBehaviour === 'beginning' || sceneLayerBehaviour === 'relativeToPrevious') {
+		return sceneLayerBehaviour
+	}
+	return clipStartBehaviour === 'relativeToPrevious' ? 'relativeToPrevious' : 'beginning'
+}
+
+/**
+ * @param {object} clip
+ * @param {object} timeline
+ * @param {number} positionMs
+ * @param {'beginning' | 'relativeToPrevious'} startBehaviour
+ * @param {{ programChannel?: number, layerNumber?: number, fps?: number, mainIdx?: number, stateStore?: object, variableStore?: object, oscClient?: object } | null} [playheadCtx]
+ * @returns {number | null}
+ */
+export function playSeekFramesFromClip(clip, timeline, positionMs, startBehaviour, playheadCtx) {
 	const src = String(clip.source?.value || '')
 	if (src.startsWith('route://')) return null
 	const fps = Math.max(1, timeline.fps || 25)
 	const inFrames = Number(clip.inPoint) || 0
-	const sb =
-		sceneLayerBehaviour === 'beginning' || sceneLayerBehaviour === 'relativeToPrevious'
-			? sceneLayerBehaviour
-			: (clip.startBehaviour || 'beginning')
-	if (sb === 'relativeToPrevious') {
+	if (startBehaviour === 'relativeToPrevious') {
+		const ln = playheadCtx?.layerNumber
+		if (playheadCtx?.programChannel && ln != null) {
+			const live = getLiveLayerPlayheadFrames({ ...playheadCtx, fps, layerNumber: ln })
+			if (live != null) return inFrames + live
+		}
 		const localMs = Math.max(0, positionMs - (clip.startTime || 0))
 		const relativeFrame = Math.floor((localMs * fps) / 1000)
 		return inFrames + relativeFrame
@@ -171,10 +185,75 @@ export function playSeekFramesForSceneLayerFromTimeline(timeline, layerIdx, posi
 }
 
 /**
- * @param {import('../lib/scene-state.js').Scene} scene
- * @param {{ timeline: object, positionMs: number }} [timelineSeekOpts] — when set, adds `playSeekFrames` per layer from the active timeline clip (same layer index).
+ * SEEK frame for look take — timeline clip on same layer index, or scene-only start behaviour.
+ * @param {{ timeline?: object | null, layerIdx: number, positionMs?: number, sceneLayer?: { layerNumber?: number, source?: { value?: string }, startBehaviour?: string } | null, playheadCtx?: object | null }} opts
+ * @returns {number | null} Frame index, or null to omit SEEK (Caspar default).
  */
-export function buildIncomingScenePayload(scene, timelineSeekOpts) {
+export function resolvePlaySeekFramesForSceneLayer(opts) {
+	const { timeline, layerIdx, sceneLayer, playheadCtx } = opts
+	const positionMs = typeof opts.positionMs === 'number' ? opts.positionMs : 0
+	const sceneSb =
+		sceneLayer?.startBehaviour === 'beginning' || sceneLayer?.startBehaviour === 'relativeToPrevious'
+			? sceneLayer.startBehaviour
+			: undefined
+	const layerCtx =
+		playheadCtx && sceneLayer?.layerNumber != null
+			? { ...playheadCtx, layerNumber: sceneLayer.layerNumber }
+			: playheadCtx
+
+	const tlLayer = timeline?.layers?.[layerIdx]
+	const clip = tlLayer ? clipAtTimelineMs(tlLayer, positionMs) : null
+	if (clip && timeline) {
+		return playSeekFramesFromClip(
+			clip,
+			timeline,
+			positionMs,
+			effectiveStartBehaviour(sceneSb, clip.startBehaviour),
+			layerCtx,
+		)
+	}
+
+	if (sceneSb === 'beginning') return 0
+	if (sceneSb === 'relativeToPrevious') {
+		if (layerCtx?.programChannel && sceneLayer?.layerNumber != null) {
+			return playSeekFramesForRelativeToPrevious(0, layerCtx)
+		}
+		return 0
+	}
+	return null
+}
+
+/**
+ * @param {object} timeline
+ * @param {number} layerIdx
+ * @param {number} positionMs
+ * @param {'beginning' | 'relativeToPrevious' | undefined} [sceneLayerBehaviour]
+ * @returns {number | null}
+ */
+export function playSeekFramesForSceneLayerFromTimeline(timeline, layerIdx, positionMs, sceneLayerBehaviour) {
+	return resolvePlaySeekFramesForSceneLayer({
+		timeline,
+		layerIdx,
+		positionMs,
+		sceneLayer: sceneLayerBehaviour ? { startBehaviour: sceneLayerBehaviour } : undefined,
+	})
+}
+
+/**
+ * @param {import('../lib/scene-state.js').Scene} scene
+ * @param {{
+ *   timeline?: object | null,
+ *   positionMs?: number,
+ *   programChannel?: number,
+ *   mainIdx?: number,
+ *   fps?: number,
+ *   stateStore?: object,
+ *   variableStore?: object,
+ *   oscClient?: object,
+ *   transitionTake?: boolean — when true (MIX etc.), SEEK each layer to live `current_duration` on PGM if known.
+ * }} [seekOpts] — adds `playSeekFrames` per layer (timeline + live PGM playhead).
+ */
+export function buildIncomingScenePayload(scene, seekOpts) {
 	const layers = (scene.layers || []).map((l) => {
 		const row = {
 			layerNumber: l.layerNumber,
@@ -198,6 +277,7 @@ export function buildIncomingScenePayload(scene, timelineSeekOpts) {
 			audioRoute: l.audioRoute || '1+2',
 			muted: !!l.muted,
 			volume: l.volume != null ? l.volume : 1,
+			volumeDb: linearGainToCasparDb(l.muted ? 0 : l.volume != null ? l.volume : 1),
 			fadeOnEnd:
 				l.fadeOnEnd && typeof l.fadeOnEnd === 'object'
 					? { enabled: !!l.fadeOnEnd.enabled, frames: l.fadeOnEnd.frames ?? 12 }
@@ -218,18 +298,43 @@ export function buildIncomingScenePayload(scene, timelineSeekOpts) {
 		return row
 	})
 
-	if (
-		timelineSeekOpts?.timeline &&
-		typeof timelineSeekOpts.positionMs === 'number' &&
-		Number.isFinite(timelineSeekOpts.positionMs)
-	) {
-		const tl = timelineSeekOpts.timeline
-		const pos = timelineSeekOpts.positionMs
-		const sceneLayers = scene.layers || []
-		for (let i = 0; i < layers.length; i++) {
-			const frames = playSeekFramesForSceneLayerFromTimeline(tl, i, pos, sceneLayers[i]?.startBehaviour)
-			if (frames != null) layers[i] = { ...layers[i], playSeekFrames: frames }
+	const sceneLayers = scene.layers || []
+	const tl = seekOpts?.timeline ?? null
+	const pos =
+		typeof seekOpts?.positionMs === 'number' && Number.isFinite(seekOpts.positionMs)
+			? seekOpts.positionMs
+			: 0
+	const playheadBase =
+		seekOpts?.programChannel != null
+			? {
+					programChannel: seekOpts.programChannel,
+					mainIdx: seekOpts.mainIdx,
+					fps: seekOpts.fps,
+					stateStore: seekOpts.stateStore,
+					variableStore: seekOpts.variableStore,
+					oscClient: seekOpts.oscClient,
+				}
+			: null
+	for (let i = 0; i < layers.length; i++) {
+		const sl = sceneLayers[i]
+		let frames = null
+		if (seekOpts?.transitionTake && playheadBase && sl?.layerNumber != null && sl?.source?.value) {
+			const live = getLiveLayerPlayheadFrames({
+				...playheadBase,
+				layerNumber: sl.layerNumber,
+			})
+			if (live != null) frames = live
 		}
+		if (frames == null) {
+			frames = resolvePlaySeekFramesForSceneLayer({
+				timeline: tl,
+				layerIdx: i,
+				positionMs: pos,
+				sceneLayer: sl,
+				playheadCtx: playheadBase,
+			})
+		}
+		if (frames != null) layers[i] = { ...layers[i], playSeekFrames: frames }
 	}
 
 	const cv = sceneState.getCanvasForScreen(sceneState.activeScreenIndex)

@@ -1,11 +1,11 @@
 import { getVariableStore } from './variable-state.js'
-import { getOscClient, ws } from '../app.js'
+import { getAppOsc, getAppWs } from './app-runtime.js'
 import { readBusPeakDbfs, readLayerPeakDbfs } from './audio-mixer-peaks.js'
 
 /**
  * @param {{
  *   meterFills: Map<string, HTMLDivElement>,
- *   meterLayerMeta: Map<string, { volume: number, paused: boolean }>,
+ *   meterLayerMeta: Map<string, { paused?: boolean, muted?: boolean }>,
  *   meterSmooth: Map<string, number>,
  *   stateStore: import('./state-store.js').StateStore,
  *   layerFillAxis?: 'width' | 'height',
@@ -37,9 +37,10 @@ export function createAudioMeterLoop(ctx) {
 
 	function start() {
 		if (raf) return
-		const vars = getVariableStore(ws)
+		const ws = getAppWs()
+		const vars = ws ? getVariableStore(ws) : null
 		const tick = () => {
-			const oscClient = getOscClient()
+			const oscClient = getAppOsc()
 			for (const [key, fill] of meterFills) {
 				let level = -99
 				if (key.includes(':layer:')) {
@@ -51,6 +52,9 @@ export function createAudioMeterLoop(ctx) {
 						Number.isFinite(chNum) && Number.isFinite(lnNum)
 							? readLayerPeakDbfs(chNum, lnNum, oscClient, stateStore, meta)
 							: -99
+				} else if (key.startsWith('input:')) {
+					const chNum = parseInt(key.slice(6), 10)
+					level = Number.isFinite(chNum) ? readBusPeakDbfs(chNum, vars, oscClient, stateStore) : -99
 				} else {
 					const [, chStr] = key.split(':')
 					const chNum = parseInt(chStr, 10)

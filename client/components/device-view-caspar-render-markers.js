@@ -1,5 +1,6 @@
 import { DECKLINK_REAR_ORDER_KEY } from '../lib/device-view-decklink-order.js'
 import { GPU_CUSTOM_LAYOUT_KEY } from '../lib/device-view-gpu-port-list.js'
+import { gpuLayoutLog, isGpuLayoutDebugEnabled } from '../lib/device-view-gpu-layout-debug.js'
 import { casparRearKindTitle, casparRearKindToIcon } from './device-view-caspar-render-helpers.js'
 
 export function buildCasparRearMarkerLayoutItems(slots, casparConnectors) {
@@ -46,6 +47,8 @@ export function buildCasparRearMarkerLayoutItems(slots, casparConnectors) {
 					currentY = n > 1 ? yBase + (visualRow / (n - 1)) * yRange : 40
 				}
 
+				const isDisconnectedGpu = slot.title === 'GPU' && !it.connected
+				
 				markerItems.push({
 					connectorId: it.id,
 					layoutSlotId: it.layoutSlotId,
@@ -61,7 +64,7 @@ export function buildCasparRearMarkerLayoutItems(slots, casparConnectors) {
 					connected: it.connected,
 					pairs: it.pairs,
 					hidden: it.hidden,
-					container: slot.container,
+					container: isDisconnectedGpu ? slot.disconnectedContainer : slot.container,
 				})
 			})
 
@@ -99,6 +102,7 @@ export function appendCasparRearPanelMarkers({
 	onPortClick,
 	onPortStartCable,
 }) {
+	const clearedContainers = new Set()
 	markerItems.forEach((it) => {
 		if (!casparOverlay) return
 		const marker = document.createElement('button')
@@ -119,13 +123,22 @@ export function appendCasparRearPanelMarkers({
 		if (it.hidden) {
 			marker.dataset.hidden = 'true'
 			marker.style.display = 'none'
+			if (it.kind === 'gpu_out' && isGpuLayoutDebugEnabled()) {
+				gpuLayoutLog('marker DOM hidden (display:none)', {
+					connectorId: it.connectorId,
+					layoutSlotId: it.layoutSlotId,
+					label: it.label,
+					editMode: !!getGpuEditMode?.(),
+				})
+			}
 		}
 
 		const monitorPart = it.kind === 'gpu_out'
 			? ` · ${it.connected ? 'connected' : 'disconnected'}${it.monitor ? ` · ${it.monitor}` : ''}${it.resolution ? ` · ${it.resolution}` : ''}${Number.isFinite(it.refreshHz) ? ` @ ${it.refreshHz}Hz` : ''}`
 			: ''
-		marker.title = it.isVirtual
-			? `${it.label} (Physical port, unmapped)${monitorPart}`
+		const unmappedGpu = it.kind === 'gpu_out' && it.isVirtual
+		marker.title = unmappedGpu
+			? `${it.label} (Physical port — not in Device View graph)${monitorPart}`
 			: `${it.label} — ${casparRearKindTitle(kind)} · id ${it.connectorId}${monitorPart}`
 
 		const iconPath = it.icon || casparRearKindToIcon(kind)
@@ -290,6 +303,10 @@ export function appendCasparRearPanelMarkers({
 		if (selectedConnectorId && it.connectorId === selectedConnectorId) marker.classList.add('device-view__panel-marker--selected')
 		if (cableSourceId && it.connectorId === cableSourceId) marker.classList.add('device-view__panel-marker--armed')
 		if (it.container) {
+			if (!clearedContainers.has(it.container)) {
+				it.container.replaceChildren()
+				clearedContainers.add(it.container)
+			}
 			it.container.append(marker)
 		} else {
 			casparOverlay.append(marker)

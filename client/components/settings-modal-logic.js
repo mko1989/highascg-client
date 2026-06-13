@@ -2,17 +2,30 @@
  * Collection and hydration logic for Settings Modal.
  */
 import { settingsState } from '../lib/settings-state.js'
+import { collectEditorDefaultsFromModal, hydrateEditorDefaultsModal, applyEditorDefaultsToRuntime } from '../lib/editor-defaults.js'
+import { sceneState } from '../lib/scene-state.js'
 import {
 	collectOpenalAudioRoutingFromModal,
 } from './settings-modal-caspar-collect.js'
+
+/** Push Defaults tab values into settingsState so new layers/clips use them before autosave completes. */
+export function syncEditorDefaultsFromModal(modal) {
+	const editorDefaults = collectEditorDefaultsFromModal(modal)
+	settingsState.settings.editorDefaults = editorDefaults
+	applyEditorDefaultsToRuntime(sceneState, { syncSceneGlobalTransition: true })
+	return editorDefaults
+}
 
 export function buildSettingsPayload(modal) {
 	const prevAr = settingsState.getSettings()?.audioRouting || {}
 	const openalAr = collectOpenalAudioRoutingFromModal(modal)
 	const prevStream = settingsState.getSettings()?.streaming || {}
 	const prevAll = settingsState.getSettings() || {}
-	
+	const editorDefaults = syncEditorDefaultsFromModal(modal)
+
 	const settings = {
+		...prevAll,
+		editorDefaults,
 		local_media_path: modal.querySelector('#set-local-media-path')?.value?.trim() ?? prevAll.local_media_path ?? '',
 		caspar: {
 			host: modal.querySelector('#set-caspar-host')?.value ?? prevAll.caspar?.host ?? '127.0.0.1',
@@ -77,6 +90,7 @@ export function buildSettingsPayload(modal) {
 }
 
 export function hydrateSettings(modal, cfg) {
+	hydrateEditorDefaultsModal(modal, cfg.editorDefaults)
 	const casparHostEl = modal.querySelector('#set-caspar-host'); if (casparHostEl) casparHostEl.value = cfg.caspar.host
 	const casparPortEl = modal.querySelector('#set-caspar-port'); if (casparPortEl) casparPortEl.value = cfg.caspar.port
 	const offlineModeEl = modal.querySelector('#set-offline-mode'); if (offlineModeEl) offlineModeEl.checked = !!cfg.offline_mode

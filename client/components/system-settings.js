@@ -5,7 +5,7 @@
 
 import { api } from '../lib/api-client.js'
 import { getVariableStore } from '../lib/variable-state.js'
-import { ws } from '../app.js'
+import { getAppWs } from '../lib/app-runtime.js'
 import { drmShort, findDisplayDetail, multiviewUiShowsScreenRow, packOsValue, escAttr, escHtml, renderCasparOpenalSection, refreshSystemTabOpenal } from './system-settings-helpers.js'
 
 
@@ -371,7 +371,8 @@ export async function mountSystemSettings(container) {
 			}
 		}
 
-		const vars = getVariableStore(ws)
+		const ws = getAppWs()
+		const vars = ws ? getVariableStore(ws) : null
 		const uptimeEl = container.querySelector('#diag-uptime')
 		const memEl = container.querySelector('#diag-memory')
 		const casparEl = container.querySelector('#diag-caspar')

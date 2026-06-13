@@ -24,6 +24,7 @@ import {
 	sceneStateGetGlobalBorderPreset,
 	sceneStateSetGlobalBorder,
 } from './scene-state-global-border.js'
+import { applySceneLayerDefaults } from './editor-defaults.js'
 import {
 	sceneStateCopyLayerStyle,
 	sceneStateSaveLayerPresetFromLayer,
@@ -355,7 +356,11 @@ export class SceneState {
 	addLayer(sceneId) {
 		const s = this.getScene(sceneId)
 		if (!s) return -1
-		s.layers.push(defaultLayerConfig(this.nextLayerNumber(s))); this._save(); return s.layers.length - 1
+		const layer = defaultLayerConfig(this.nextLayerNumber(s))
+		applySceneLayerDefaults(layer)
+		s.layers.push(layer)
+		this._save()
+		return s.layers.length - 1
 	}
 
 	removeLayer(sceneId, layerIndex) {

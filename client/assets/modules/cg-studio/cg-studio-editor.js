@@ -2,7 +2,6 @@
  * GrapesJS integration for HighAsCG CG Overlay Studio (WO-32).
  */
 
-import grapesjs from 'grapesjs'
 import { buildCasparTemplateHtml } from '../../../lib/cg-studio-caspar-export.js'
 
 /** Editor-only iframe background (not exported in getHtml/getCss). */
@@ -87,7 +86,12 @@ function tryMountInspectorPanels() {
 /**
  * @param {HTMLElement} container — `#tab-cg-studio`
  */
+const GRAPESJS_VENDOR = '/vendor/grapesjs/dist/grapes.mjs'
+
 export async function initEditor(container) {
+	const mod = await import(/* @vite-ignore */ GRAPESJS_VENDOR)
+	const grapesjs = mod.default || mod
+
 	const header = document.createElement('div')
 	header.className = 'cg-studio-toolbar'
 

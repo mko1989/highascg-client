@@ -8,18 +8,12 @@ import { api } from '../lib/api-client.js'
 import { multiviewState } from '../lib/multiview-state.js'
 import { createMathInput } from '../lib/math-input.js'
 import { createDragInput } from './inspector-common.js'
+import { fillInspectorPositionMeta } from '../lib/coordinate-origin.js'
 import { getCellOverlayType, resolveSourceAspectRatio, solveCellDimensions } from './multiview-editor-canvas.js'
 
-/** @typedef {'native' | 'fill-canvas' | 'horizontal' | 'vertical' | 'stretch'} SceneContentFit */
+import { SCENE_CONTENT_FIT_OPTIONS } from '../lib/scene-content-fit.js'
 
-/** Same labels/values as look editor — also used by timeline clip inspector. */
-export const SCENE_CONTENT_FIT_OPTIONS = /** @type {const} */ ([
-	{ value: 'native', label: 'Native (1:1 px)' },
-	{ value: 'fill-canvas', label: 'Fit canvas' },
-	{ value: 'horizontal', label: 'Fill width' },
-	{ value: 'vertical', label: 'Fill height' },
-	{ value: 'stretch', label: 'Stretch' },
-])
+export { SCENE_CONTENT_FIT_OPTIONS }
 
 /** @type {const} */
 export const LAYER_ALIGN_MODES = [
@@ -117,14 +111,22 @@ export function appendSceneLayerFillGroup(root, opts) {
 		document.dispatchEvent(new CustomEvent('scenes-refresh-preview'))
 	}
 
+	const posMeta = fillInspectorPositionMeta()
 	const fillGrp = document.createElement('div')
 	fillGrp.className = 'inspector-group'
-	fillGrp.innerHTML = '<div class="inspector-group__title">Position / size (canvas px)</div>'
+	fillGrp.innerHTML = `<div class="inspector-group__title">${posMeta.title}</div>`
+	if (posMeta.subtitle) {
+		const sub = document.createElement('p')
+		sub.className = 'inspector-field inspector-field--hint'
+		sub.style.fontSize = '0.78rem'
+		sub.textContent = posMeta.subtitle
+		fillGrp.appendChild(sub)
+	}
 
 	appendLayerAlignButtons(fillGrp, patchFillAlign)
 
 	const xInp = createDragInput({
-		label: 'X',
+		label: posMeta.xLabel,
 		value: Math.round(pxRect.x),
 		min: -999999,
 		max: 999999,
@@ -133,7 +135,7 @@ export function appendSceneLayerFillGroup(root, opts) {
 		onChange: (v) => patchFillPx({ x: v }),
 	})
 	const yInp = createDragInput({
-		label: 'Y',
+		label: posMeta.yLabel,
 		value: Math.round(pxRect.y),
 		min: -999999,
 		max: 999999,
@@ -317,4 +319,3 @@ export function appendMultiviewPositionSize(root, { cellId, cell, stateStore }) 
 	})
 }
 
-export { appendTimelineClipKeyframes } from './inspector-fill-timeline.js'

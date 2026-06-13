@@ -1,4 +1,5 @@
 import { hasDrmGpuPhysicalMap } from '../lib/device-view-gpu-port-list.js'
+import { normRandrCaspar } from './device-view-caspar-render-helpers.js'
 
 export const CASPAR_HOST = 'caspar_host'
 
@@ -15,8 +16,29 @@ export function connectorById(payload, id) {
 	const sid = String(id || '').trim()
 	// GPU rear-panel ports can exist as physical runtime ports before graph/suggested mapping.
 	// Provide a synthetic gpu_out connector so GPU inspector settings stay available.
-	if (/^gpu_p\d+(_\d+)?$/i.test(sid)) {
+	if (/^gpu_p\d+(__[A-Za-z0-9_]+)?$/i.test(sid)) {
 		const ports = Array.isArray(payload?.live?.gpu?.physicalMap?.ports) ? payload.live.gpu.physicalMap.ports : []
+		const split = sid.match(/^(gpu_p\d+)__(.+)$/i)
+		if (split) {
+			const parentId = split[1]
+			const tag = split[2].replace(/_/g, '-')
+			const p = ports.find((x) => String(x?.physicalPortId || '').trim() === parentId) || null
+			const probe =
+				[p?.probe?.connectorA, p?.probe?.connectorB].find(
+					(c) => normRandrCaspar(c?.shortName) === normRandrCaspar(tag),
+				) || null
+			const shortName = String(probe?.shortName || tag).trim()
+			return {
+				id: sid,
+				deviceId: CASPAR_HOST,
+				kind: 'gpu_out',
+				label: shortName,
+				externalRef: String(probe?.name || shortName),
+				gpuPhysical: p?.pair ? { pair: p.pair, slotOrder: p.slotOrder } : undefined,
+				parentPortId: parentId,
+				isSynthetic: true,
+			}
+		}
 		const p = ports.find((x) => String(x?.physicalPortId || '').trim() === sid) || null
 		const pairName = String(p?.pair?.name || '').trim()
 		const active = String(p?.runtime?.activePort || '').trim()
@@ -184,9 +206,13 @@ export function resolveConnectorId(lastPayload, type, data) {
 export function isConnectorVisible(lastPayload, id) {
 	if (!id) return false
 	const sid = String(id).trim()
-	if (/^gpu_p\d+(_\d+)?$/i.test(sid) && hasDrmGpuPhysicalMap(lastPayload?.live)) {
+	if (hasDrmGpuPhysicalMap(lastPayload?.live)) {
 		const ports = lastPayload?.live?.gpu?.physicalMap?.ports || []
 		if (ports.some((p) => String(p?.physicalPortId || '').trim() === sid)) return true
+		if (/^gpu_p\d+__/i.test(sid)) {
+			const parent = sid.replace(/__.*$/, '')
+			if (ports.some((p) => String(p?.physicalPortId || '').trim() === parent)) return true
+		}
 	}
 	const graphArr = lastPayload?.graph?.connectors || []
 	const suggestedArr = lastPayload?.suggested?.connectors || []
@@ -240,6 +266,9 @@ export function friendlyConnectorLabel(lastPayload, connectorId) {
 	}
 	if (conn?.kind === 'gpu_out') {
 		const pid = String(conn?.id || '')
+		if (/^gpu_p\d+__/i.test(pid)) {
+			return String(conn?.label || pid.split('__').slice(1).join('__').replace(/_/g, '-') || pid)
+		}
 		if (/^gpu_p\d+$/i.test(pid)) {
 			const pair = String(conn?.gpuPhysical?.pair?.name || '').trim()
 			return pair ? `${pid} (${pair})` : pid

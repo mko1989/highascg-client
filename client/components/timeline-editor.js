@@ -16,6 +16,7 @@ import { initPreviewPanel, drawTimelineStack } from './preview-canvas.js'
 import { createTimelineTransport } from './timeline-transport.js'
 import { streamState } from '../lib/stream-state.js'
 import { settingsState } from '../lib/settings-state.js'
+import { getDefaultTransitionFromEditor } from '../lib/editor-defaults.js'
 import {
 	createNotifyTimelineSeekFailed,
 	createTimelineCanvasHandlers,
@@ -38,7 +39,7 @@ export function initTimelineEditor(root, stateStore) {
 	const view = {
 		sendTo: { preview: true, program: false, screenIdx: 0 },
 		follow: true,
-		takeTransition: { type: 'MIX', duration: 12, tween: 'linear' },
+		takeTransition: { ...getDefaultTransitionFromEditor() },
 	}
 
 	// Smooth playhead: track server tick reference point for local interpolation (same clock as RAF)
@@ -384,6 +385,10 @@ export function initTimelineEditor(root, stateStore) {
 		redrawTimelineView()
 	})
 	window.addEventListener('timeline-redraw-request', () => redrawTimelineView())
+	document.addEventListener('highascg-editor-defaults-changed', () => {
+		view.takeTransition = { ...getDefaultTransitionFromEditor() }
+		buildTransport()
+	})
 
 	// When the timeline tab is clicked, force canvas resize + fit
 	document.addEventListener('timeline-tab-activated', () => {

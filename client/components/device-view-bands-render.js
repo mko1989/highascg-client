@@ -276,6 +276,9 @@ export function renderBands(mappingPanel, rearPanel, ctx, { currentSettings, sta
 	const internalCtx = {
 		...ctx,
 		currentSettings,
+		statusEl,
+		load,
+		setCasparRestartDirty,
 		onAddStreamOutput: async () => {
 			try {
 				const cur = Array.isArray(currentSettings?.streamOutputs) ? currentSettings.streamOutputs : [{ id: 'str_1', label: 'Str1', enabled: true, type: 'rtmp', name: 'Str1', quality: 'medium', rtmpServerUrl: '', streamKey: '', srtUrl: '' }];

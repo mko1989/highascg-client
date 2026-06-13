@@ -3,6 +3,7 @@
  */
 import { sceneState } from '../lib/scene-state.js'
 import { LIVE_AUDIO_MAX_SLOTS, liveAudioRouteValue } from '../lib/live-audio-inputs.js'
+import { routeForLiveAudioSlot } from '../lib/input-channels.js'
 
 /**
  * @param {HTMLElement} root
@@ -67,8 +68,7 @@ export function appendLiveAudioSourceGroup(root, { sceneId, layerIndex, layer, s
 	function syncRouteHint() {
 		const slot = parseInt(String(slotSel.value || '1'), 10) || 1
 		const row = slots.find((s) => s && Number(s.slot) === slot)
-		const route =
-			row?.route || (cm.inputsCh != null ? liveAudioRouteValue(cm.inputsCh, slot) : '(inputs host not configured)')
+		const route = row?.route || routeForLiveAudioSlot(cm, slot) || liveAudioRouteValue(cm, slot) || '(input channel not allocated)'
 		routeHint.textContent = `On take: ${route}`
 	}
 

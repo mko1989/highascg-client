@@ -13,6 +13,8 @@ import { showUsbImportModal } from './usb-import-modal.js'
 import * as Ingest from './sources-panel-ingest-logic.js'
 import { renderLiveTab } from './sources-panel-live-render.js'
 import { showPlaceholderModal } from './placeholder-modal.js'
+import { refreshLiveAudioConfigured } from '../lib/live-audio-state.js'
+import { decklinkInputForSlot, decklinkSlotFromConnector } from '../lib/input-channels.js'
 
 export function initSourcesPanel(root, stateStore, opts = {}) {
 	const wsClient = opts.wsClient; let previewFeedback = null; let currentTab = 'media'; let filter = ''; let mediaWithProbe = null; let usbBadgeTimer = null; let extraLiveSources = []
@@ -21,12 +23,7 @@ export function initSourcesPanel(root, stateStore, opts = {}) {
 	const collapsedFolders = new Set()
 
 	async function fetchLiveAudioConfigured() {
-		try {
-			liveAudioConfiguredCache = await api.get('/api/audio/live-inputs')
-			stateStore?.applyChange?.('liveAudioConfigured', liveAudioConfiguredCache)
-		} catch {
-			liveAudioConfiguredCache = null
-		}
+		liveAudioConfiguredCache = await refreshLiveAudioConfigured(stateStore)
 		return liveAudioConfiguredCache
 	}
 	const selectedMedia = new Set()
@@ -36,8 +33,26 @@ export function initSourcesPanel(root, stateStore, opts = {}) {
 	const tabs = root.querySelectorAll('.sources-tab'); const filterInput = root.querySelector('#sources-filter'); const listEl = root.querySelector('#sources-list'); const mediaFooter = root.querySelector('.sources-media-footer'); const refreshBtn = root.querySelector('#sources-refresh-media'); const deleteBtn = root.querySelector('#sources-delete-selected'); const plusBtn = root.querySelector('#ingest-plus-btn'); const dropMenu = root.querySelector('.ingest-dropup-menu'); const fileBtn = root.querySelector('#ingest-menu-file'); const mkdirBtn = root.querySelector('#ingest-menu-mkdir'); const usbBtn = root.querySelector('#ingest-menu-usb'); const placeholderBtn = root.querySelector('#ingest-menu-placeholder'); const usbBadge = root.querySelector('.ingest-usb-badge'); const urlIn = root.querySelector('#ingest-url'); const urlBtn = root.querySelector('#ingest-url-btn'); const iStatus = root.querySelector('#ingest-status'); const iProgWrap = root.querySelector('.ingest-upload-progress'); const iBar = root.querySelector('.ingest-upload-progress__bar'); const iPct = root.querySelector('.ingest-upload-progress__pct'); const liveFooter = root.querySelector('.sources-live-footer'); const dragOverlay = root.querySelector('#sources-drag-overlay')
 	root.querySelector('#sources-live-add-btn')?.addEventListener('click', () => showLiveInputModal(stateStore))
 
-	const fetchMedia = async () => { try { const data = await api.get('/api/media'); mediaWithProbe = data.media || data; render() } catch { mediaWithProbe = null } }
-	const refreshMedia = async () => { await api.post('/api/media/refresh', { ensureHqThumbs: true }).catch(() => {}); await fetchMedia(); setTimeout(fetchMedia, 400); setTimeout(fetchMedia, 1100) }
+	const applyMediaList = (list) => {
+		if (!Array.isArray(list)) return
+		mediaWithProbe = list
+		stateStore?.applyChange?.('media', list)
+		render()
+	}
+	const fetchMedia = async () => {
+		try {
+			const data = await api.get('/api/media')
+			applyMediaList(data.media || data)
+		} catch {
+			mediaWithProbe = null
+		}
+	}
+	const refreshMedia = async () => {
+		await api.post('/api/media/refresh', { ensureHqThumbs: true }).catch(() => {})
+		await fetchMedia()
+		setTimeout(fetchMedia, 400)
+		setTimeout(fetchMedia, 1100)
+	}
 	const setStatus = (m, t) => { iStatus.textContent = m; iStatus.className = `ingest-status ingest-status--${t}`; if (t === 'ok') setTimeout(() => { iStatus.textContent = ''; iStatus.className = 'ingest-status' }, 4000) }
 	const poller = Ingest.createDownloadPoller({ setStatus, refreshCallback: refreshMedia })
 	const parseDecklinkDrop = (ev) => { const raw = ev?.dataTransfer?.getData('application/x-highascg-connector') || ''; if (!raw) return null; try { const payload = JSON.parse(raw); if (String(payload?.kind || '') !== 'decklink_io') return null; const connectorId = String(payload?.connectorId || '').trim(); return connectorId ? { connectorId } : null } catch { return null } }
@@ -63,26 +78,28 @@ export function initSourcesPanel(root, stateStore, opts = {}) {
 				...(Array.isArray(payload?.suggested?.connectors) ? payload.suggested.connectors : []),
 			]
 			const c = connectors.find((x) => String(x?.id || '') === connectorId) || null
-			const slot = Math.max(1, (Number.isFinite(Number(c?.index)) ? Number(c.index) + 1 : parseInt(String(connectorId).replace(/^dli_/, ''), 10) || 1))
+			const slot = decklinkSlotFromConnector(c || { index: parseInt(String(connectorId).replace(/^dli_/, ''), 10) - 1 })
 			const dev = Math.max(0, parseInt(String(c?.externalRef ?? 0), 10) || 0)
 			const cm = stateStore.getState()?.channelMap || {}
-			const inputsCh = cm.inputsCh
-			if (!Number.isFinite(Number(inputsCh)) || Number(inputsCh) <= 0) {
-				setStatus(`Mapped ${connectorId} to input. Configure DeckLink inputs host channel to start live route.`, 'ok')
+			const entry = decklinkInputForSlot(cm, slot)
+			if (entry?.channel == null) {
+				setStatus(`Mapped ${connectorId} to input. Set decklink_input_count ≥ ${slot} and restart Caspar.`, 'ok')
 				return
 			}
-			const cl = `${inputsCh}-${slot}`
+			const layer = entry.layer ?? slot
+			const cl = `${entry.channel}-${layer}`
 			await api.post('/api/raw', { cmd: `STOP ${cl}` }).catch(() => {})
 			await api.post('/api/raw', { cmd: `MIXER ${cl} CLEAR` }).catch(() => {})
 			await api.post('/api/raw', { cmd: `PLAY ${cl} DECKLINK ${dev}` })
-			const routeVal = `route://${cl}`
+			const routeVal = entry.route || `route://${cl}`
 			const item = {
 				type: 'route',
 				routeType: 'decklink',
 				value: routeVal,
-				label: `decklink ${slot}`,
+				label: entry.label || `decklink ${slot}`,
 				decklinkSlot: slot,
-				inputsChannel: Number(inputsCh),
+				inputsChannel: entry.channel,
+				inputsLayer: layer,
 				connectorId,
 				decklinkDevice: dev,
 			}

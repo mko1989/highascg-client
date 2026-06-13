@@ -61,6 +61,8 @@ export function initTimelineCanvas(container, opts) {
 		/** Skip video thumbnail when source is audio-only (filename / CLS type). */
 		isAudioOnlySource,
 		onSelectKeyframe,
+		/** Double-click clip body: add keyframe at playhead/click time (local ms). */
+		onDblClickAddKeyframe,
 		onMoveKeyframe,
 		onSelectFlag,
 		onMoveFlagTime,
@@ -68,6 +70,7 @@ export function initTimelineCanvas(container, opts) {
 		getFlagSelection,
 		/** @type {(timelineId: string, heights: number[], isFinal?: boolean) => void} */
 		onLayerHeightsChange,
+		onKeyframeDragEnd,
 	} = opts
 
 	const thumbCache = new Map() // url -> HTMLImageElement (or 'loading' | 'error')
@@ -312,6 +315,7 @@ export function initTimelineCanvas(container, opts) {
 
 	canvas.addEventListener('mouseup', () => {
 		const wasDivider = drag?.type === 'layer-divider'
+		const wasKeyframeDrag = drag?.type === 'keyframe-drag'
 		const tl0 = getTimeline()
 		if (drag?.type === 'seek' && onSeekEnd) {
 			const tl = getTimeline()
@@ -320,6 +324,9 @@ export function initTimelineCanvas(container, opts) {
 		if (wasDivider && tl0 && onLayerHeightsChange) {
 			ensureLayerHeights(tl0)
 			onLayerHeightsChange(tl0.id, [...tl0.layerHeights], true)
+		}
+		if (wasKeyframeDrag && tl0 && onKeyframeDragEnd) {
+			onKeyframeDragEnd(tl0.id)
 		}
 		drag = null
 		canvas.style.cursor = 'default'
@@ -337,6 +344,30 @@ export function initTimelineCanvas(container, opts) {
 	})
 
 	// Right-click on layer header → context menu (rename, add layer, remove layer)
+	canvas.addEventListener('dblclick', (e) => {
+		if (!onDblClickAddKeyframe) return
+		const rect = canvas.getBoundingClientRect()
+		const cx = e.clientX - rect.left
+		const cy = e.clientY - rect.top
+		if (cx < HEADER_W || cy < RULER_H) return
+		const tl = getTimeline()
+		if (!tl) return
+		const li = layerAt(cy, tl)
+		if (li < 0 || li >= tl.layers.length) return
+		const ms = msAt(cx)
+		const clip = hitClip(tl, li, ms)
+		if (!clip) return
+		e.preventDefault()
+		const localMs = Math.max(0, Math.min(Math.round(ms - clip.startTime), clip.duration || 0))
+		onDblClickAddKeyframe({
+			timelineId: tl.id,
+			layerIdx: li,
+			clipId: clip.id,
+			clip,
+			localMs,
+		})
+	})
+
 	canvas.addEventListener('contextmenu', (e) => {
 		const rect = canvas.getBoundingClientRect()
 		const cx = e.clientX - rect.left

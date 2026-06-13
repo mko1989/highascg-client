@@ -18,6 +18,7 @@ import { LOOK_PRESET_RECALL_PGM, LOOK_PRESET_RECALL_PRV } from '../lib/look-pres
 
 import * as Logic from './scenes-editor-logic.js'
 import { renderEdit } from './scenes-editor-edit.js'
+import { attachScenesEditorKeyboard } from './scenes-editor-keyboard.js'
 import { formatFps } from './sources-panel-helpers.js'
 import { resolveLookStackChannelForBus } from '../lib/look-stack-amcp-channel.js'
 
@@ -135,11 +136,45 @@ export function initScenesEditor(root, stateStore, opts = {}) {
 		previewRuntime.sendSceneToPreviewCard(sceneId, opts)
 	}
 
+	const globalTakeFromPreview = async () => {
+		const armed = sceneState.armedScreenIndices?.length ? sceneState.armedScreenIndices : [sceneState.activeScreenIndex]
+		let any = false
+		for (const mIdx of armed) {
+			const sid = sceneState.getPreviewSceneIdForMain(mIdx)
+			if (sid) {
+				any = true
+				await takeSceneToProgram(sid, false, { targetMains: [mIdx] })
+			}
+		}
+		if (!any) showScenesToast('No look on preview. Click a look’s thumbnail (canvas) first.', 'error')
+	}
+
+	const globalCutFromPreview = async () => {
+		const armed = sceneState.armedScreenIndices?.length ? sceneState.armedScreenIndices : [sceneState.activeScreenIndex]
+		let any = false
+		for (const mIdx of armed) {
+			const sid = sceneState.getPreviewSceneIdForMain(mIdx)
+			if (sid) {
+				any = true
+				await takeSceneToProgram(sid, true, { targetMains: [mIdx] })
+			}
+		}
+		if (!any) showScenesToast('No look on preview. Click a look’s thumbnail first.', 'error')
+	}
+
 	const takeSceneToProgram = createTakeSceneToProgram({
 		api,
-		stateStore, getChannelMap, getProgramChannel, showToast: showScenesToast,
-		getTimelinePositionMsForTake: () => { const st = stateStore.getState(); return st?.timeline?.playback?.position ?? st?.timeline?.tick?.position ?? 0 },
+		stateStore,
+		getChannelMap,
+		getProgramChannel,
+		showToast: showScenesToast,
+		getTimelinePositionMsForTake: () => {
+			const st = stateStore.getState()
+			return st?.timeline?.playback?.position ?? st?.timeline?.tick?.position ?? 0
+		},
 		primePreviewSnapshotFromScene: previewRuntime.primePreviewSnapshotFromScene,
+		getOscClient,
+		getVariableStore: opts.getVariableStore || (() => null),
 	})
 
 	let selectedLayerIndex = null
@@ -313,30 +348,8 @@ export function initScenesEditor(root, stateStore, opts = {}) {
 		}, takeSceneToProgram, showToast: showScenesToast, dispatchLayerSelect, previewPanel, sendSceneToPreviewCard: sendSceneToPreviewWithTimelineClear, clearPreviewBusForMain: previewRuntime.clearPreviewBusForMain, selectedLayerIndexRef,
 		onDeckMediaDropAccept: dataTransferOffersDeckMedia,
 		onDeckMediaDrop,
-		globalTakeFromPreview: async () => {
-			const armed = sceneState.armedScreenIndices?.length ? sceneState.armedScreenIndices : [sceneState.activeScreenIndex]
-			let any = false
-			for (const mIdx of armed) {
-				const sid = sceneState.getPreviewSceneIdForMain(mIdx)
-				if (sid) {
-					any = true
-					await takeSceneToProgram(sid, false, { targetMains: [mIdx] })
-				}
-			}
-			if (!any) showScenesToast('No look on preview. Click a look’s thumbnail (canvas) first.', 'error')
-		},
-		globalCutFromPreview: async () => {
-			const armed = sceneState.armedScreenIndices?.length ? sceneState.armedScreenIndices : [sceneState.activeScreenIndex]
-			let any = false
-			for (const mIdx of armed) {
-				const sid = sceneState.getPreviewSceneIdForMain(mIdx)
-				if (sid) {
-					any = true
-					await takeSceneToProgram(sid, true, { targetMains: [mIdx] })
-				}
-			}
-			if (!any) showScenesToast('No look on preview. Click a look’s thumbnail first.', 'error')
-		}
+		globalTakeFromPreview,
+		globalCutFromPreview,
 	})
 		if (preserveDeckScroll) {
 			mainHost.scrollTop = prevScrollTop
@@ -494,5 +507,7 @@ export function initScenesEditor(root, stateStore, opts = {}) {
 			forceCut: !!d.forceCut,
 		})
 	})
+	attachScenesEditorKeyboard({ globalTakeFromPreview })
+
 	scheduleRender()
 }

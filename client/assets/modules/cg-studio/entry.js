@@ -6,7 +6,6 @@
 
 import 'grapesjs/dist/css/grapes.min.css'
 import '../../../styles/cg-studio.css'
-import { initEditor } from './cg-studio-editor.js'
 
 const TAB_ID = 'cg-studio'
 const TAB_LABEL = 'CG Studio'
@@ -59,6 +58,7 @@ function registerCgStudioWorkspaceTab() {
 		if (editorLoaded) return
 		editorLoaded = true
 		try {
+			const { initEditor } = await import('./cg-studio-editor.js')
 			await initEditor(pane)
 		} catch (e) {
 			console.error('[cg-studio] Failed to load editor:', e)

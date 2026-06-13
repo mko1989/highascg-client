@@ -48,7 +48,15 @@ export function initLedTestCard(container, stateStore) {
 			
 			let targets = []
 			if (enabled) {
-				targets = uniqueChannels.length ? uniqueChannels : [1]
+				if (!uniqueChannels.length) {
+					ledTestCb.checked = false
+					localStorage.setItem('highascg_led_test_enabled', 'false')
+					alert(
+						'LED test card: choose at least one channel under Test card… → “Enable test card on channel”, then try again.',
+					)
+					return
+				}
+				targets = uniqueChannels
 			} else {
 				targets = [...new Set([...programChannels, ...(Number.isFinite(mvCh) && mvCh > 0 ? [mvCh] : []), ...uniqueChannels])].filter((n) => Number.isFinite(n) && n > 0)
 			}
@@ -164,20 +172,22 @@ export function initLedTestCard(container, stateStore) {
 		})()
 	})
 
+	let ledTestSyncedFromServer = false
 	const unsubscribe = stateStore?.on?.('*', () => {
+		if (ledTestSyncedFromServer) return
 		const st = stateStore.getState()
-		if (st.ledTestPatternActive) {
-			if (!ledTestCb.checked) {
-				ledTestCb.checked = true
-				localStorage.setItem('highascg_led_test_enabled', 'true')
-				void applyLedTest(true)
-			}
-			unsubscribe()
+		if (!st?.channelMap && st.ledTestPatternActive === undefined) return
+
+		ledTestSyncedFromServer = true
+		unsubscribe?.()
+
+		const serverActive = !!st.ledTestPatternActive
+		ledTestCb.checked = serverActive
+		localStorage.setItem('highascg_led_test_enabled', serverActive ? 'true' : 'false')
+
+		// Reflect server state only — never auto-enable test pattern on connect/refresh.
+		if (!serverActive) {
+			void applyLedTest(false)
 		}
 	})
-
-	if (localStorage.getItem('highascg_led_test_enabled') === 'true') {
-		ledTestCb.checked = true
-		void applyLedTest(true)
-	}
 }

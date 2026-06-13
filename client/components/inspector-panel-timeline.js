@@ -2,10 +2,9 @@ import { timelineState } from '../lib/timeline-state.js'
 import { api } from '../lib/api-client.js'
 import { parseNumberInput } from '../lib/math-input.js'
 import { createDragInput } from './inspector-common.js'
-import {
-	appendTimelineClipKeyframes,
-	SCENE_CONTENT_FIT_OPTIONS,
-} from './inspector-fill.js'
+import { applyFillPxPatch, displayPositionFromStoredPx, fillInspectorPositionMeta } from '../lib/coordinate-origin.js'
+import { SCENE_CONTENT_FIT_OPTIONS } from '../lib/scene-content-fit.js'
+import { appendTimelineClipKeyframes } from './inspector-fill-timeline.js'
 import { sceneState } from '../lib/scene-state.js'
 import { getClipBasePixelRect } from '../lib/timeline-clip-interp.js'
 import { fillToPixelRect, pixelRectToFill, fullFill, sceneLayerPixelRectForContentFit } from '../lib/fill-math.js'
@@ -298,9 +297,17 @@ export function renderTimelineClipInspector(deps, timelineId, layerIdx, clipId, 
 		redrawClipInspector()
 	}
 
+	const posMeta = fillInspectorPositionMeta()
 	const transGrp = document.createElement('div')
 	transGrp.className = 'inspector-group'
-	transGrp.innerHTML = '<div class="inspector-group__title">Position / size (canvas px)</div>'
+	transGrp.innerHTML = `<div class="inspector-group__title">${posMeta.title}</div>`
+	if (posMeta.subtitle) {
+		const sub = document.createElement('p')
+		sub.className = 'inspector-field inspector-field--hint'
+		sub.style.fontSize = '0.78rem'
+		sub.textContent = posMeta.subtitle
+		transGrp.appendChild(sub)
+	}
 	const canvas = sceneState.getCanvasForScreen(sceneState.activeScreenIndex)
 	function pxRectForClip() {
 		const c = freshClip()
@@ -321,7 +328,7 @@ export function renderTimelineClipInspector(deps, timelineId, layerIdx, clipId, 
 			canvas,
 		)
 		const r = fillToPixelRect(f, canvas)
-		let next = { x: r.x, y: r.y, w: r.w, h: r.h, ...partial }
+		let next = applyFillPxPatch({ x: r.x, y: r.y, w: r.w, h: r.h }, partial, canvas)
 		if (c.aspectLocked !== false) {
 			const cr = c.source ? getContentResolution(c.source, stateStore, sceneState.activeScreenIndex) : null
 			const ar =
@@ -339,9 +346,10 @@ export function renderTimelineClipInspector(deps, timelineId, layerIdx, clipId, 
 		window.dispatchEvent(new CustomEvent('timeline-redraw-request'))
 		redrawClipInspector()
 	}
-	const px = pxRectForClip()
+	const pxStored = pxRectForClip()
+	const px = displayPositionFromStoredPx(pxStored, canvas)
 	const xInp = createDragInput({
-		label: 'X',
+		label: posMeta.xLabel,
 		value: Math.round(px.x),
 		min: -999999,
 		max: 999999,
@@ -350,7 +358,7 @@ export function renderTimelineClipInspector(deps, timelineId, layerIdx, clipId, 
 		onChange: (v) => applyFillPx({ x: v }),
 	})
 	const yInp = createDragInput({
-		label: 'Y',
+		label: posMeta.yLabel,
 		value: Math.round(px.y),
 		min: -999999,
 		max: 999999,

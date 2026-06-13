@@ -5,10 +5,12 @@
  */
 
 import { api } from '../lib/api-client.js'
+import { decklinkInputForSlot } from '../lib/input-channels.js'
 
 function suggestLiveInputChannel(cm) {
 	if (!cm || typeof cm !== 'object') return 5
-	if (cm.inputsCh != null) return cm.inputsCh
+	const first = cm.decklinkInputChannels?.[0] ?? cm.liveAudioInputChannels?.[0] ?? cm.inputsCh
+	if (first != null) return first
 	const nums = [...(cm.programChannels || []), ...(cm.previewChannels || [])]
 	if (cm.multiviewCh != null) nums.push(cm.multiviewCh)
 	const max = nums.length ? Math.max(...nums) : 0
@@ -27,7 +29,6 @@ export function showLiveInputModal(stateStore) {
 
 	const channelMap = stateStore.getState()?.channelMap || {}
 	const defaultCh = suggestLiveInputChannel(channelMap)
-	const inputsCh = channelMap.inputsCh
 	const decklinkCount = channelMap.decklinkCount ?? 0
 
 	const modal = document.createElement('div')
@@ -60,7 +61,7 @@ export function showLiveInputModal(stateStore) {
 					</div>
 				</div>
 				<div class="settings-group" id="live-input-decklink-ch-fixed" style="display:none">
-					<p class="settings-note" style="margin:0">DeckLink channel (locked): <strong id="live-input-ch-fixed-val"></strong> — use <code>route://…</code> on PGM, other previews, and multiview.</p>
+					<p class="settings-note" style="margin:0">DeckLink channel (locked): <strong id="live-input-ch-fixed-val"></strong> — drag the route tile from Sources → Live onto PGM, preview, or multiview.</p>
 					<div style="margin-top:0.5rem">
 						<label>Layer (input slot)</label>
 						<input type="number" id="live-input-layer-dl" min="1" max="99" value="1" style="width:5rem" />
@@ -113,11 +114,13 @@ export function showLiveInputModal(stateStore) {
 		if (!hintEl) return
 		const k = kindSel?.value || 'decklink'
 		if (k === 'decklink') {
-			if (inputsCh != null) {
-				hintEl.innerHTML = `DeckLink is played <strong>only</strong> on the inputs host (channel <strong>${inputsCh}</strong>). On program, other channels, and multiview, drag a <code>route://${inputsCh}-N</code> tile from Sources → Live — do not run a second <code>DECKLINK</code> producer for the same device.`
+			const slot = parseInt(String(modal.querySelector('#live-input-layer-dl')?.value || '1'), 10) || 1
+			const entry = decklinkInputForSlot(channelMap, slot)
+			if (entry?.channel != null) {
+				hintEl.innerHTML = `DeckLink slot <strong>${slot}</strong> plays on dedicated channel <strong>${entry.channel}</strong> (layer ${entry.layer ?? slot}). Drag <strong>${entry.label || 'DeckLink ' + slot}</strong> from Sources → Live — do not start a second <code>DECKLINK</code> producer for the same device.`
 			} else {
 				hintEl.innerHTML =
-					'Enable <strong>DeckLink inputs host</strong> in Settings → <strong>Inputs</strong> (and apply Caspar config), then pick the host channel.'
+					'Set <strong>decklink_input_count</strong> in Settings, apply Caspar config, and restart. Each input slot gets its own Caspar channel.'
 			}
 		} else if (k === 'ndi') {
 			hintEl.innerHTML =
@@ -135,10 +138,14 @@ export function showLiveInputModal(stateStore) {
 		if (dlWrap) dlWrap.style.display = k === 'decklink' ? 'block' : 'none'
 		if (ndiWrap) ndiWrap.style.display = k === 'ndi' ? 'block' : 'none'
 		if (browserWrap) browserWrap.style.display = k === 'browser' ? 'block' : 'none'
-		const useFixed = k === 'decklink' && inputsCh != null
+		const useFixed = k === 'decklink'
 		if (chRow) chRow.style.display = (useFixed || k === 'browser') ? 'none' : 'flex'
 		if (dlChFixed) dlChFixed.style.display = useFixed ? 'block' : 'none'
-		if (chFixedVal && inputsCh != null) chFixedVal.textContent = String(inputsCh)
+		if (useFixed) {
+			const slot = parseInt(String(modal.querySelector('#live-input-layer-dl')?.value || '1'), 10) || 1
+			const entry = decklinkInputForSlot(channelMap, slot)
+			if (chFixedVal) chFixedVal.textContent = entry?.channel != null ? String(entry.channel) : '(not allocated)'
+		}
 		const layerDl = modal.querySelector('#live-input-layer-dl')
 		if (layerDl && decklinkCount > 0) {
 			layerDl.max = String(Math.min(99, decklinkCount))
@@ -146,6 +153,7 @@ export function showLiveInputModal(stateStore) {
 		syncHint()
 	}
 	kindSel?.addEventListener('change', syncKind)
+	modal.querySelector('#live-input-layer-dl')?.addEventListener('input', syncKind)
 	modal.querySelector('#live-input-browser-as-cg')?.addEventListener('change', syncHint)
 	syncKind()
 
@@ -204,20 +212,22 @@ export function showLiveInputModal(stateStore) {
 		let ch
 		let layer
 		if (k === 'decklink') {
-			if (inputsCh == null) {
-				setStatus('Configure DeckLink inputs in Settings → Inputs first.', true)
+			const slot = parseInt(String(modal.querySelector('#live-input-layer-dl')?.value || '1'), 10)
+			if (!Number.isFinite(slot) || slot < 1) {
+				setStatus('Invalid slot', true)
 				return
 			}
-			ch = inputsCh
-			layer = parseInt(String(modal.querySelector('#live-input-layer-dl')?.value || '1'), 10)
-			if (!Number.isFinite(layer) || layer < 1) {
-				setStatus('Invalid layer', true)
+			if (decklinkCount > 0 && slot > decklinkCount) {
+				setStatus(`Slot must be 1–${decklinkCount} for configured input slots`, true)
 				return
 			}
-			if (decklinkCount > 0 && layer > decklinkCount) {
-				setStatus(`Layer must be 1–${decklinkCount} for configured input slots`, true)
+			const entry = decklinkInputForSlot(channelMap, slot)
+			if (entry?.channel == null) {
+				setStatus(`No dedicated channel for DeckLink slot ${slot}. Set decklink_input_count and restart Caspar.`, true)
 				return
 			}
+			ch = entry.channel
+			layer = entry.layer ?? slot
 		} else {
 			ch = parseInt(String(modal.querySelector('#live-input-ch')?.value || '1'), 10)
 			layer = parseInt(String(modal.querySelector('#live-input-layer')?.value || '1'), 10)

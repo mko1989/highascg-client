@@ -1,4 +1,5 @@
 import { timelineState } from '../lib/timeline-state.js'
+import { interpClipProp } from '../lib/timeline-clip-interp.js'
 import { applyTimelineClipLayoutFromMedia } from '../lib/timeline-clip-layout.js'
 import { findMediaRow, getContentResolution } from '../lib/mixer-fill.js'
 import { api, getApiBase } from '../lib/api-client.js'
@@ -24,6 +25,26 @@ export function showTimelineToast(msg, type = 'info') {
 	toast.textContent = msg
 	container.appendChild(toast)
 	setTimeout(() => toast.remove(), type === 'error' ? 6000 : 4000)
+}
+
+/**
+ * @param {object} source
+ * @param {import('../lib/state-store.js').StateStore} stateStore
+ */
+async function resolveDroppedSourceDurationMs(source, stateStore) {
+	let duration = 5000
+	if (source?.type !== 'media' || !source?.value) return duration
+	if (Number(source.durationMs) > 0) return Number(source.durationMs)
+	const mediaList = stateStore.getState()?.media || []
+	const match = findMediaRow(mediaList, source.value)
+	if (match?.durationMs > 0) return match.durationMs
+	try {
+		const j = await api.post('/api/media/cinf', { id: source.value })
+		if (j?.durationMs > 0) return j.durationMs
+	} catch {
+		/* fallback */
+	}
+	return duration
 }
 
 export function createNotifyTimelineSeekFailed() {
@@ -139,32 +160,34 @@ export function createTimelineCanvasHandlers(deps) {
 			}
 
 			void (async () => {
-				let duration = 5000
-				if (source?.type === 'media' && source?.value) {
-					if (Number(source.durationMs) > 0) {
-						duration = Number(source.durationMs)
-					} else {
-						const mediaList = stateStore.getState()?.media || []
-						const match = findMediaRow(mediaList, source.value)
-						if (match?.durationMs > 0) {
-							duration = match.durationMs
-						} else {
-							try {
-								const j = await api.post('/api/media/cinf', { id: source.value })
-								if (j?.durationMs > 0) duration = j.durationMs
-							} catch {
-								/* fallback 5s */
-							}
-						}
-					}
-				}
+				const duration = await resolveDroppedSourceDurationMs(source, stateStore)
 				const tl = timelineState.getActive()
 				if (!tl || tl.id !== tl0.id) return
-				if (startTime + duration > tl.duration) {
-					timelineState.updateTimeline(tl.id, { duration: startTime + duration + 2000 })
-				}
+
 				while (tl.layers.length <= layerIdx) {
 					timelineState.addLayer(tl.id)
+				}
+
+				const existing = timelineState.findClipAtTime(tl.id, layerIdx, startTime)
+				if (existing) {
+					const clip = timelineState.replaceClipSource(
+						tl.id,
+						layerIdx,
+						existing.id,
+						source,
+						duration,
+					)
+					if (!clip) return
+					const sel = { timelineId: tl.id, layerIdx, clipId: clip.id, clip }
+					setSelectedClip(sel)
+					window.dispatchEvent(new CustomEvent('timeline-clip-select', { detail: sel }))
+					void getSyncToServer()(timelineState.getActive())
+					redrawTimelineView()
+					return
+				}
+
+				if (startTime + duration > tl.duration) {
+					timelineState.updateTimeline(tl.id, { duration: startTime + duration + 2000 })
 				}
 				const clip = timelineState.addClip(tl.id, layerIdx, source, startTime, duration)
 				void getSyncToServer()(timelineState.getActive())
@@ -242,8 +265,32 @@ export function createTimelineCanvasHandlers(deps) {
 		onSelectKeyframe(info) {
 			window.dispatchEvent(new CustomEvent('timeline-keyframe-select', { detail: info }))
 		},
+		onDblClickAddKeyframe({ timelineId, layerIdx, clipId, clip, localMs }) {
+			const time = Math.max(0, Math.min(localMs, clip.duration || 0))
+			const val = interpClipProp(clip, time, 'opacity', 1)
+			timelineState.addKeyframe(timelineId, layerIdx, clipId, {
+				time,
+				property: 'opacity',
+				value: val,
+				easing: 'linear',
+			})
+			const sel = { timelineId, layerIdx, clipId, clip: timelineState.getTimeline(timelineId)?.layers?.[layerIdx]?.clips?.find((c) => c.id === clipId) || clip }
+			setSelectedClip(sel)
+			window.dispatchEvent(new CustomEvent('timeline-clip-select', { detail: sel }))
+			void getSyncToServer()(timelineState.getActive())
+			redrawTimelineView()
+			showTimelineToast(`Opacity keyframe @ ${time}ms (double-click). Keys: P position, S scale, V volume, T opacity`, 'info')
+		},
 		onMoveKeyframe(timelineId, layerIdx, clipId, keyframeIdx, newTime) {
 			timelineState.updateKeyframeTime(timelineId, layerIdx, clipId, keyframeIdx, newTime)
+		},
+		onKeyframeDragEnd(timelineId) {
+			const tl = timelineState.getActive()
+			if (!tl || tl.id !== timelineId) return
+			void getSyncToServer()(tl).then(() => {
+				const pb = getPlayback()
+				api.post(`/api/timelines/${tl.id}/seek`, { ms: pb.position }).catch(notifyTimelineSeekFailed)
+			})
 		},
 		getClipSelection: () => {
 			const selectedClip = getSelectedClip()

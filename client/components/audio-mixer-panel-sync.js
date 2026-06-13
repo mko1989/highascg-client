@@ -1,4 +1,9 @@
 import * as audioMixerState from '../lib/audio-mixer-state.js'
+import {
+	faderPercentToLinearGain,
+	formatVolumeDb,
+	linearGainToFaderPercent,
+} from '../lib/audio-volume-scale.js'
 
 export function syncFaderUI(key, percent) {
 	const selectors = [
@@ -6,17 +11,25 @@ export function syncFaderUI(key, percent) {
 		`input[data-key="${key}"].audio-mixer__fader-vertical`,
 		`input[data-key="${key}"].audio-mixer-view__fader`,
 	]
+	const pct = String(percent)
+	const gain = faderPercentToLinearGain(percent)
+	const label = formatVolumeDb(gain)
 	const faders = document.querySelectorAll(selectors.join(', '))
 	faders.forEach((f) => {
-		if (f.value !== String(percent)) {
-			f.value = percent
+		if (f.value !== pct) {
+			f.value = pct
 			const parent = f.closest('.audio-mixer__bus-master, .audio-mixer__bus-layer, .audio-mixer-view__strip')
 			if (parent) {
 				const valEl = parent.querySelector('.audio-mixer__fader-val, .audio-mixer-view__fader-val')
-				if (valEl) valEl.textContent = `${percent}%`
+				if (valEl) valEl.textContent = label
 			}
 		}
 	})
+}
+
+/** @param {string} key @param {number} linearGain 0–1 */
+export function syncFaderUIFromGain(key, linearGain) {
+	syncFaderUI(key, linearGainToFaderPercent(linearGain))
 }
 
 export function syncMuteUI(key, muted) {

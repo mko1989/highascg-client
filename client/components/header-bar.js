@@ -18,6 +18,9 @@ import { showLedTestModal, getLedTestSettings, getLedTestShowGridForChannel } fr
 import { createHeaderAudioMonitor } from './header-bar-audio.js'
 import { markLocalProjectSaved } from '../lib/project-remote-sync.js'
 import { initConfigStrip } from './header-bar-config-strip.js'
+import { projectFileIdFromName } from '../lib/project-files.js'
+import { importProjectWithHardwareReconcile } from '../lib/project-import-flow.js'
+import { showLoadProjectModal } from './load-project-modal.js'
 
 import { initLedTestCard } from './header-bar-led-test.js'
 
@@ -49,6 +52,7 @@ export function initHeaderBar(headerEl, statusEl, stateStore) {
 
 	// Save / Load buttons
 	const saveBtn = document.createElement('button')
+	saveBtn.type = 'button'
 	saveBtn.className = 'header-btn header-btn--save'
 	saveBtn.innerHTML = `
 		<div class="header-btn__icons">
@@ -56,17 +60,20 @@ export function initHeaderBar(headerEl, statusEl, stateStore) {
 			<img src="assets/save.svg" class="header-btn__disk">
 		</div>
 	`
-	saveBtn.title = 'Save project (click = server, Shift+click = file)'
+	saveBtn.title =
+		'Save project to server (includes looks + Device View routing via server hardwareConfig). Shift+click = download JSON file only.'
 
 	const loadBtn = document.createElement('button')
+	loadBtn.type = 'button'
 	loadBtn.className = 'header-btn header-btn--load'
+	loadBtn.setAttribute('aria-label', 'Load project')
 	loadBtn.innerHTML = `
 		<div class="header-btn__icons">
 			<img src="assets/arrow-left.svg" class="header-btn__arrow">
 			<img src="assets/save.svg" class="header-btn__disk">
 		</div>
 	`
-	loadBtn.title = 'Load project (click = server, Shift+click = file)'
+	loadBtn.title = 'Load project (Shift+click = quick file pick without dialog)'
 
 	const fileInput = document.createElement('input')
 	fileInput.type = 'file'
@@ -94,8 +101,9 @@ export function initHeaderBar(headerEl, statusEl, stateStore) {
 
 	async function saveToServer() {
 		const project = projectState.exportProject(sceneState, timelineState, multiviewState, programOutputState)
+		const id = projectFileIdFromName(project.name || projectState.getProjectName())
 		try {
-			await api.post('/api/project/save', { project })
+			await api.post('/api/project/save', { project, id })
 			markLocalProjectSaved()
 			showHeaderToast('Saved', 'success')
 		} catch (e) {
@@ -114,32 +122,28 @@ export function initHeaderBar(headerEl, statusEl, stateStore) {
 		URL.revokeObjectURL(url)
 	}
 
-	async function loadFromServer() {
-		try {
-			const res = await api.post('/api/project/load', {})
-			// API returns project directly on 200, or { error } on 4xx
-			const project = res && typeof res === 'object' && res.version && !res.error ? res : null
-			if (!project) throw new Error(res?.error || 'No project stored')
-			projectState.importProject(project, sceneState, timelineState, multiviewState, programOutputState)
-			nameInp.value = projectState.getProjectName()
-			window.dispatchEvent(new Event('project-loaded'))
-			showHeaderToast('Loaded', 'success')
-		} catch (e) {
-			showHeaderToast('Load failed: ' + (e?.message || e), 'error')
-		}
-	}
-
 	function loadFromFile(file) {
 		const r = new FileReader()
 		r.onload = () => {
-			try {
-				const project = JSON.parse(r.result)
-				projectState.importProject(project, sceneState, timelineState, multiviewState, programOutputState)
-				nameInp.value = projectState.getProjectName()
-				window.dispatchEvent(new Event('project-loaded'))
-			} catch (e) {
-				showHeaderToast('Invalid project file: ' + (e?.message || e), 'error')
-			}
+			void (async () => {
+				try {
+					const project = JSON.parse(r.result)
+					await importProjectWithHardwareReconcile(project, {
+						projectState,
+						sceneState,
+						timelineState,
+						multiviewState,
+						programOutputState,
+						showToast: showHeaderToast,
+						onNameSync: (name) => {
+							nameInp.value = name
+						},
+						source: 'file',
+					})
+				} catch (e) {
+					showHeaderToast('Invalid project file: ' + (e?.message || e), 'error')
+				}
+			})()
 		}
 		r.readAsText(file)
 	}
@@ -152,11 +156,21 @@ export function initHeaderBar(headerEl, statusEl, stateStore) {
 
 	loadBtn.addEventListener('click', (e) => {
 		if (e.shiftKey) fileInput.click()
-		else void loadFromServer()
+		else {
+			showLoadProjectModal({
+				showToast: showHeaderToast,
+				onNameSync: (name) => {
+					nameInp.value = name
+				},
+			})
+		}
 	})
-	loadBtn.title = 'Load: click = load from server, Shift+click = upload JSON file'
+	loadBtn.title = 'Load project (Shift+click = upload JSON without dialog)'
+
+	document.body.appendChild(fileInput)
 
 	const newProjectBtn = document.createElement('button')
+	newProjectBtn.type = 'button'
 	newProjectBtn.className = 'header-btn'
 	newProjectBtn.textContent = 'New project'
 	newProjectBtn.title = 'Discard the current project in memory and start empty (save first if you need a file)'

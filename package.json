@@ -7,6 +7,7 @@
 		"dev": "vite",
 		"dev:client": "vite",
 		"build": "vite build",
+		"assets:optimize": "bash client/tools/optimize-brand-assets.sh",
 		"build:client": "vite build",
 		"launcher:prepare": "npx vite build && bash client/tools/electron-launcher/sync-dist-web.sh && bash client/tools/electron-launcher/sync-launcher-bundle.sh && bash client/tools/electron-launcher/sync-sim-server.sh",
 		"launcher:bundle": "bash client/tools/electron-launcher/sync-dist-web.sh && bash client/tools/electron-launcher/sync-launcher-bundle.sh",

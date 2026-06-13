@@ -1,6 +1,37 @@
 import * as audioMixerState from './audio-mixer-state.js'
 import { isMediaOrFileSource } from '../components/scenes-shared.js'
+import { sceneState } from './scene-state.js'
 import { shortenMediaName } from './audio-mixer-ui.js'
+import { settingsState } from './settings-state.js'
+import { enumerateLiveAudioMixerSlots, readLiveAudioCasparSettings } from './live-audio-inputs.js'
+import { listInputChannels } from './input-channels.js'
+
+/** Layers that expose a per-strip fader in the program mixer. */
+export function layerHasMixerAudio(layer) {
+	const src = layer?.source
+	if (!src) return false
+	if (isMediaOrFileSource(src)) return true
+	return String(src.type || '').toLowerCase() === 'live_audio' && !!src.value
+}
+
+/**
+ * @param {import('./state-store.js').StateStore} stateStore
+ * @param {number} programCh
+ * @param {number} mainIdx
+ */
+function resolveLiveSceneForProgram(stateStore, programCh, mainIdx) {
+	const liveScenes = stateStore.getState()?.scene?.live || {}
+	const entry = liveScenes[programCh] ?? liveScenes[String(programCh)]
+	if (entry?.scene?.layers) {
+		return { sceneId: entry.sceneId, scene: entry.scene }
+	}
+	const snap = sceneState.getLiveSceneSnapshot(mainIdx)
+	if (snap?.layers?.length) {
+		const sceneId = sceneState.getLiveSceneIdForMain(mainIdx) ?? sceneState.liveSceneIdByMain[mainIdx]
+		return { sceneId, scene: snap }
+	}
+	return null
+}
 
 /**
  * Build master + layer fader rows for program channels.
@@ -18,31 +49,60 @@ export function collectProgramAudioRows(stateStore, { masterLabel, labelMax = 22
 		const v = audioMixerState.getMasterVolume(key)
 		rows.push({ key, ch, label: masterLabel(ch, i), v, isMaster: true })
 
-		const liveScenes = stateStore.getState()?.scene?.live || {}
-		const liveSceneData = liveScenes[ch] || liveScenes[String(ch)]
+		const liveSceneData = resolveLiveSceneForProgram(stateStore, ch, i)
 		if (liveSceneData?.scene?.layers) {
 			liveSceneData.scene.layers.forEach((layer) => {
-				if (isMediaOrFileSource(layer.source)) {
-					const ln = layer.layerNumber
-					const fullName = String(layer.source.value || '').split('/').pop() || ''
-					const shortName = shortenMediaName(fullName, { max: labelMax, tailChars: labelTailChars })
-					const lKey = `pgm:${ch}:layer:${ln}`
-					rows.push({
-						key: lKey,
-						ch,
-						layer: ln,
-						label: `L${ln} · ${shortName}`,
-						labelTitle: `L${ln}: ${fullName}`,
-						v: layer.volume != null ? layer.volume : 1,
-						muted: !!layer.muted,
-						isMaster: false,
-						audioRoute: layer.audioRoute || '1+2',
-						sceneId: liveSceneData.sceneId,
-					})
+				if (!layerHasMixerAudio(layer)) return
+				const ln = layer.layerNumber
+				const src = layer.source
+				const ty = String(src?.type || '').toLowerCase()
+				let fullName = String(src?.value || '').split('/').pop() || ''
+				let shortName = shortenMediaName(fullName, { max: labelMax, tailChars: labelTailChars })
+				if (ty === 'live_audio') {
+					fullName = src?.label || `Live audio ${src?.value || ''}`
+					shortName = shortenMediaName(fullName, { max: labelMax, tailChars: labelTailChars })
 				}
+				const lKey = `pgm:${ch}:layer:${ln}`
+				rows.push({
+					key: lKey,
+					ch,
+					layer: ln,
+					label: `L${ln} · ${shortName}`,
+					labelTitle: `L${ln}: ${fullName}`,
+					v: layer.volume != null ? layer.volume : 1,
+					muted: !!layer.muted,
+					isMaster: false,
+					audioRoute: layer.audioRoute || '1+2',
+					sceneId: liveSceneData.sceneId,
+				})
 			})
 		}
 	})
+
+	const liveAudioConfigured = stateStore.getState()?.liveAudioConfigured
+	const casparUi = readLiveAudioCasparSettings(settingsState.getSettings()?.casparServer || {})
+	const liveAudioSlots = enumerateLiveAudioMixerSlots(cm, liveAudioConfigured, casparUi)
+	const rowKeys = new Set(rows.map((r) => r.key))
+	for (const slotRow of liveAudioSlots) {
+		const { channel, layer: ln, slot: s, label: fullName } = slotRow
+		const lKey = `pgm:${channel}:layer:${ln}`
+		if (rowKeys.has(lKey)) continue
+		rowKeys.add(lKey)
+		const shortName = shortenMediaName(fullName, { max: labelMax, tailChars: labelTailChars })
+		rows.push({
+			key: lKey,
+			ch: channel,
+			layer: ln,
+			label: shortName,
+			labelTitle: `${fullName} (Live audio · Ch ${channel} L${ln})`,
+			v: audioMixerState.getMasterVolume(lKey),
+			muted: audioMixerState.getMuted(lKey),
+			isMaster: false,
+			audioRoute: '1+2',
+			sceneId: null,
+			liveAudioSlot: s,
+		})
+	}
 
 	return {
 		programChannels,
@@ -50,4 +110,22 @@ export function collectProgramAudioRows(stateStore, { masterLabel, labelMax = 22
 		mastersList: rows.filter((r) => r.isMaster),
 		inputsList: rows.filter((r) => !r.isMaster),
 	}
+}
+
+/**
+ * Isolated VU meter rows for dedicated live input channels (WO-53).
+ * @param {object | null | undefined} channelMap
+ */
+export function collectLiveInputMeterRows(channelMap) {
+	return listInputChannels(channelMap).map((entry) => ({
+		key: `input:${entry.channel}`,
+		ch: entry.channel,
+		label: entry.label || `${entry.kind === 'live_audio' ? 'Live audio' : 'DeckLink'} ${entry.slot}`,
+		labelTitle: `Ch ${entry.channel}${entry.layer != null && entry.kind === 'decklink' ? ` · L${entry.layer}` : ''} — ${entry.route || ''}`,
+		v: 1,
+		isMaster: true,
+		isLiveInput: true,
+		inputKind: entry.kind,
+		slot: entry.slot,
+	}))
 }

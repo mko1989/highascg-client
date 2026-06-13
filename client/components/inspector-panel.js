@@ -360,6 +360,7 @@ export function initInspectorPanel(root, stateStore) {
 			sceneInspectorRefreshTimer = null
 			if (window.__hacgSuppressSceneLayerInspectorRefresh) return
 			if (panelMode !== 'inspector' || selection?.type !== 'sceneLayer') return
+			if (root.querySelector('input:focus, select:focus, textarea:focus')) return
 			const L = sceneState.getScene(selection.sceneId)?.layers?.[selection.layerIndex]
 			if (L) renderSceneLayerInspector(sceneLayerDeps, selection)
 			else update(null)
@@ -371,6 +372,7 @@ export function initInspectorPanel(root, stateStore) {
 			return
 		}
 		if (selection?.type === 'sceneLayer') {
+			if (root.querySelector('input:focus, select:focus, textarea:focus')) return
 			const L = sceneState.getScene(selection.sceneId)?.layers?.[selection.layerIndex]
 			if (L) renderSceneLayerInspector(sceneLayerDeps, selection)
 			else update(null)
@@ -400,6 +402,7 @@ export function initInspectorPanel(root, stateStore) {
 		}
 	}
 	document.addEventListener('highascg-settings-applied', refreshInspectorAfterAudioSettings)
+	document.addEventListener('highascg-editor-defaults-changed', refreshInspectorAfterAudioSettings)
 	settingsState.subscribe(() => refreshInspectorAfterAudioSettings())
 
 	document.querySelectorAll('.workspace__tabs .tab').forEach((tab) => {

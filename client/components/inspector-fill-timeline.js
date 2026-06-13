@@ -3,6 +3,7 @@ import { timelineState } from '../lib/timeline-state.js'
 import { KF_PROPERTIES, KF_PROP_MAP } from './inspector-common.js'
 import { pixelsToNormalized, normalizedToPixels } from '../lib/fill-math.js'
 import { clipPixelRectAtLocalTime } from '../lib/timeline-clip-interp.js'
+import { displayPxFromStoredNorm, storedNormFromDisplayPx, isCenterOrigin } from '../lib/coordinate-origin.js'
 
 /**
  * Timeline clip keyframes + add-keyframe UI (after title + basic clip fields).
@@ -54,12 +55,17 @@ export function appendTimelineClipKeyframes(root, opts) {
 	if (posKfs.length > 0) {
 		const kfGrp = document.createElement('div')
 		kfGrp.className = 'inspector-group'
-		kfGrp.innerHTML = '<div class="inspector-group__title">Position keyframes</div>'
+		const posKfTitle = isCenterOrigin()
+			? 'Position keyframes (center offset px)'
+			: 'Position keyframes'
+		kfGrp.innerHTML = `<div class="inspector-group__title">${posKfTitle}</div>`
 		posKfs.forEach((gkf) => {
 			const row = document.createElement('div')
 			row.className = 'inspector-field inspector-keyframe-row'
-			const xPx = Math.round(normalizedToPixels(gkf.x, W))
-			const yPx = Math.round(normalizedToPixels(gkf.y, H))
+			const rectAtKf = clipPixelRectAtLocalTime(clip, gkf.time, W, H, stateStore, screenIdx)
+			const disp = displayPxFromStoredNorm(gkf.x, gkf.y, rectAtKf.w, rectAtKf.h, W, H)
+			const xPx = Math.round(disp.x)
+			const yPx = Math.round(disp.y)
 			row.innerHTML = `
 				<span class="inspector-field__key">@ ${gkf.time}ms</span>
 				<input type="text" class="inspector-field__input inspector-kf-x" value="${xPx}" placeholder="X" style="width:42px" />
@@ -76,8 +82,15 @@ export function appendTimelineClipKeyframes(root, opts) {
 			const applyPos = () => {
 				const xPx = parseNumberInput(xInp.value, NaN)
 				const yPx = parseNumberInput(yInp.value, NaN)
-				if (!isNaN(xPx)) timelineState.addKeyframe(timelineId, layerIdx, clipId, { time: gkf.time, property: 'fill_x', value: pixelsToNormalized(xPx, W), easing: easeSel.value })
-				if (!isNaN(yPx)) timelineState.addKeyframe(timelineId, layerIdx, clipId, { time: gkf.time, property: 'fill_y', value: pixelsToNormalized(yPx, H), easing: easeSel.value })
+				const rectAt = clipPixelRectAtLocalTime(clip, gkf.time, W, H, stateStore, screenIdx)
+				if (!isNaN(xPx) && !isNaN(yPx)) {
+					const norm = storedNormFromDisplayPx(xPx, yPx, rectAt.w, rectAt.h, W, H)
+					timelineState.addKeyframe(timelineId, layerIdx, clipId, { time: gkf.time, property: 'fill_x', value: norm.fill_x, easing: easeSel.value })
+					timelineState.addKeyframe(timelineId, layerIdx, clipId, { time: gkf.time, property: 'fill_y', value: norm.fill_y, easing: easeSel.value })
+				} else {
+					if (!isNaN(xPx)) timelineState.addKeyframe(timelineId, layerIdx, clipId, { time: gkf.time, property: 'fill_x', value: pixelsToNormalized(xPx, W), easing: easeSel.value })
+					if (!isNaN(yPx)) timelineState.addKeyframe(timelineId, layerIdx, clipId, { time: gkf.time, property: 'fill_y', value: pixelsToNormalized(yPx, H), easing: easeSel.value })
+				}
 				syncTimelineToServer()
 			}
 			xInp.addEventListener('change', applyPos)
@@ -188,7 +201,10 @@ export function appendTimelineClipKeyframes(root, opts) {
 	const defaultTime = clipLocalMs >= 0 && clipLocalMs <= clip.duration ? clipLocalMs : 0
 	const addKfGrp = document.createElement('div')
 	addKfGrp.className = 'inspector-group'
-	addKfGrp.innerHTML = '<div class="inspector-group__title">Add keyframe</div>'
+	addKfGrp.innerHTML =
+		'<div class="inspector-group__title">Add keyframe</div>' +
+		'<p class="inspector-field inspector-field--hint" style="font-size:0.78rem;color:var(--text-muted);margin:0 0 8px">' +
+		'Double-click a clip on the timeline for opacity at that time. With this clip selected (works while focus is in these fields): <kbd>P</kbd> position, <kbd>S</kbd> scale, <kbd>V</kbd> volume, <kbd>T</kbd> opacity, <kbd>I</kbd>/<kbd>O</kbd> fade in/out.</p>'
 	const addKfRow = document.createElement('div')
 	addKfRow.className = 'inspector-field inspector-keyframe-row'
 	addKfRow.innerHTML = `
@@ -208,7 +224,12 @@ export function appendTimelineClipKeyframes(root, opts) {
 		valuesWrap.innerHTML = ''
 		if (val === 'position') {
 			const current = clipPixelRectAtLocalTime(clip, defaultTime, W, H, stateStore, screenIdx)
-			valuesWrap.innerHTML = `<input type="text" class="inspector-field__input inspector-kf-val-x" placeholder="X" value="${Math.round(current.x)}" style="width:42px" /><input type="text" class="inspector-field__input inspector-kf-val-y" placeholder="Y" value="${Math.round(current.y)}" style="width:42px" />`
+			const fx = current.x / W
+			const fy = current.y / H
+			const disp = displayPxFromStoredNorm(fx, fy, current.w, current.h, W, H)
+			const xPh = isCenterOrigin() ? 'X ctr' : 'X'
+			const yPh = isCenterOrigin() ? 'Y ctr' : 'Y'
+			valuesWrap.innerHTML = `<input type="text" class="inspector-field__input inspector-kf-val-x" placeholder="${xPh}" value="${Math.round(disp.x)}" style="width:42px" /><input type="text" class="inspector-field__input inspector-kf-val-y" placeholder="${yPh}" value="${Math.round(disp.y)}" style="width:42px" />`
 		} else if (val === 'scale') {
 			const current = clipPixelRectAtLocalTime(clip, defaultTime, W, H, stateStore, screenIdx)
 			valuesWrap.innerHTML = `<input type="text" class="inspector-field__input inspector-kf-val-single" placeholder="scale" value="${(current.w / W).toFixed(2)}" style="width:50px" />`
@@ -222,12 +243,16 @@ export function appendTimelineClipKeyframes(root, opts) {
 	addKfRow.querySelector('#inspector-kf-add').addEventListener('click', () => {
 		const timeInp = addKfRow.querySelector('#inspector-kf-time')
 		const propSel = addKfRow.querySelector('#inspector-kf-property')
-		const time = Math.max(0, Math.round(parseNumberInput(timeInp.value, 0)))
+		const time = Math.max(0, Math.min(Math.round(parseNumberInput(timeInp.value, 0)), clip.duration || 0))
 		const prop = propSel.value
 		if (prop === 'position') {
+			const xInp = addKfRow.querySelector('.inspector-kf-val-x')
+			const yInp = addKfRow.querySelector('.inspector-kf-val-y')
 			const xPx = parseNumberInput(xInp?.value ?? 0, 0)
 			const yPx = parseNumberInput(yInp?.value ?? 0, 0)
-			timelineState.addPositionKeyframe(timelineId, layerIdx, clipId, time, pixelsToNormalized(xPx, W), pixelsToNormalized(yPx, H))
+			const rectAt = clipPixelRectAtLocalTime(clip, time, W, H, stateStore, screenIdx)
+			const norm = storedNormFromDisplayPx(xPx, yPx, rectAt.w, rectAt.h, W, H)
+			timelineState.addPositionKeyframe(timelineId, layerIdx, clipId, time, norm.fill_x, norm.fill_y)
 		} else if (prop === 'scale') {
 			const valInp = addKfRow.querySelector('.inspector-kf-val-single')
 			const v = parseNumberInput(valInp?.value ?? 1, 1)

@@ -3,6 +3,29 @@ import { getThumbnailUrl } from '../lib/thumbnail-url.js'
 import { classifyMediaItem } from '../lib/media-ext.js'
 import { escapeHtml, truncate, getExtension, formatDuration, formatFps, makeDraggable, attachMediaModifierClick } from './sources-panel-helpers.js'
 
+function folderSegmentKey(segment) {
+	return String(segment || '').toLowerCase()
+}
+
+/** Case-insensitive folder bucket; keeps first segment spelling (isDir rows are sorted first). */
+function getOrCreateFolder(parent, segment, fullPath) {
+	const fk = folderSegmentKey(segment)
+	let name = Object.keys(parent.folders).find((k) => folderSegmentKey(k) === fk)
+	if (!name) {
+		name = segment
+		parent.folders[name] = { folders: {}, files: [], path: fullPath }
+	}
+	return parent.folders[name]
+}
+
+function folderPathCollapsed(collapsed, path) {
+	const key = folderSegmentKey(path)
+	for (const c of collapsed) {
+		if (folderSegmentKey(c) === key) return true
+	}
+	return false
+}
+
 /** Media browser: Detailed compact view with thumbnails and rich metadata. */
 export function renderMediaBrowser(container, media, filter, onMediaDeleted, options = {}) {
 	const collapsed = options.collapsedFolders || new Set()
@@ -28,24 +51,23 @@ export function renderMediaBrowser(container, media, filter, onMediaDeleted, opt
 		return
 	}
 
-	// 1. Group into tree structure
+	// 1. Group into tree structure (dirs first so folder labels match server isDir casing)
 	const root = { folders: {}, files: [] }
-	filtered.forEach((item) => {
+	const sorted = [...filtered].sort((a, b) => Number(!!b.isDir) - Number(!!a.isDir))
+	sorted.forEach((item) => {
 		const id = item.id ?? item
-		const parts = String(id).split('/')
+		const parts = String(id).split('/').filter(Boolean)
 		if (item.isDir) {
 			let curr = root
 			for (let i = 0; i < parts.length; i++) {
-				const p = parts[i]
-				if (!curr.folders[p]) curr.folders[p] = { folders: {}, files: [], path: parts.slice(0, i + 1).join('/') }
-				curr = curr.folders[p]
+				const path = parts.slice(0, i + 1).join('/')
+				curr = getOrCreateFolder(curr, parts[i], path)
 			}
 		} else {
 			let curr = root
 			for (let i = 0; i < parts.length - 1; i++) {
-				const p = parts[i]
-				if (!curr.folders[p]) curr.folders[p] = { folders: {}, files: [], path: parts.slice(0, i + 1).join('/') }
-				curr = curr.folders[p]
+				const path = parts.slice(0, i + 1).join('/')
+				curr = getOrCreateFolder(curr, parts[i], path)
 			}
 			curr.files.push(item)
 		}
@@ -56,7 +78,7 @@ export function renderMediaBrowser(container, media, filter, onMediaDeleted, opt
 		const folderNames = Object.keys(node.folders).sort()
 		folderNames.forEach((name) => {
 			const folder = node.folders[name]
-			const isCollapsed = collapsed.has(folder.path)
+			const isCollapsed = folderPathCollapsed(collapsed, folder.path)
 			const el = document.createElement('div')
 			el.className = `source-item source-item--folder ${isCollapsed ? 'collapsed' : ''}`
 			if (!isVisible) el.style.display = 'none'

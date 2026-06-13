@@ -1,6 +1,7 @@
 'use strict'
 
 import { fillToPixelRect } from '../lib/fill-math.js'
+import { applyDragDeltaToFill } from '../lib/coordinate-origin.js'
 
 /**
  * @param {object} sceneState
@@ -21,15 +22,14 @@ export function createComposeDragHandlers(sceneState, schedulePreviewPush) {
 			const rh = Math.max(10, currentRect.height)
 			const dx = (ev.clientX - sx) / rw
 			const dy = (ev.clientY - sy) / rh
-			const nx = Math.max(-5, Math.min(5, startFill.x + dx))
-			const ny = Math.max(-5, Math.min(5, startFill.y + dy))
-			
+			const nextFill = applyDragDeltaToFill(startFill, dx, dy)
+
 			// Direct DOM update for instant feedback
-			el.style.left = `${nx * 100}%`
-			el.style.top = `${ny * 100}%`
-			
+			el.style.left = `${nextFill.x * 100}%`
+			el.style.top = `${nextFill.y * 100}%`
+
 			sceneState.patchLayer(scene.id, layerIndex, {
-				fill: { ...startFill, x: nx, y: ny },
+				fill: nextFill,
 			})
 			schedulePreviewPush()
 		}

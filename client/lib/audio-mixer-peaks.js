@@ -42,20 +42,20 @@ export function readBusPeakDbfs(chNum, vars, oscClient, stateStore) {
 }
 
 /**
- * Layer dBFS estimate from channel master × layer fader (Caspar has no per-layer meters).
+ * Layer strip dBFS from OSC (per-layer meters when present, else program bus).
+ * Do not scale by UI fader — that made input meters move without PGM and tied them to master fader.
  * @param {import('./state-store.js').StateStore} stateStore
- * @param {{ volume?: number, paused?: boolean }} [layerMeta]
+ * @param {{ paused?: boolean, muted?: boolean }} [layerMeta]
  */
 export function readLayerPeakDbfs(chNum, layerNum, oscClient, stateStore, layerMeta) {
-	if (layerMeta?.paused) return -99
+	if (layerMeta?.paused || layerMeta?.muted) return -99
 	const key = String(chNum)
 	const chState = oscClient?.channels?.[key] ?? oscClient?.channels?.[chNum]
-	const oscLayer = chState?.layers?.[layerNum] ?? chState?.layers?.[String(layerNum)]
+	const lnKey = String(layerNum)
+	const oscLayer = chState?.layers?.[layerNum] ?? chState?.layers?.[lnKey]
 	const lt = String(oscLayer?.type || '')
 	if (lt === 'empty' || oscLayer?.paused === true) return -99
-	const master = peakDbfsFromLevels(chState?.audio?.levels)
-	if (!Number.isFinite(master)) return -99
-	const vol = Number.isFinite(layerMeta?.volume) ? Math.max(0, Math.min(1, layerMeta.volume)) : 1
-	if (vol <= 0) return -99
-	return master + 20 * Math.log10(vol)
+	const layerPeak = peakDbfsFromLevels(oscLayer?.audio?.levels)
+	if (Number.isFinite(layerPeak)) return layerPeak
+	return readBusPeakDbfs(chNum, null, oscClient, stateStore)
 }

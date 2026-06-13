@@ -9,19 +9,26 @@ import {
 	createCasparRearMarkerStatusResolver,
 } from './device-view-caspar-render-helpers.js'
 import {
+	buildGpuLayoutItemsFromLive,
 	buildGpuSelectablePortEntries,
+	clearGpuLayoutPrefs,
 	entryToRearPanelGpuItem,
-	hasDrmGpuPhysicalMap,
 	layoutItemsFromGpuEntries,
 } from '../lib/device-view-gpu-port-list.js'
-import { bindCasparGpuLayoutDocumentListeners } from './device-view-caspar-render-gpu-doc-listeners.js'
+import { setStatus } from './device-view-ui-utils.js'
+import { traceGpuLayoutRearPanelRender } from '../lib/device-view-gpu-layout-debug.js'
+import {
+	bindCasparGpuLayoutDocumentListeners,
+	saveGpuLayoutToStorage,
+} from './device-view-caspar-render-gpu-doc-listeners.js'
+import * as Actions from './device-view-actions.js'
 import { buildCasparRearMarkerLayoutItems, appendCasparRearPanelMarkers } from './device-view-caspar-render-markers.js'
 
 let gpuEditMode = false
 let decklinkEditMode = false
 
 export function renderCasparBand(ctx) {
-	const { live, lastPayload, selectDevice, onPortClick, onPortStartCable, selectedConnectorId, cableSourceId } = ctx
+	const { live, lastPayload, selectDevice, onPortClick, onPortStartCable, selectedConnectorId, cableSourceId, load, statusEl } = ctx
 	const casparBand = document.createElement('div')
 	casparBand.className = 'device-view__band device-view__band--caspar'
 	if (gpuEditMode) casparBand.classList.add('device-view--edit-mode')
@@ -64,38 +71,18 @@ export function renderCasparBand(ctx) {
 	}
 	const gpuDisplays = Array.isArray(live?.gpu?.displays) ? live.gpu.displays : []
 
-	const gpuModel = String(live?.gpu?.model || '').toUpperCase()
-	const gpuLayoutPresets = {
-		'2080': [
-			{ id: 'gpu_p0_1', label: 'DP 0/1', pairs: ['DP-0', 'DP-1'], type: 'dp' },
-			{ id: 'gpu_p2_3', label: 'HDMI 0/1', pairs: ['HDMI-0', 'HDMI-1'], type: 'hdmi' },
-			{ id: 'gpu_p4_5', label: 'DP 2/3', pairs: ['DP-2', 'DP-3'], type: 'dp' },
-			{ id: 'gpu_p6_7', label: 'DP 4/5', pairs: ['DP-4', 'DP-5'], type: 'dp' },
-		],
-		'DEFAULT': [
-			{ id: 'gpu_p0_1', label: 'DP 0/1', pairs: ['DP-0', 'DP-1'], type: 'dp' },
-			{ id: 'gpu_p2_3', label: 'HDMI 0/1', pairs: ['HDMI-0', 'HDMI-1'], type: 'hdmi' },
-			{ id: 'gpu_p4_5', label: 'DP 2/3', pairs: ['DP-2', 'DP-3'], type: 'dp' },
-			{ id: 'gpu_p6_7', label: 'DP 4/5', pairs: ['DP-4', 'DP-5'], type: 'dp' },
-		],
-	}
-	const defaultGpuItems = gpuModel.includes('2080') ? gpuLayoutPresets['2080'] : gpuLayoutPresets['DEFAULT']
-	const savedLayout = localStorage.getItem('gpu_custom_layout')
-	const customGpuItems = savedLayout ? JSON.parse(savedLayout) : [...defaultGpuItems]
-
-	defaultGpuItems.forEach((def) => {
-		if (!customGpuItems.find((x) => x.id === def.id)) {
-			customGpuItems.push({ ...def })
-		}
-	})
-
 	const resolveStatusClass = createCasparRearMarkerStatusResolver({ live, lastPayload })
 
 	const connectedDisplays = live?.gpu?.displays || []
 
-	const drmListEntries = buildGpuSelectablePortEntries({ live, suggestedGpuOuts: gpuOuts })
-	const useDrmList = hasDrmGpuPhysicalMap(live) && drmListEntries.length > 0
-	const gpuLayoutItems = useDrmList ? layoutItemsFromGpuEntries(drmListEntries) : customGpuItems
+	const graphGpuOuts = graphConnectors.filter((c) => c?.kind === 'gpu_out' || c?.kind === 'gpu_output')
+	const gpuListEntries = buildGpuSelectablePortEntries({
+		live,
+		suggestedGpuOuts: gpuOuts,
+		graphGpuOuts,
+		hideDisconnectedByDefault: false,
+	})
+	const gpuLayoutItems = layoutItemsFromGpuEntries(gpuListEntries)
 
 	bindCasparGpuLayoutDocumentListeners({
 		casparOverlay,
@@ -107,33 +94,7 @@ export function renderCasparBand(ctx) {
 		getGpuEditMode: () => gpuEditMode,
 	})
 
-	const items = useDrmList
-		? drmListEntries.map((entry) => entryToRearPanelGpuItem(entry, connectedDisplays))
-		: customGpuItems.map((item, i) => {
-				const connected = item.pairs.some((pName) =>
-					connectedDisplays.some((d) => d.connected && normRandrCaspar(d.name) === normRandrCaspar(pName)),
-				)
-				const disp = connectedDisplays.find(
-					(d) => d.connected && item.pairs.some((p) => normRandrCaspar(p) === normRandrCaspar(d.name)),
-				)
-				const canonicalId = resolveCanonicalGpuConnectorId(item.pairs, gpuPhysicalPorts, gpuOuts) || item.id
-
-				return {
-					id: canonicalId,
-					layoutSlotId: item.id,
-					icon: item.type === 'hdmi' ? '/assets/hdmi-port-icon.svg' : '/assets/display-port-icon.svg',
-					label: item.label,
-					kind: 'gpu_out',
-					index: i,
-					connected,
-					hidden: item.hidden,
-					pairs: item.pairs,
-					monitor: disp?.displayName || disp?.name || '',
-					resolution: disp?.resolution || '',
-					refreshHz: disp?.refreshHz || null,
-					isVirtual: !connected,
-				}
-			})
+	const items = gpuListEntries.map((entry) => entryToRearPanelGpuItem(entry, connectedDisplays))
 
 	slots.push({ title: 'GPU', items })
 	let decklinkRearOrderIds = []
@@ -164,7 +125,7 @@ export function renderCasparBand(ctx) {
 	})
 	slots.push({
 		title: 'Record',
-		items: recordOut.map((c) => ({ id: c.id, icon: '/assets/ethernet-port-icon.svg', label: c.label || c.id, kind: 'record_out' })),
+		items: recordOut.map((c) => ({ id: c.id, icon: '/assets/record-port-icon.svg', label: c.label || c.id, kind: 'record_out' })),
 	})
 	const audioOutputsList = Array.isArray(ctx.lastPayload?.audioOutputs || ctx.currentSettings?.audioOutputs) ? (ctx.lastPayload?.audioOutputs || ctx.currentSettings?.audioOutputs) : []
 	const audioItems = audioOutputsList.map((ao) => {
@@ -201,16 +162,62 @@ export function renderCasparBand(ctx) {
 			titleEl.textContent = slot.title
 
 			if (slot.title === 'GPU') {
+				const hiddenGpuCount = gpuListEntries.filter((e) => e.hidden).length
+				if (hiddenGpuCount > 0) {
+					const hiddenHint = document.createElement('span')
+					hiddenHint.className = 'device-view__backpanel-slot-hint'
+					hiddenHint.textContent = ` (${hiddenGpuCount} hidden)`
+					hiddenHint.title = 'Open GPU layout editor (pencil) and click Show all'
+					titleEl.appendChild(hiddenHint)
+				}
 				const editBtn = document.createElement('button')
 				editBtn.type = 'button'
 				editBtn.className = 'device-view__backpanel-slot-edit'
 				editBtn.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>`
-				editBtn.title = 'Edit GPU Layout'
+				editBtn.title = 'Edit GPU layout — reorder ports, Show all, or Reset Layout (xrandr)'
 				editBtn.style.marginLeft = '8px'
 				editBtn.style.cursor = 'pointer'
 				editBtn.style.background = 'none'
 				editBtn.style.border = 'none'
 				editBtn.style.color = gpuEditMode ? '#007bff' : '#ccc'
+
+				const showAllBtn = Object.assign(document.createElement('button'), {
+					type: 'button',
+					className: 'device-view__backpanel-slot-edit',
+					textContent: 'Show all',
+					title: 'Show every GPU port on the rear panel',
+				})
+				showAllBtn.style.marginLeft = '4px'
+				showAllBtn.style.fontSize = '10px'
+				showAllBtn.style.display = gpuEditMode ? '' : 'none'
+				showAllBtn.addEventListener('click', async (ev) => {
+					ev.preventDefault()
+					ev.stopPropagation()
+					const items = buildGpuLayoutItemsFromLive(live, gpuOuts).map((x) => ({ ...x, hidden: false }))
+					saveGpuLayoutToStorage(items)
+					if (statusEl) setStatus(statusEl, 'All GPU ports shown', true)
+					if (load) await load()
+				})
+
+				const clearLayoutBtn = Object.assign(document.createElement('button'), {
+					type: 'button',
+					className: 'device-view__backpanel-slot-edit',
+					textContent: 'Clear layout',
+					title: 'Discard saved GPU layout and rebuild from detected outputs',
+				})
+				clearLayoutBtn.style.marginLeft = '4px'
+				clearLayoutBtn.style.fontSize = '10px'
+				clearLayoutBtn.style.color = '#ff9f9f'
+				clearLayoutBtn.style.display = gpuEditMode ? '' : 'none'
+				clearLayoutBtn.addEventListener('click', async (ev) => {
+					ev.preventDefault()
+					ev.stopPropagation()
+					if (!confirm('Clear saved GPU layout and rebuild from detected outputs?')) return
+					clearGpuLayoutPrefs()
+					await Actions.resetGpuLayout()
+					if (statusEl) setStatus(statusEl, 'GPU layout cleared — refreshed from detected outputs', true)
+					if (load) await load()
+				})
 
 				editBtn.addEventListener('click', (ev) => {
 					ev.preventDefault()
@@ -218,6 +225,8 @@ export function renderCasparBand(ctx) {
 					gpuEditMode = !gpuEditMode
 					editBtn.style.color = gpuEditMode ? '#007bff' : '#ccc'
 					casparBand.classList.toggle('device-view--edit-mode', gpuEditMode)
+					showAllBtn.style.display = gpuEditMode ? '' : 'none'
+					clearLayoutBtn.style.display = gpuEditMode ? '' : 'none'
 
 					const markers = casparOverlay.querySelectorAll('.device-view__panel-marker--gpu')
 					markers.forEach((m) => {
@@ -248,8 +257,9 @@ export function renderCasparBand(ctx) {
 						}
 						onPortClick(`caspar_overlay:${canonicalId}:`, canonicalId, connectorCtx)
 					}
+					if (load) void load()
 				})
-				titleEl.appendChild(editBtn)
+				titleEl.append(showAllBtn, clearLayoutBtn, editBtn)
 			}
 
 			if (slot.title === 'DeckLink') {
@@ -307,6 +317,20 @@ export function renderCasparBand(ctx) {
 			connectorsContainer.className = 'device-view__backpanel-slot-connectors'
 			slot.container = connectorsContainer
 
+			if (slot.title === 'GPU') {
+				const details = document.createElement('details')
+				details.className = 'device-view__gpu-folder'
+				const summary = document.createElement('summary')
+				summary.textContent = 'Disconnected'
+				details.appendChild(summary)
+				const discContainer = document.createElement('div')
+				discContainer.className = 'device-view__gpu-folder-list'
+				details.appendChild(discContainer)
+				
+				slot.disconnectedContainer = discContainer
+				slot.folderDetails = details
+			}
+
 			slotEl.appendChild(titleEl)
 			slotEl.appendChild(connectorsContainer)
 
@@ -342,6 +366,16 @@ export function renderCasparBand(ctx) {
 
 	const markerItems = buildCasparRearMarkerLayoutItems(slots, casparConnectors)
 
+	traceGpuLayoutRearPanelRender({
+		live,
+		lastPayload,
+		gpuOuts,
+		gpuListEntries,
+		items,
+		markerItems,
+		gpuEditMode,
+	})
+
 	appendCasparRearPanelMarkers({
 		casparOverlay,
 		markerItems,
@@ -355,6 +389,12 @@ export function renderCasparBand(ctx) {
 		onPortClick,
 		onPortStartCable,
 	})
+
+	const gpuSlot = slots.find(s => s.title === 'GPU')
+	if (gpuSlot && gpuSlot.folderDetails && gpuSlot.disconnectedContainer.childNodes.length > 0) {
+		gpuSlot.folderDetails.querySelector('summary').textContent = `Disconnected (${gpuSlot.disconnectedContainer.childNodes.length})`
+		gpuSlot.container.appendChild(gpuSlot.folderDetails)
+	}
 
 	casparBand.addEventListener('click', (ev) => {
 		if (ev.target?.closest?.('[data-port-key], [data-connector-id], .device-view__panel-marker')) return

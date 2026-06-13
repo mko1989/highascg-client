@@ -6,7 +6,8 @@
  */
 
 import { api } from '../lib/api-client.js'
-import { ws } from '../app.js'
+import { getAppWs } from '../lib/app-runtime.js'
+import { settingsState } from '../lib/settings-state.js'
 
 const POLL_MS = 2000
 
@@ -73,6 +74,7 @@ export function showLogsModal() {
 					<div class="logs-modal__pane" id="logs-pane-caspar">
 						<div class="logs-modal__pane-header">CasparCG</div>
 						<pre class="logs-modal__pre" id="logs-pre-caspar"></pre>
+						<input type="text" class="logs-modal__amcp-input" id="logs-amcp-cmd" autocomplete="off" spellcheck="false" aria-label="Raw AMCP command" />
 					</div>
 				</div>
 			</div>
@@ -87,6 +89,51 @@ export function showLogsModal() {
 	const liveBadge = modal.querySelector('#logs-live-badge')
 	const paneHigh = modal.querySelector('#logs-pane-highascg')
 	const paneCaspar = modal.querySelector('#logs-pane-caspar')
+	const amcpInput = modal.querySelector('#logs-amcp-cmd')
+
+	function casparAmcpTargetLabel() {
+		const c = settingsState.getSettings()?.caspar || {}
+		const host = String(c.host || '127.0.0.1').trim() || '127.0.0.1'
+		const port = Math.max(1, parseInt(String(c.port ?? 5250), 10) || 5250)
+		return `${host}:${port}`
+	}
+
+	if (amcpInput) {
+		amcpInput.placeholder = `AMCP → ${casparAmcpTargetLabel()}`
+		amcpInput.addEventListener('keydown', (e) => {
+			if (e.key !== 'Enter') return
+			e.preventDefault()
+			void sendRawAmcpCommand()
+		})
+	}
+
+	async function sendRawAmcpCommand() {
+		if (!amcpInput || !preCaspar) return
+		const cmd = amcpInput.value.trim()
+		if (!cmd) return
+		amcpInput.disabled = true
+		const stamp = new Date().toISOString().slice(11, 19)
+		const prefix = preCaspar.textContent && !/^\(/.test(preCaspar.textContent.trim())
+			? preCaspar.textContent + '\n'
+			: ''
+		preCaspar.textContent = `${prefix}>> [${stamp}] ${cmd}`
+		try {
+			const res = await api.post('/api/raw', { cmd })
+			let reply = ''
+			if (res != null && res !== '') {
+				reply = typeof res === 'string' ? res : JSON.stringify(res)
+				reply = reply.trim()
+			}
+			if (reply) preCaspar.textContent += `\n<< ${reply.replace(/\r\n/g, '\n')}`
+			amcpInput.value = ''
+		} catch (err) {
+			preCaspar.textContent += `\n!! ${err?.message || String(err)}`
+		} finally {
+			amcpInput.disabled = false
+			amcpInput.focus()
+			scrollToBottom(preCaspar)
+		}
+	}
 
 	function syncPaneVisibility() {
 		if (paneHigh) paneHigh.hidden = !highOn
@@ -109,6 +156,8 @@ export function showLogsModal() {
 			unsubWs = null
 		}
 		if (!highOn) return
+		const ws = getAppWs()
+		if (!ws) return
 		unsubWs = ws.on('log_line', (line) => {
 			if (paused || !preHigh || !highOn) return
 			const atBottom = isAtBottom(preHigh)

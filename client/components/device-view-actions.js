@@ -101,10 +101,84 @@ export async function updateConnector(id, patch) {
 
 
 
+export async function getStreamingChannelStatus() {
+	return await api.get('/api/streaming-channel')
+}
+
+export async function startStreamingChannelRtmp({
+	rtmpServerUrl,
+	streamKey,
+	quality,
+	outputId,
+	videoCodec,
+	videoBitrateKbps,
+	encoderPreset,
+	audioCodec,
+	audioBitrateKbps,
+}) {
+	return await api.post('/api/streaming-channel/rtmp', {
+		action: 'start',
+		rtmpServerUrl,
+		streamKey,
+		quality,
+		outputId,
+		videoCodec,
+		videoBitrateKbps,
+		encoderPreset,
+		audioCodec,
+		audioBitrateKbps,
+	})
+}
+
+export async function stopStreamingChannelRtmp() {
+	return await api.post('/api/streaming-channel/rtmp', { action: 'stop' })
+}
+
+export async function getPgmRecordStatus() {
+	const st = await api.get('/api/streaming-channel')
+	return {
+		recording: !!st?.record?.active,
+		path: st?.record?.path || null,
+	}
+}
+
+export async function startPgmRecord({
+	outputId,
+	crf,
+	videoCodec,
+	videoBitrateKbps,
+	encoderPreset,
+	audioCodec,
+	audioBitrateKbps,
+}) {
+	return await api.post('/api/streaming-channel/record', {
+		action: 'start',
+		outputId,
+		crf,
+		videoCodec,
+		videoBitrateKbps,
+		encoderPreset,
+		audioCodec,
+		audioBitrateKbps,
+	})
+}
+
+export async function stopPgmRecord({ outputId } = {}) {
+	return await api.post('/api/streaming-channel/record', { action: 'stop', outputId })
+}
+
 export async function addMappingNode() {
 	return await api.post('/api/device-view', { addMappingNode: true })
 }
 
+/**
+ * Ask the playout server to re-query xrandr/DRM (optional). Returns null when the route is missing.
+ * Client UI should still clear `gpu_custom_layout` and refresh from `live.gpu` when this fails.
+ */
 export async function resetGpuLayout() {
-	return await api.post('/api/system/gpu-ports-reset')
+	try {
+		return await api.post('/api/system/gpu-ports-reset')
+	} catch {
+		return null
+	}
 }

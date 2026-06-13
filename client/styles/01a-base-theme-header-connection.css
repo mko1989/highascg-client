@@ -229,6 +229,7 @@ optgroup {
 .header-btn__arrow {
 	width: 14px;
 	height: 14px;
+	pointer-events: none;
 	filter: invert(0.9) brightness(1.2); /* Make black SVG look light */
 	transition: filter 0.15s;
 }

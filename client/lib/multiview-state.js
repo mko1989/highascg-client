@@ -4,26 +4,32 @@
  * @see main_plan.md Prompt 15, HOW_TO_ACHIVE_MULTIVIEWER.MD
  */
 
+import { decklinkInputForSlot, migrateLegacyInputRoute } from './input-channels.js'
+
 const STORAGE_KEY_BASE = 'casparcg_multiview_layout'
 /** Four quick-save slots (localStorage); first click saves, later clicks recall (see multiview-editor). */
 const PRESETS_STORAGE_KEY_BASE = 'casparcg_multiview_presets_v1'
 const DEFAULT_WIDTH = 1920
 const DEFAULT_HEIGHT = 1080
 
-/** Old PRV cells used route://N-11 (single preview layer). Scene content now uses the same layers as PGM (10+). */
-function migratePreviewRouteSources(cells) {
+/** Old PRV cells used route://N-11; decklink cells may reference legacy shared inputsCh. */
+function migratePreviewRouteSources(cells, channelMap) {
 	if (!Array.isArray(cells)) return cells
 	return cells.map((c) => {
 		const val =
 			typeof c.source === 'object' && c.source != null && c.source.value != null ? c.source.value : c.source
 		if (typeof val !== 'string' || !val.startsWith('route://')) return c
+		const migrated = migrateLegacyInputRoute(channelMap, val)
 		const m = val.replace(/^route:\/\//, '').match(/^(\d+)-11$/)
-		if (!m) return c
-		const full = `route://${m[1]}`
-		if (typeof c.source === 'object' && c.source != null) {
-			return { ...c, source: { ...c.source, value: full } }
+		let nextVal = migrated !== val ? migrated : val
+		if (m && migrated === val) {
+			nextVal = `route://${m[1]}`
 		}
-		return { ...c, source: { value: full, type: 'route', label: c.label || `Preview` } }
+		if (nextVal === val) return c
+		if (typeof c.source === 'object' && c.source != null) {
+			return { ...c, source: { ...c.source, value: nextVal } }
+		}
+		return { ...c, source: { value: nextVal, type: 'route', label: c.label || `Preview` } }
 	})
 }
 
@@ -39,7 +45,6 @@ function defaultLayout(channelMap, cw = DEFAULT_WIDTH, ch = DEFAULT_HEIGHT) {
 	const previewChannels = channelMap?.previewChannels || []
 	const screenCount = Math.max(1, channelMap?.screenCount ?? 1)
 	const decklinkCount = channelMap?.decklinkCount ?? 0
-	const inputsCh = channelMap?.inputsCh
 
 	const activeScreens = Math.min(screenCount, Math.max(programChannels.length, previewChannels.length))
 	// Layout: each screen occupies a horizontal band — PGM on left half, PRV on right half
@@ -61,21 +66,22 @@ function defaultLayout(channelMap, cw = DEFAULT_WIDTH, ch = DEFAULT_HEIGHT) {
 		}
 	}
 
-	if (inputsCh != null && decklinkCount > 0) {
-		// Place decklinks below the screen rows if space allows, otherwise tile over full height
+	if (decklinkCount > 0) {
 		const usedH = activeScreens * cellH
 		const bottomH = ch - usedH
 		if (bottomH >= 40) {
 			const dlW = cw / Math.min(decklinkCount, 4)
 			for (let i = 0; i < decklinkCount; i++) {
+				const entry = decklinkInputForSlot(channelMap, i + 1)
 				cells.push({
 					id: `decklink_${i}`,
 					type: 'decklink',
-					label: `DL ${i + 1}`,
+					label: entry?.label || `DL ${i + 1}`,
 					x: (i % 4) * dlW,
 					y: usedH,
 					w: dlW,
 					h: bottomH / Math.ceil(decklinkCount / 4),
+					source: entry?.route ? { value: entry.route, type: 'route', label: entry.label } : null,
 				})
 			}
 		}

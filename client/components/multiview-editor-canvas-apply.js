@@ -1,5 +1,6 @@
 import { multiviewState } from '../lib/multiview-state.js'
 import { api } from '../lib/api-client.js'
+import { linearGainToCasparDb } from '../lib/audio-volume-scale.js'
 import { streamState } from '../lib/stream-state.js'
 
 export async function applyMultiviewAudioFocus() {
@@ -24,12 +25,14 @@ export async function applyMultiviewAudioFocus() {
 
 	try {
 		const cmds = []
+		const muteDb = linearGainToCasparDb(0)
+		const focusDb = linearGainToCasparDb(1)
 		for (let L = 1; L <= 10; L++) {
-			cmds.push(`MIXER ${MV_CH} VOLUME ${L} 0`)
+			cmds.push(`MIXER ${MV_CH} VOLUME ${L} ${muteDb}`)
 		}
 		cells.forEach((c, i) => {
 			const L = i + MV_CELL_LAYER_START
-			cmds.push(`MIXER ${MV_CH} VOLUME ${L} ${L === targetLayer ? 1 : 0}`)
+			cmds.push(`MIXER ${MV_CH} VOLUME ${L} ${L === targetLayer ? focusDb : muteDb}`)
 		})
 		await api.post('/api/amcp/batch', { commands: cmds })
 	} catch (e) {

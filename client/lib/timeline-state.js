@@ -5,6 +5,7 @@
  */
 
 import { ensureLayerHeights, DEFAULT_LAYER_H } from './timeline-track-heights.js'
+import { applyTimelineClipDefaults } from './editor-defaults.js'
 
 const STORAGE_KEY = 'casparcg_timelines_v1'
 
@@ -16,7 +17,7 @@ function uid() {
 }
 
 function defaultClip(source, startTime, duration) {
-	return {
+	const clip = {
 		id: uid(),
 		source: source || null,
 		startTime: startTime || 0,
@@ -37,6 +38,8 @@ function defaultClip(source, startTime, duration) {
 		 */
 		startBehaviour: 'beginning',
 	}
+	applyTimelineClipDefaults(clip)
+	return clip
 }
 
 function defaultLayer(name) {
@@ -264,6 +267,41 @@ class TimelineStateManager {
 		this.expandDurationToContent(id)
 		this._save()
 		return clip
+	}
+
+	/**
+	 * Drop media onto an existing clip: swap file/source + duration; keep layout, keyframes, effects, etc.
+	 * Resets trim (in/out) for the new file.
+	 * @param {string} id
+	 * @param {number} layerIdx
+	 * @param {string} clipId
+	 * @param {object} source
+	 * @param {number} durationMs
+	 */
+	replaceClipSource(id, layerIdx, clipId, source, durationMs) {
+		const clip = this._findClip(id, layerIdx, clipId)
+		if (!clip) return null
+		const duration = Math.max(1, Number(durationMs) || 5000)
+		clip.source = source || null
+		clip.duration = duration
+		clip.inPoint = 0
+		clip.outPoint = null
+		for (const kf of clip.keyframes || []) {
+			if (kf.time > duration) kf.time = duration
+		}
+		this.expandDurationToContent(id)
+		this._save()
+		return clip
+	}
+
+	/** Clip under timeline ms on a layer (first match). */
+	findClipAtTime(id, layerIdx, timeMs) {
+		const layer = this.getTimeline(id)?.layers?.[layerIdx]
+		if (!layer?.clips?.length) return null
+		const t = Number(timeMs) || 0
+		return (
+			layer.clips.find((c) => t >= c.startTime && t < c.startTime + (c.duration || 0)) || null
+		)
 	}
 
 	/**

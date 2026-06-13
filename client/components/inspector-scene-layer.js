@@ -1,6 +1,7 @@
 /** Look layer inspector (fill, mixer, playlist, effects, PIP overlays, take options). */
 import { sceneState } from '../lib/scene-state.js'
 import { fillToPixelRect, pixelRectToFill, fullFill } from '../lib/fill-math.js'
+import { applyFillPxPatch, displayPositionFromStoredPx } from '../lib/coordinate-origin.js'
 import { getContentResolution } from '../lib/mixer-fill.js'
 import { appendSceneLayerFillGroup } from './inspector-fill.js'
 import { appendSceneLayerMixerGroup } from './inspector-mixer.js'
@@ -36,7 +37,8 @@ export function renderSceneLayerInspector(deps, sel) {
 	const res = getResolutionForScreen(stateStore)
 	const canvas = sceneState.getCanvasForScreen(sceneState.activeScreenIndex)
 	const fill = layer.fill || fullFill()
-	const pxRect = fillToPixelRect(fill, canvas)
+	const pxRectStored = fillToPixelRect(fill, canvas)
+	const pxRect = displayPositionFromStoredPx(pxRectStored, canvas)
 
 	root.innerHTML = ''
 	const title = document.createElement('div')
@@ -98,7 +100,7 @@ export function renderSceneLayerInspector(deps, sel) {
 		if (!L) return
 		const f = L.fill || fullFill()
 		const r = fillToPixelRect(f, canvas)
-		let next = { x: r.x, y: r.y, w: r.w, h: r.h, ...partial }
+		let next = applyFillPxPatch({ x: r.x, y: r.y, w: r.w, h: r.h }, partial, canvas)
 		if (L.aspectLocked !== false) {
 			const cr = L.source ? getContentResolution(L.source, stateStore, sceneState.activeScreenIndex) : null
 			let ar = cr && cr.w > 0 && cr.h > 0 ? cr.w / cr.h : null
@@ -223,7 +225,7 @@ export function renderSceneLayerInspector(deps, sel) {
 	startHint.style.fontSize = '0.78rem'
 	startHint.style.color = 'var(--text-muted)'
 	startHint.textContent =
-		'Optional: override the timeline clip’s setting for this layer index when taking the look. “Same as timeline” uses the clip inspector value.'
+		'Override timeline clip on the same layer index when taking. With no timeline clip, “Start from beginning” / “Relative to timeline” apply from this layer (continue uses last take frame for this file).'
 	startWrap.appendChild(startHint)
 	takeGrp.appendChild(startWrap)
 	root.appendChild(takeGrp)

@@ -3,6 +3,12 @@
  */
 
 import { UI_FONT_FAMILY } from '../lib/ui-font.js'
+import {
+	createPlaybackTimingClock,
+	extrapolatePlaybackFile,
+	resolvePlaybackTimingFromFile,
+	syncPlaybackTimingClock,
+} from '../lib/playback-timing-clock.js'
 
 /** @param {number} sec @param {number} fps */
 export function formatHmsf(sec, fps) {
@@ -90,57 +96,45 @@ export function mountPlaybackTimer(container, opts) {
 	container.innerHTML =
 		'<div class="playback-timer__row"></div>' +
 		'<div class="playback-timer__bar" style="height:3px;margin-top:4px;border-radius:2px;overflow:hidden;background:#333">' +
-		'<div class="playback-timer__fill" style="height:100%;width:0%;transition:width .12s linear"></div></div>'
+		'<div class="playback-timer__fill" style="height:100%;width:0%;transition:width .08s linear"></div></div>'
 	const row = container.querySelector('.playback-timer__row')
 	const fill = container.querySelector('.playback-timer__fill')
 	const bar = container.querySelector('.playback-timer__bar')
+	const clock = createPlaybackTimingClock()
+	let lastLayerState = { file: {} }
+	const paintCtx = { row, fill, bar, container, format, fpsFallback }
 
-	function paint(layerState) {
-		const f = layerState?.file || {}
-		const elapsed = f.elapsed
-		const dur = f.duration
-		const rem = f.remaining
-		const fps = Number.isFinite(f.fps) ? f.fps : fpsFallback
-		let pct = 0
-		if (Number.isFinite(f.progress)) pct = Math.min(100, Math.max(0, f.progress * 100))
-		else if (Number.isFinite(dur) && dur > 0 && Number.isFinite(elapsed)) pct = Math.min(100, Math.max(0, (elapsed / dur) * 100))
+	function repaint(now = performance.now()) {
+		syncPlaybackTimingClock(clock, lastLayerState?.file || {}, {
+			now,
+			layerState: lastLayerState,
+			fpsFallback,
+		})
+		const display = extrapolatePlaybackFile(clock, lastLayerState?.file || {}, { now, fpsFallback })
+		paintPlaybackDisplay(paintCtx, display, layer)
+	}
 
-		const eStr =
-			format === 'hmsf'
-				? formatHmsf(Number.isFinite(elapsed) ? elapsed : NaN, fps)
-				: formatMmSs(Number.isFinite(elapsed) ? elapsed : NaN)
-		const tStr =
-			format === 'hmsf'
-				? formatHmsf(Number.isFinite(dur) ? dur : NaN, fps)
-				: formatMmSs(Number.isFinite(dur) ? dur : NaN)
-		const rStr =
-			format === 'hmsf'
-				? formatHmsf(Number.isFinite(rem) ? rem : NaN, fps)
-				: formatMmSs(Number.isFinite(rem) ? rem : NaN)
-
-		row.textContent = Number.isFinite(rem)
-			? `${eStr} / ${tStr}  (−${rStr})`
-			: `${eStr} / ${tStr}`
-		const tier = tierFromRemaining(Number.isFinite(rem) ? rem : null)
-		container.className = 'playback-timer playback-timer--' + tier
-		const c = COLORS[tier] || COLORS.muted
-		row.style.color = c.text
-		bar.style.background = c.bar
-		fill.style.background = c.fill
-		fill.style.width = pct + '%'
+	function ingest(layerState) {
+		lastLayerState = layerState || { file: {} }
+		repaint()
 	}
 
 	function refresh() {
 		const ch = oscClient.channels[String(channel)] || oscClient.channels[channel]
 		const ly = ch?.layers?.[layer] ?? ch?.layers?.[String(layer)]
-		paint(ly || { file: {} })
+		ingest(ly || { file: {} })
 	}
 
-	const unsub = oscClient.onLayerState(channel, layer, paint)
+	const tick = createPlaybackTickLoop(repaint)
+	const unsub = oscClient.onLayerState(channel, layer, ingest)
+	const unsubAll = oscClient.onAfterIngest(refresh)
 	refresh()
+	tick.start()
 	return {
 		destroy() {
+			tick.stop()
 			unsub()
+			unsubAll()
 			container.textContent = ''
 			container.className = ''
 		},
@@ -197,7 +191,7 @@ export function infoLayerToPlaybackHints(infoLayer) {
  * @param {object | undefined} chEntry - `state.channels[]` item for this Caspar channel
  * @param {number | null} layerNum
  */
-function getInfoLayerRow(chEntry, layerNum) {
+export function getInfoLayerRow(chEntry, layerNum) {
 	if (!chEntry || layerNum == null || !Number.isFinite(layerNum)) return null
 	const ly = chEntry.layers
 	if (!ly) return null
@@ -209,13 +203,102 @@ function getInfoLayerRow(chEntry, layerNum) {
  * @param {object | null} infoLayer
  * @param {number} fpsFallback
  */
-function mergeOscFileWithInfoLayer(rawFile, infoLayer, fpsFallback) {
+export function mergeOscFileWithInfoLayer(rawFile, infoLayer, fpsFallback) {
 	const base = rawFile && typeof rawFile === 'object' ? rawFile : {}
 	const enriched = enrichFileTimingForDisplay(base, fpsFallback)
-	if (fileHasPlaybackHints(enriched)) return enriched
 	const hints = infoLayerToPlaybackHints(infoLayer)
 	if (!hints) return enriched
-	return enrichFileTimingForDisplay({ ...enriched, ...hints }, fpsFallback)
+	if (!fileHasPlaybackHints(enriched)) {
+		return enrichFileTimingForDisplay({ ...enriched, ...hints }, fpsFallback)
+	}
+	const merged = { ...enriched }
+	const hEl = hints.elapsed
+	const oEl = merged.elapsed
+	if (Number.isFinite(hEl) && (!Number.isFinite(oEl) || hEl > oEl + 0.02)) {
+		merged.elapsed = hEl
+	}
+	if (Number.isFinite(hints.duration) && hints.duration > 0) {
+		if (!Number.isFinite(merged.duration) || hints.duration > merged.duration + 0.2) {
+			merged.duration = hints.duration
+		}
+	}
+	if (Number.isFinite(hints.remaining)) merged.remaining = hints.remaining
+	else if (Number.isFinite(merged.duration) && Number.isFinite(merged.elapsed)) {
+		merged.remaining = Math.max(0, merged.duration - merged.elapsed)
+	}
+	if (Number.isFinite(merged.duration) && merged.duration > 0 && Number.isFinite(merged.elapsed)) {
+		merged.progress = Math.min(1, Math.max(0, merged.elapsed / merged.duration))
+	}
+	return enrichFileTimingForDisplay(merged, fpsFallback)
+}
+
+/**
+ * @param {{ row: Element, fill: Element, bar: Element, container: HTMLElement, format: string, fpsFallback: number, labelPrefix?: string, title?: string }} ctx
+ * @param {object} displayFile
+ * @param {number|null} layerNum
+ */
+function paintPlaybackDisplay(ctx, displayFile, layerNum) {
+	const { row, fill, bar, container, format, fpsFallback, labelPrefix = '', title } = ctx
+	const f = displayFile
+	const elapsed = f.elapsed
+	const dur = f.duration
+	const rem = f.remaining
+	const fps = Number.isFinite(f.fps) ? f.fps : fpsFallback
+	let pct = 0
+	if (Number.isFinite(f.progress)) pct = Math.min(100, Math.max(0, f.progress * 100))
+	else if (Number.isFinite(dur) && dur > 0 && Number.isFinite(elapsed)) {
+		pct = Math.min(100, Math.max(0, (elapsed / dur) * 100))
+	}
+
+	const eStr =
+		format === 'hmsf'
+			? formatHmsf(Number.isFinite(elapsed) ? elapsed : NaN, fps)
+			: formatMmSs(Number.isFinite(elapsed) ? elapsed : NaN)
+	const tStr =
+		format === 'hmsf'
+			? formatHmsf(Number.isFinite(dur) ? dur : NaN, fps)
+			: formatMmSs(Number.isFinite(dur) ? dur : NaN)
+	const rStr =
+		format === 'hmsf'
+			? formatHmsf(Number.isFinite(rem) ? rem : NaN, fps)
+			: formatMmSs(Number.isFinite(rem) ? rem : NaN)
+
+	row.textContent = Number.isFinite(rem)
+		? `${labelPrefix}${eStr} / ${tStr}  (−${rStr})`
+		: `${labelPrefix}${eStr} / ${tStr}`
+	const tier = tierFromRemaining(Number.isFinite(rem) ? rem : null)
+	const tierClass = 'playback-timer--' + tier
+	const headerExtra = container.classList.contains('header-pgm-timer') ? ' header-pgm-timer' : ''
+	container.className = 'playback-timer ' + tierClass + headerExtra
+	const c = COLORS[tier] || COLORS.muted
+	row.style.color = c.text
+	bar.style.background = c.bar
+	fill.style.background = c.fill
+	fill.style.width = pct + '%'
+	if (title != null) container.title = title
+}
+
+/** @returns {{ start: () => void, stop: () => void }} */
+function createPlaybackTickLoop(onTick) {
+	let running = false
+	let rafId = 0
+	function loop() {
+		if (!running) return
+		onTick(performance.now())
+		rafId = requestAnimationFrame(loop)
+	}
+	return {
+		start() {
+			if (running) return
+			running = true
+			rafId = requestAnimationFrame(loop)
+		},
+		stop() {
+			running = false
+			if (rafId) cancelAnimationFrame(rafId)
+			rafId = 0
+		},
+	}
 }
 
 /**
@@ -224,21 +307,7 @@ function mergeOscFileWithInfoLayer(rawFile, infoLayer, fpsFallback) {
  * @param {number} fpsFallback
  */
 export function enrichFileTimingForDisplay(f, fpsFallback = 50) {
-	const o = f && typeof f === 'object' ? { ...f } : {}
-	const fps = Number.isFinite(o.fps) && o.fps > 0 ? o.fps : fpsFallback
-	if (!Number.isFinite(o.duration) && Number.isFinite(o.frameTotal) && o.frameTotal > 0 && fps > 0) {
-		o.duration = o.frameTotal / fps
-	}
-	if (!Number.isFinite(o.elapsed) && Number.isFinite(o.frameElapsed) && o.frameElapsed >= 0 && fps > 0) {
-		o.elapsed = o.frameElapsed / fps
-	}
-	if (Number.isFinite(o.duration) && Number.isFinite(o.elapsed) && !Number.isFinite(o.remaining)) {
-		o.remaining = Math.max(0, o.duration - o.elapsed)
-	}
-	if (Number.isFinite(o.duration) && o.duration > 0 && Number.isFinite(o.elapsed) && !Number.isFinite(o.progress)) {
-		o.progress = Math.min(1, Math.max(0, o.elapsed / o.duration))
-	}
-	return o
+	return resolvePlaybackTimingFromFile(f, fpsFallback).file
 }
 
 export function pickTopLayerStateForPlayback(channelState) {
@@ -279,13 +348,15 @@ export function mountPgmTopLayerPlaybackTimer(container, opts) {
 	container.innerHTML =
 		'<div class="playback-timer__row"></div>' +
 		'<div class="playback-timer__bar" style="height:3px;margin-top:4px;border-radius:2px;overflow:hidden;background:#333">' +
-		'<div class="playback-timer__fill" style="height:100%;width:0%;transition:width .12s linear"></div></div>'
+		'<div class="playback-timer__fill" style="height:100%;width:0%;transition:width .08s linear"></div></div>'
 	const row = container.querySelector('.playback-timer__row')
 	const fill = container.querySelector('.playback-timer__fill')
 	const bar = container.querySelector('.playback-timer__bar')
+	const clock = createPlaybackTimingClock()
+	let lastMeta = { layerState: { file: {} }, layerNum: null, resolvedChNum: 1, rawFile: {} }
 
-	function paint(layerState, layerNum, resolvedChNum) {
-		const rawFile = layerState?.file || {}
+	function repaint(now = performance.now()) {
+		const { layerState, layerNum, resolvedChNum, rawFile } = lastMeta
 		let infoLayer = null
 		try {
 			const st = typeof getState === 'function' ? getState() : null
@@ -294,45 +365,27 @@ export function mountPgmTopLayerPlaybackTimer(container, opts) {
 		} catch {
 			infoLayer = null
 		}
-		const f = mergeOscFileWithInfoLayer(rawFile, infoLayer, fpsFallback)
-		const elapsed = f.elapsed
-		const dur = f.duration
-		const rem = f.remaining
-		const fps = Number.isFinite(f.fps) ? f.fps : fpsFallback
-		let pct = 0
-		if (Number.isFinite(f.progress)) pct = Math.min(100, Math.max(0, f.progress * 100))
-		else if (Number.isFinite(dur) && dur > 0 && Number.isFinite(elapsed)) pct = Math.min(100, Math.max(0, (elapsed / dur) * 100))
-
-		const eStr =
-			format === 'hmsf'
-				? formatHmsf(Number.isFinite(elapsed) ? elapsed : NaN, fps)
-				: formatMmSs(Number.isFinite(elapsed) ? elapsed : NaN)
-		const tStr =
-			format === 'hmsf'
-				? formatHmsf(Number.isFinite(dur) ? dur : NaN, fps)
-				: formatMmSs(Number.isFinite(dur) ? dur : NaN)
-		const rStr =
-			format === 'hmsf'
-				? formatHmsf(Number.isFinite(rem) ? rem : NaN, fps)
-				: formatMmSs(Number.isFinite(rem) ? rem : NaN)
-
-		const label = playbackFileLabel({ ...rawFile, name: f.name != null && f.name !== '' ? f.name : rawFile.name })
+		const merged = mergeOscFileWithInfoLayer(rawFile, infoLayer, fpsFallback)
+		syncPlaybackTimingClock(clock, merged, { now, layerState, fpsFallback })
+		const display = extrapolatePlaybackFile(clock, merged, { now, fpsFallback })
+		const label = playbackFileLabel({
+			...rawFile,
+			name: display.name != null && display.name !== '' ? display.name : rawFile.name,
+		})
 		const prefix = label ? `${label} · ` : ''
-		row.textContent = Number.isFinite(rem)
-			? `${prefix}${eStr} / ${tStr}  (−${rStr})`
-			: `${prefix}${eStr} / ${tStr}`
-		const tier = tierFromRemaining(Number.isFinite(rem) ? rem : null)
-		container.className = 'playback-timer playback-timer--' + tier + ' header-pgm-timer'
-		const c = COLORS[tier] || COLORS.muted
-		row.style.color = c.text
-		bar.style.background = c.bar
-		fill.style.background = c.fill
-		fill.style.width = pct + '%'
-		container.title = label
-			? `PGM: ${label} — elapsed / duration from OSC`
+		const title = label
+			? `PGM: ${label} — elapsed / duration`
 			: layerNum != null
-				? `PGM: layer ${layerNum} (no file name in OSC)`
-				: 'PGM: no layer with file/time on this channel (OSC)'
+				? `PGM: layer ${layerNum}`
+				: 'PGM: no layer with file/time on this channel'
+		paintPlaybackDisplay(
+			{ row, fill, bar, container, format, fpsFallback, labelPrefix: prefix, title },
+			display,
+			layerNum,
+		)
+		if (!container.className.includes('header-pgm-timer')) {
+			container.className += ' header-pgm-timer'
+		}
 	}
 
 	function refresh() {
@@ -354,13 +407,23 @@ export function mountPgmTopLayerPlaybackTimer(container, opts) {
 		}
 		const ch = oscClient.channels[String(chNum)] || oscClient.channels[chNum]
 		const { layerNum, layerState } = pickTopLayerStateForPlayback(ch)
-		paint(layerState || { file: {} }, layerNum, chNum)
+		const rawFile = layerState?.file || {}
+		lastMeta = {
+			layerState: layerState || { file: {} },
+			layerNum,
+			resolvedChNum: chNum,
+			rawFile,
+		}
+		repaint()
 	}
 
+	const tick = createPlaybackTickLoop(repaint)
 	const unsub = oscClient.onAfterIngest(refresh)
 	refresh()
+	tick.start()
 	return {
 		destroy() {
+			tick.stop()
 			unsub()
 			container.textContent = ''
 			container.className = ''

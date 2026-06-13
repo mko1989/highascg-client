@@ -46,7 +46,8 @@ export function casparRearKindToIcon(kind) {
 	if (kind === 'gpu_out') return '/assets/hdmi-port-icon.svg'
 	if (kind?.startsWith('decklink') || kind === 'caspar_mv_out') return '/assets/bnc_female_axis.svg'
 	if (kind === 'audio_out') return '/assets/jack-svg.svg'
-	if (kind === 'stream_out' || kind === 'record_out') return '/assets/ethernet-port-icon.svg'
+	if (kind === 'stream_out') return '/assets/ethernet-port-icon.svg'
+	if (kind === 'record_out') return '/assets/record-port-icon.svg'
 	return '/assets/bnc_female_axis.svg'
 }
 

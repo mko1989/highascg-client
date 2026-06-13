@@ -1,7 +1,8 @@
 import { api, getApiBase } from '../lib/api-client.js'
 import { assetUrl } from '../lib/api-origin.js'
 import { getThumbnailUrl } from '../lib/thumbnail-url.js'
-import { buildLiveAudioSources, liveAudioSlotStatusMessage } from '../lib/live-audio-inputs.js'
+import { decklinkInputForSlot, liveAudioInputForSlot } from '../lib/input-channels.js'
+import { liveAudioSlotStatusMessage } from '../lib/live-audio-inputs.js'
 
 export { liveAudioSlotStatusMessage }
 
@@ -225,9 +226,39 @@ export function formatFileSize(bytes) {
 	return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
 }
 
+function normalizeMediaPathKey(id) {
+	return String(id || '').replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase()
+}
+
+function isAllCapsPathSegment(s) {
+	const t = String(s || '')
+	return t.length > 0 && t === t.toUpperCase() && /[A-Z]/.test(t)
+}
+
+/** Prefer probe/disk path casing over stale ALL-CAPS directory rows from the WS catalog. */
+function preferMergedMediaId(prev, next, prevIsDir, nextIsDir) {
+	const a = String(prev?.id ?? prev ?? '')
+	const b = String(next?.id ?? next ?? '')
+	if (prevIsDir || nextIsDir) {
+		if (normalizeMediaPathKey(a) !== normalizeMediaPathKey(b)) return b || a
+		if (isAllCapsPathSegment(a.split('/').pop()) && !isAllCapsPathSegment(b.split('/').pop())) return b
+		if (isAllCapsPathSegment(b.split('/').pop()) && !isAllCapsPathSegment(a.split('/').pop())) return a
+		return b || a
+	}
+	if (b.includes('/') && !a.includes('/')) return b
+	if (a.includes('/') && !b.includes('/')) return a
+	return b.length >= a.length ? b : a
+}
+
+function mediaCatalogMergeKey(item) {
+	const raw = String(item.id ?? item).replace(/\\/g, '/')
+	if (item.isDir) return `dir:${normalizeMediaPathKey(raw)}`
+	return `file:${normalizeMediaIdForMatch(raw)}`
+}
+
 /**
  * Combine WebSocket `state.media` (CINF metadata after server flush) with last GET /api/media
- * (ffprobe + disk merge). Dedupe by basename without extension (same key as findMediaRow / scene fill).
+ * (ffprobe + disk merge). Files dedupe by basename (scene fill); folders by full path (case-insensitive).
  */
 export function mergeMediaProbeOverlay(stateMedia, probeList) {
 	const sm = stateMedia || []
@@ -236,17 +267,41 @@ export function mergeMediaProbeOverlay(stateMedia, probeList) {
 	if (!sm.length) return pl
 	const byKey = new Map()
 	function addRow(item) {
-		const key = normalizeMediaIdForMatch(item.id)
+		const key = mediaCatalogMergeKey(item)
 		const prev = byKey.get(key)
 		if (!prev) {
 			byKey.set(key, { ...item })
 			return
 		}
-		byKey.set(key, { ...prev, ...item, id: prev.id })
+		const id = preferMergedMediaId(prev, item, !!prev.isDir, !!item.isDir)
+		byKey.set(key, { ...prev, ...item, id })
 	}
 	for (const m of sm) addRow(m)
 	for (const p of pl) addRow(p)
-	return [...byKey.values()]
+	return pruneRedundantMediaDirs([...byKey.values()])
+}
+
+/** Drop duplicate empty folder rows (e.g. stale WS `CLIPS` when disk has `clips/…`). */
+function pruneRedundantMediaDirs(items) {
+	const dirs = items.filter((i) => i.isDir)
+	const files = items.filter((i) => !i.isDir)
+	return items.filter((item) => {
+		if (!item.isDir) return true
+		const dk = normalizeMediaPathKey(item.id)
+		const hasFiles = files.some((f) => {
+			const fk = normalizeMediaPathKey(f.id)
+			return fk === dk || fk.startsWith(dk + '/')
+		})
+		if (hasFiles) return true
+		const peers = dirs.filter((d) => normalizeMediaPathKey(d.id) === dk)
+		if (peers.length <= 1) return true
+		const preferred = peers.slice().sort((a, b) => {
+			const ac = isAllCapsPathSegment(String(a.id).split('/').pop())
+			const bc = isAllCapsPathSegment(String(b.id).split('/').pop())
+			return Number(ac) - Number(bc)
+		})[0]
+		return item === preferred
+	})
 }
 
 export function buildLiveSources(channelMap, connectors, liveAudioConfigured) {
@@ -267,8 +322,8 @@ export function buildLiveSources(channelMap, connectors, liveAudioConfigured) {
 	const {
 		programChannels = [],
 		previewChannels = [],
-		inputsCh,
 		decklinkCount = 0,
+		liveAudioCount = 0,
 		programResolutions = [],
 		audioOnlyChannels = [],
 		audioOnlyResolutions = [],
@@ -288,30 +343,53 @@ export function buildLiveSources(channelMap, connectors, liveAudioConfigured) {
 		// Full channel composite (black L9 + content L10+). Do not use route://N-11 — layer numbers match PGM now.
 		sources.push({ type: 'route', routeType: 'prv', value: `route://${ch}`, label: `Preview ${i + 1}`, resolution, fps })
 	})
-	const liveAudio = buildLiveAudioSources(channelMap, liveAudioConfigured)
-	for (const s of liveAudio) sources.push(s)
-
-	if (inputsCh != null && decklinkCount > 0) {
-		const inputsRes = channelMap.inputsResolution
-		const resolution = inputsRes?.w && inputsRes?.h ? `${inputsRes.w}×${inputsRes.h}` : ''
-		const fps = inputsRes?.fps != null ? formatFps(inputsRes.fps) : ''
-		for (let i = 1; i <= decklinkCount; i++) {
-			// Find connector that matches this decklink slot (0-indexed index in caspar config usually matches index in device-view)
-			// But we look for ioDirection: 'in' and index: i-1
-			const conn = connectors.find(c => (c.kind === 'decklink_io' || c.kind === 'decklink') && c.caspar?.ioDirection === 'in' && c.index === (i - 1))
-			sources.push({
-				type: 'route',
-				routeType: 'decklink',
-				value: `route://${inputsCh}-${i}`,
-				label: conn?.label || `decklink ${i}`,
-				resolution,
-				fps,
-				decklinkSlot: i,
-				inputsChannel: inputsCh,
-				connectorId: conn?.id,
-				decklinkDevice: conn?.externalRef != null ? parseInt(String(conn.externalRef), 10) : (i - 1)
-			})
-		}
+	for (let i = 1; i <= decklinkCount; i++) {
+		const entry = decklinkInputForSlot(channelMap, i)
+		if (!entry) continue
+		const conn = connectors.find(
+			(c) =>
+				(c.kind === 'decklink_io' || c.kind === 'decklink') &&
+				c.caspar?.ioDirection === 'in' &&
+				c.index === i - 1,
+		)
+		const res = entry.resolution
+		const resolution = res?.w && res?.h ? `${res.w}×${res.h}` : ''
+		const fps = res?.fps != null ? formatFps(res.fps) : ''
+		sources.push({
+			type: 'route',
+			routeType: 'decklink',
+			value: entry.route,
+			label: entry.label || conn?.label || `DeckLink ${i}`,
+			resolution,
+			fps,
+			decklinkSlot: entry.slot,
+			inputsChannel: entry.channel,
+			inputsLayer: entry.layer,
+			connectorId: conn?.id,
+			decklinkDevice: conn?.externalRef != null ? parseInt(String(conn.externalRef), 10) : i - 1,
+		})
+	}
+	const cfgSlots = Array.isArray(liveAudioConfigured?.configured?.slots)
+		? liveAudioConfigured.configured.slots
+		: []
+	for (let i = 1; i <= liveAudioCount; i++) {
+		const entry = liveAudioInputForSlot(channelMap, i)
+		if (!entry) continue
+		const cfg = cfgSlots.find((s) => s && Number(s.slot) === i)
+		const res = entry.resolution || cfg?.resolution
+		const resolution = res?.w && res?.h ? `${res.w}×${res.h}` : ''
+		const fps = res?.fps != null ? formatFps(res.fps) : ''
+		sources.push({
+			type: 'route',
+			routeType: 'live_audio',
+			value: entry.route || cfg?.route,
+			label: entry.label || cfg?.label || `Live audio ${i}`,
+			resolution,
+			fps,
+			liveAudioSlot: i,
+			inputsChannel: entry.channel,
+			inputsLayer: entry.layer,
+		})
 	}
 	audioOnlyChannels.forEach((ch, i) => {
 		const res = audioOnlyResolutions[i]

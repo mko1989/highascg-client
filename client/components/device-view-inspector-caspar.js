@@ -27,7 +27,7 @@ export function renderCasparSettingsInspector(host, { currentSettings, lastPaylo
 		<label class="device-view__cablemode">AMCP port <input type="number" min="1" max="65535" data-k="caspar.port" value="${parseInt(String(s?.caspar?.port ?? 5250), 10) || 5250}" /></label>
 		<label class="device-view__cablemode"><input type="checkbox" data-k="osc.enabled" ${(s?.osc?.enabled !== false) ? 'checked' : ''} /> OSC enabled</label>
 		<label class="device-view__cablemode">OSC listen port <input type="number" min="1" max="65535" data-k="osc.listenPort" value="${parseInt(String(s?.osc?.listenPort ?? 6251), 10) || 6251}" /></label>
-		<label class="device-view__cablemode">Inputs host <select data-k="decklink_inputs_host"><option value="dedicated" ${String(cs.decklink_inputs_host || 'dedicated') === 'dedicated' ? 'selected' : ''}>Dedicated</option><option value="preview_1" ${String(cs.decklink_inputs_host || '') === 'preview_1' ? 'selected' : ''}>Preview 1</option><option value="multiview_if_match" ${String(cs.decklink_inputs_host || '') === 'multiview_if_match' ? 'selected' : ''}>Multiview if match</option></select></label>
+		<p class="device-view__note small">Live inputs (DeckLink + ALSA) each use a dedicated Caspar channel — see channelMap.inputChannels after apply + restart.</p>
 		${htmlRows.join('')}
 		<p class="device-view__note"><strong>Build profile</strong></p>
 		<label class="device-view__cablemode">CasparCG build <select data-k="caspar_build_profile"><option value="custom_live" ${currentProfile === 'custom_live' ? 'selected' : ''}>Custom Live (PortAudio, extended screen)</option><option value="stock" ${currentProfile === 'stock' ? 'selected' : ''}>Stock (standard CasparCG)</option></select></label>
@@ -57,7 +57,6 @@ export function renderCasparSettingsInspector(host, { currentSettings, lastPaylo
 				listenPort: Math.max(1, parseInt(String(get('osc.listenPort')?.value || s?.osc?.listenPort || 6251), 10) || 6251),
 			},
 			casparServer: {
-				decklink_inputs_host: String(get('decklink_inputs_host')?.value || 'dedicated'),
 				caspar_build_profile: String(get('caspar_build_profile')?.value || 'custom_live'),
 			},
 			audioRouting: {

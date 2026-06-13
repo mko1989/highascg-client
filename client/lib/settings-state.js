@@ -5,9 +5,24 @@
  */
 
 import { api } from './api-client.js'
+import { DEFAULT_EDITOR_DEFAULTS, mergeEditorDefaults } from './editor-defaults-constants.js'
+
+/**
+ * Merge GET/POST settings onto the in-memory cache. Keeps `editorDefaults` when the server omits them (WO-33).
+ * @param {object} cfg
+ */
+export function applySettingsFromServer(cfg) {
+	if (!cfg || typeof cfg !== 'object') return
+	const prevEd = settingsState.settings?.editorDefaults
+	Object.assign(settingsState.settings, cfg)
+	settingsState.settings.editorDefaults = mergeEditorDefaults(
+		cfg.editorDefaults != null ? cfg.editorDefaults : prevEd,
+	)
+}
 
 export const settingsState = {
 	settings: {
+		editorDefaults: { ...DEFAULT_EDITOR_DEFAULTS },
 		caspar: { host: '127.0.0.1', port: 5250 },
 		streaming: { enabled: true, quality: 'medium', basePort: 10000, hardware_accel: true },
 		/** Mirrors server defaults so subscribers (e.g. DMX) see shape before GET /api/settings completes. */
@@ -63,7 +78,7 @@ export const settingsState = {
 			try {
 				const cfg = await api.get('/api/settings')
 				if (cfg && typeof cfg === 'object') {
-					this.settings = cfg
+					applySettingsFromServer(cfg)
 					this.notify()
 				}
 			} catch (e) {

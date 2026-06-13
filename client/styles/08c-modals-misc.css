@@ -150,6 +150,120 @@
 	background: var(--border);
 }
 
+.load-project-modal__hint {
+	margin: 0 0 12px;
+	color: var(--text-muted);
+	font-size: 0.9rem;
+	line-height: 1.45;
+}
+
+.load-project-modal__preview {
+	margin: 0 0 12px;
+	font-size: 0.85rem;
+	color: var(--text);
+}
+
+.load-project-modal__status {
+	margin: 0;
+	padding: 10px 12px;
+	border-radius: var(--radius);
+	font-size: 0.85rem;
+	background: rgba(88, 166, 255, 0.1);
+	border: 1px solid rgba(88, 166, 255, 0.35);
+}
+
+.load-project-modal__status--error {
+	background: rgba(248, 81, 73, 0.12);
+	border-color: rgba(248, 81, 73, 0.45);
+	color: #ffa8a8;
+}
+
+.load-project-modal {
+	max-width: min(96vw, 720px);
+	width: 96%;
+}
+
+.load-project-modal__list-wrap {
+	margin-top: 8px;
+	max-height: min(50vh, 360px);
+	overflow: auto;
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+}
+
+.load-project-modal__table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 0.85rem;
+}
+
+.load-project-modal__table th,
+.load-project-modal__table td {
+	padding: 8px 10px;
+	text-align: left;
+	border-bottom: 1px solid var(--border);
+	vertical-align: top;
+}
+
+.load-project-modal__table th {
+	position: sticky;
+	top: 0;
+	background: var(--bg-panel);
+	z-index: 1;
+	font-weight: 600;
+	color: var(--text-muted);
+}
+
+.load-project-modal__table th:first-child,
+.load-project-modal__table td:first-child {
+	width: 28px;
+	padding-right: 4px;
+}
+
+.load-project-modal__row {
+	cursor: pointer;
+}
+
+.load-project-modal__row:hover {
+	background: rgba(88, 166, 255, 0.06);
+}
+
+.load-project-modal__row--selected {
+	background: rgba(88, 166, 255, 0.12);
+}
+
+.load-project-modal__row--active td strong {
+	color: var(--accent);
+}
+
+.load-project-modal__filename {
+	font-size: 0.75rem;
+	color: var(--text-muted);
+	margin-top: 2px;
+}
+
+.load-project-modal__tag {
+	display: inline-block;
+	margin-left: 6px;
+	padding: 1px 6px;
+	border-radius: 4px;
+	font-size: 0.7rem;
+	font-weight: 500;
+	background: var(--bg-elevated);
+	color: var(--text-muted);
+}
+
+.load-project-modal__tag--active {
+	background: rgba(63, 185, 80, 0.15);
+	color: var(--success);
+}
+
+.load-project-modal__empty {
+	margin: 12px;
+	color: var(--text-muted);
+	font-size: 0.85rem;
+}
+
 /* Header — monitor audio (headphones + dropdown); keep below connection-eye + stats tooltip */
 .header-audio {
 	position: relative;
@@ -381,4 +495,96 @@
 	flex-wrap: wrap;
 	gap: 0.5rem;
 	justify-content: flex-end;
+}
+
+/* Project hardware reconcile modal (WO — hardware persistence) */
+.hardware-reconcile-modal {
+	max-width: 34rem;
+}
+.hardware-reconcile-modal__lead {
+	margin: 0 0 12px;
+	line-height: 1.45;
+	color: var(--text-muted);
+}
+.hardware-reconcile-modal__diff {
+	margin: 0 0 12px;
+	padding-left: 1.1rem;
+	max-height: 14rem;
+	overflow: auto;
+	font-size: 0.88rem;
+	line-height: 1.4;
+}
+.hardware-reconcile-modal__diff-item {
+	margin-bottom: 0.35rem;
+}
+.hardware-reconcile-modal__diff-item--hard {
+	color: #f85149;
+}
+.hardware-reconcile-modal__diff-item--soft {
+	color: var(--text-muted);
+}
+.hardware-reconcile-modal__remember {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	font-size: 0.85rem;
+	margin: 0 0 8px;
+	cursor: pointer;
+}
+.hardware-reconcile-modal__policy {
+	width: 100%;
+	margin-bottom: 8px;
+	padding: 6px 8px;
+	border-radius: var(--radius);
+	border: 1px solid var(--border);
+	background: var(--bg-elevated);
+	color: var(--text);
+}
+.hardware-reconcile-modal__footer-note {
+	margin: 0;
+	font-size: 0.78rem;
+	color: var(--text-muted);
+	line-height: 1.35;
+}
+.hardware-reconcile-modal__actions {
+	flex-wrap: wrap;
+	gap: 0.5rem;
+}
+
+.hardware-reconcile-banner {
+	position: fixed;
+	bottom: 0;
+	left: 0;
+	right: 0;
+	z-index: 9000;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-wrap: wrap;
+	gap: 0.75rem 1rem;
+	padding: 10px 16px;
+	background: rgba(180, 120, 0, 0.92);
+	color: #111;
+	font-size: 0.88rem;
+	box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.25);
+}
+.hardware-reconcile-banner__link {
+	border: 1px solid rgba(0, 0, 0, 0.35);
+	background: rgba(255, 255, 255, 0.35);
+	padding: 4px 10px;
+	border-radius: 4px;
+	cursor: pointer;
+	font-size: 0.85rem;
+}
+.hardware-reconcile-banner__dismiss {
+	border: none;
+	background: transparent;
+	font-size: 1.25rem;
+	line-height: 1;
+	cursor: pointer;
+	padding: 0 6px;
+	opacity: 0.7;
+}
+.hardware-reconcile-banner__dismiss:hover {
+	opacity: 1;
 }

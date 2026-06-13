@@ -10,18 +10,84 @@ export function getMainModalHtml() {
 			</div>
 			<div class="modal-body settings-body">
 				<div class="settings-tabs">
-					<button class="settings-tab active" data-tab="simulation">Simulation</button>
+					<button class="settings-tab active" data-tab="defaults">Defaults</button>
+					<button class="settings-tab" data-tab="simulation">Simulation</button>
 					<button class="settings-tab" data-tab="companion">Companion</button>
 					<button class="settings-tab" data-tab="media-usb">media/usb</button>
 					<button class="settings-tab" data-tab="system-hardware">system</button>
 					<button class="settings-tab" data-tab="decklink">decklink</button>
-					<button class="settings-tab" data-tab="live-audio">live audio</button>
-					<button class="settings-tab" data-tab="plugins">Plugins</button>
 					<button class="settings-tab" data-tab="variables">Variables</button>
 					<button class="settings-tab" data-tab="nuclear">Nuclear</button>
 				</div>
 				<div class="settings-panes">
-					<div class="settings-pane active" id="settings-pane-simulation">
+					<div class="settings-pane active" id="settings-pane-defaults">
+						<h3 class="settings-category">Layer position</h3>
+						<div class="settings-group">
+							<label for="ed-coordinate-origin">Coordinate origin (0,0)</label>
+							<select id="ed-coordinate-origin">
+								<option value="topLeft">Top-left — canvas and layer box</option>
+								<option value="center">Center — screen and layer box</option>
+							</select>
+						</div>
+						<p class="settings-note">Center mode: X/Y in the look editor, timeline inspector, and position keyframes are offsets from the screen center. Playout and saved projects still use top-left fill.</p>
+						<h3 class="settings-category">Scene — dropping media onto a look</h3>
+						<div class="settings-group checkbox">
+							<label><input type="checkbox" id="ed-scene-loop" /> Loop media on new layers</label>
+						</div>
+						<div class="settings-group">
+							<label for="ed-scene-start">Start playback</label>
+							<select id="ed-scene-start">
+								<option value="beginning">Start from beginning (trim in)</option>
+								<option value="relativeToPrevious">Continue from previous play on this layer</option>
+							</select>
+						</div>
+						<p class="settings-note">“Continue from previous” seeks to live <code>current_duration</code> on that PGM layer (variables, then OSC/INFO). Timeline clip on the same layer index still applies when no live playhead is found.</p>
+						<div class="settings-group">
+							<label for="ed-scene-content-fit">Content sizing</label>
+							<select id="ed-scene-content-fit"></select>
+						</div>
+						<h3 class="settings-category">Timeline — new clips</h3>
+						<div class="settings-group checkbox">
+							<label><input type="checkbox" id="ed-timeline-loop-always" /> Loop always</label>
+						</div>
+						<div class="settings-group">
+							<label for="ed-timeline-start">Start behaviour</label>
+							<select id="ed-timeline-start">
+								<option value="beginning">Start from beginning (trim in)</option>
+								<option value="relativeToPrevious">Continue from previous / timeline playhead</option>
+							</select>
+						</div>
+						<div class="settings-group">
+							<label for="ed-timeline-content-fit">Content sizing</label>
+							<select id="ed-timeline-content-fit"></select>
+						</div>
+						<h3 class="settings-category">Default transition (new looks)</h3>
+						<div class="settings-group" style="display:flex;flex-wrap:wrap;gap:0.5rem;align-items:center">
+							<label for="ed-transition-type" style="flex:1 1 100%">Type</label>
+							<select id="ed-transition-type" style="flex:1 1 10rem">
+								<option value="CUT">CUT</option>
+								<option value="MIX">MIX</option>
+								<option value="PUSH">PUSH</option>
+								<option value="WIPE">WIPE</option>
+								<option value="SLIDE">SLIDE</option>
+								<option value="MIX + ANIMATE">MIX + Animate</option>
+								<option value="WIPE + ANIMATE">WIPE + Animate</option>
+								<option value="SLIDE + ANIMATE">SLIDE + Animate</option>
+								<option value="PUSH + ANIMATE">PUSH + Animate</option>
+							</select>
+							<label for="ed-transition-duration">Duration (frames)</label>
+							<input type="text" id="ed-transition-duration" class="inspector-math-input" inputmode="decimal" style="width:4.5rem" />
+							<label for="ed-transition-tween">Tween</label>
+							<select id="ed-transition-tween">
+								<option value="linear">linear</option>
+								<option value="easein">easein</option>
+								<option value="easeout">easeout</option>
+								<option value="easeboth">easeboth</option>
+							</select>
+						</div>
+						<p class="settings-note">Also used for the timeline Take bar default. Existing looks and clips are not changed.</p>
+					</div>
+					<div class="settings-pane" id="settings-pane-simulation">
 						<h3 class="settings-category">Simulation</h3>
 						<div class="settings-group checkbox">
 							<label><input type="checkbox" id="set-offline-mode"> Simulation / Offline Mode (Simulate CasparCG playback)</label>
@@ -75,18 +141,13 @@ export function getMainModalHtml() {
 					</div>
 					<div class="settings-pane" id="settings-pane-system-hardware">
 						<h3 class="settings-category">NVIDIA GPU</h3>
-						<p class="settings-note">Driver info from this host and optional apply from offline pool <code>/opt/nvidia-pool</code> (branch must have <code>nvidia-driver-*</code> debs cached). <strong>If nuclear password protection is enabled</strong>, enter it under the <strong>Nuclear</strong> tab before Apply or GPU tools.</p>
 						<pre class="settings-note" id="system-hw-nvidia-summary" style="white-space:pre-wrap;max-height:10rem;overflow:auto;font-size:0.8rem;line-height:1.35;background:rgba(0,0,0,0.2);padding:0.5rem;border-radius:0.35rem;margin:0.25rem 0">Loading…</pre>
 						<div class="settings-group" style="display:flex;flex-wrap:wrap;gap:0.5rem;align-items:center;margin-top:0.5rem">
-							<label for="system-hw-nvidia-branch" style="flex:1 1 100%">Branch (from pool)</label>
-							<select id="system-hw-nvidia-branch" style="flex:1 1 8rem;min-width:7rem"><option value="">—</option></select>
-							<button type="button" class="btn btn--primary" id="system-hw-nvidia-apply" style="flex:0">Apply driver…</button>
 							<button type="button" class="btn btn--secondary" id="system-hw-nvidia-settings" style="flex:0">nvidia-settings :0</button>
 							<button type="button" class="btn btn--secondary" id="system-hw-nvidia-refresh" style="flex:0">Refresh</button>
 						</div>
 						<p class="settings-note" id="system-hw-nvidia-status" style="margin-top:0.35rem"></p>
 					</div>
-					<div class="settings-pane" id="settings-pane-live-audio"></div>
 					<div class="settings-pane" id="settings-pane-decklink">
 						<h3 class="settings-category">Blackmagic DeckLink</h3>
 						<p class="settings-note">Discovery uses ffmpeg DeckLink list and recent Caspar log when present. Buttons open GUIs on <code>:0</code> (needs X session). If nuclear password protection is on, set it under <strong>Nuclear</strong> first.</p>
@@ -97,43 +158,6 @@ export function getMainModalHtml() {
 							<button type="button" class="btn btn--secondary" id="decklink-dv-updater">Desktop Video Updater</button>
 						</div>
 						<p class="settings-note" id="decklink-status-line" style="margin-top:0.35rem"></p>
-					</div>
-					<div class="settings-pane" id="settings-pane-plugins">
-						<h3 class="settings-category">Plugins</h3>
-						<p class="settings-note">Enable or disable plugins. Toggle one or several, then apply.</p>
-						<div class="settings-group">
-							<p class="settings-note" id="set-plugin-status"></p>
-						</div>
-						<div class="settings-group">
-							<div id="set-plugins-list"></div>
-						</div>
-						<div class="settings-group">
-							<button type="button" class="btn btn--primary" id="set-plugin-apply-toggles">Apply plugin toggles</button>
-							<button type="button" class="btn btn--secondary" id="set-plugin-refresh">Refresh list</button>
-						</div>
-						<details class="settings-group">
-							<summary>Advanced plugin actions</summary>
-							<div class="settings-group">
-								<label>Add plugin (ID)</label>
-								<input type="text" id="set-plugin-add-id" placeholder="my-plugin">
-							</div>
-							<div class="settings-group">
-								<label>Module name</label>
-								<input type="text" id="set-plugin-add-module" placeholder="my-plugin">
-							</div>
-							<div class="settings-group">
-								<label>Source</label>
-								<select id="set-plugin-add-source">
-									<option value="local">local</option>
-									<option value="bundled">bundled</option>
-									<option value="github">github (future)</option>
-								</select>
-							</div>
-							<div class="settings-group">
-								<button type="button" class="btn btn--secondary" id="set-plugin-add-btn">Add plugin</button>
-							</div>
-							<button type="button" class="btn btn--primary" id="set-plugin-restart-app">Restart HighAsCG App</button>
-						</details>
 					</div>
 					<div class="settings-pane" id="settings-pane-variables"></div>
 					<div class="settings-pane" id="settings-pane-nuclear">

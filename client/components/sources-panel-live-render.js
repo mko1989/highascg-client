@@ -7,6 +7,7 @@ import {
 	liveAudioSlotStatusMessage,
 	makeDraggable,
 } from './sources-panel-helpers.js'
+import { migrateLegacyInputRoute } from '../lib/input-channels.js'
 import { getLiveThumbnailChannelForSource, getLiveThumbnailUrl } from '../lib/thumbnail-url.js'
 import { invalidateThumbnailCache } from './preview-canvas-draw-base.js'
 
@@ -20,7 +21,14 @@ export function renderLiveTab(listEl, {
 }) {
 	const base = buildLiveSources(channelMap, connectors, liveAudioConfigured)
 	const existing = new Set(base.map((s) => String(s.value || '')))
-	const extras = Array.isArray(extraSources) ? extraSources.filter((s) => s && s.value && !existing.has(String(s.value))) : []
+	const extras = Array.isArray(extraSources)
+		? extraSources
+				.filter((s) => s && s.value && !existing.has(String(s.value)))
+				.map((s) => ({
+					...s,
+					value: migrateLegacyInputRoute(channelMap, s.value),
+				}))
+		: []
 	const sources = [...extras, ...base]
 
 	const renderKey = JSON.stringify({
@@ -225,7 +233,7 @@ export function renderLiveTab(listEl, {
 		}
 		
 		if (s.routeType === 'live_audio' && s.inputsChannel != null && s.liveAudioSlot != null) {
-			const cl = `${s.inputsChannel}-${s.inputsLayer ?? 10 + (s.liveAudioSlot - 1)}`
+			const cl = s.inputsLayer != null ? `${s.inputsChannel}-${s.inputsLayer}` : String(s.inputsChannel)
 			const btnGroup = document.createElement('div')
 			btnGroup.className = 'source-item__live-actions'
 			const applyBtn = Object.assign(document.createElement('button'), {
@@ -246,7 +254,7 @@ export function renderLiveTab(listEl, {
 			btnGroup.appendChild(applyBtn)
 			el.appendChild(btnGroup)
 		} else if (s.routeType === 'decklink' && s.inputsChannel != null && s.decklinkSlot != null) {
-			const cl = `${s.inputsChannel}-${s.decklinkSlot}`
+			const cl = `${s.inputsChannel}-${s.inputsLayer ?? s.decklinkSlot}`
 			const btnGroup = document.createElement('div'); btnGroup.className = 'source-item__live-actions'
 			
 			const restartBtn = Object.assign(document.createElement('button'), { type: 'button', className: 'source-item__live-btn source-item__live-btn--restart', title: `Restart ${cl}`, textContent: 'Restart' })

@@ -30,7 +30,7 @@ function loadGridByChannel() {
 	}
 }
 
-function loadChannelsEnabled(st) {
+function loadChannelsEnabled() {
 	try {
 		const raw = localStorage.getItem(LS.channelsEnabled)
 		if (raw) {
@@ -38,12 +38,7 @@ function loadChannelsEnabled(st) {
 			if (o && typeof o === 'object') return o
 		}
 	} catch {}
-	const o = {}
-	const programChannelsRaw = Array.isArray(st?.channelMap?.programChannels) ? st.channelMap.programChannels : [1]
-	for (const ch of programChannelsRaw) {
-		o[String(ch)] = true
-	}
-	return o
+	return {}
 }
 
 /**
@@ -63,7 +58,7 @@ export function getLedTestSettings(stateStore) {
 		showCircle: localStorage.getItem(LS.circle) !== 'false',
 		showCross: localStorage.getItem(LS.cross) !== 'false',
 		gridByChannel: loadGridByChannel(),
-		channelsEnabled: loadChannelsEnabled(st),
+		channelsEnabled: loadChannelsEnabled(),
 		pattern: localStorage.getItem(LS.pattern) || 'grid-white',
 		charCount: Math.max(1, Math.min(48, parseInt(localStorage.getItem(LS.charCount) || '3', 10) || 3)),
 	}

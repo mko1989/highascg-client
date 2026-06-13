@@ -92,6 +92,7 @@
 	white-space: pre-wrap;
 	word-break: break-word;
 	flex: 1;
+	min-height: 0;
 	height: min(58vh, 500px);
 	overflow: auto;
 	margin: 0;
@@ -100,4 +101,28 @@
 	border: 1px solid #333;
 	border-radius: 6px;
 	color: #ddd;
+}
+
+.logs-modal__amcp-input {
+	width: 100%;
+	box-sizing: border-box;
+	margin: 0;
+	padding: 4px 8px;
+	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+	font-size: 11px;
+	line-height: 1.35;
+	background: #0d0d0d;
+	border: 1px solid #333;
+	border-radius: 4px;
+	color: #ddd;
+}
+.logs-modal__amcp-input::placeholder {
+	color: #666;
+}
+.logs-modal__amcp-input:focus {
+	outline: none;
+	border-color: var(--accent, #58a6ff);
+}
+.logs-modal__amcp-input:disabled {
+	opacity: 0.6;
 }

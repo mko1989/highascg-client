@@ -2,8 +2,9 @@
  * Dedicated Audio Mixer tab view - full professional audio mixing console.
  */
 
-import { mountLiveAudioSettingsPanel } from './settings-live-audio-panel.js'
 import { mountAudioMixerViewConsole } from './audio-mixer-view-console.js'
+import { refreshLiveAudioConfigured } from '../lib/live-audio-state.js'
+import { showLiveAudioMixerModal } from './live-audio-mixer-modal.js'
 
 let mounted = false
 
@@ -41,55 +42,17 @@ export function initAudioMixerView(root, stateStore) {
 	const addInputBtn = root.querySelector('.audio-mixer-view__add-input-btn')
 	if (addInputBtn) {
 		addInputBtn.onclick = () => {
-			void showLiveAudioSettingsModal()
+			void showLiveAudioMixerModal(stateStore)
 		}
 	}
 
+	void refreshLiveAudioConfigured(stateStore)
+
 	mountAudioMixerViewConsole(stateStore, {
 		root: viewRoot,
+		tabPaneEl: root,
 		inputsListEl: root.querySelector('.audio-mixer-view__inputs-list'),
 		mastersListEl: root.querySelector('.audio-mixer-view__masters-list'),
 	})
 }
 
-export async function showLiveAudioSettingsModal() {
-	if (document.getElementById('live-audio-settings-modal')) return
-
-	const modal = document.createElement('div')
-	modal.id = 'live-audio-settings-modal'
-	modal.className = 'modal-overlay'
-	modal.innerHTML = `
-		<div class="modal-content live-audio-modal">
-			<div class="modal-header">
-				<h2>Live Audio Input Settings</h2>
-				<button type="button" class="modal-close" id="live-audio-settings-close" aria-label="Close">×</button>
-			</div>
-			<div class="modal-body live-audio-modal__body" id="live-audio-settings-container">
-				<p class="settings-note">Loading live audio settings…</p>
-			</div>
-		</div>
-	`
-	document.body.appendChild(modal)
-
-	const container = modal.querySelector('#live-audio-settings-container')
-	const closeBtn = modal.querySelector('#live-audio-settings-close')
-	const close = () => modal.remove()
-	closeBtn.onclick = close
-	modal.addEventListener('click', (e) => {
-		if (e.target === modal) close()
-	})
-
-	const onKey = (e) => {
-		if (e.key === 'Escape') {
-			close()
-			document.removeEventListener('keydown', onKey)
-		}
-	}
-	document.addEventListener('keydown', onKey)
-
-	try {
-		await mountLiveAudioSettingsPanel(container)
-	} catch (e) {
-		container.innerHTML = `<p class="status-error">Error loading settings: ${e.message || e}</p>`
-	}
-}

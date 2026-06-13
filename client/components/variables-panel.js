@@ -3,7 +3,7 @@
  */
 
 import { getVariableStore } from '../lib/variable-state.js'
-import { ws } from '../app.js'
+import { getAppWs } from '../lib/app-runtime.js'
 import { api } from '../lib/api-client.js'
 
 function escAttr(s) {
@@ -17,7 +17,8 @@ function escAttr(s) {
  * @param {HTMLElement} container
  */
 export async function mountVariablesPanel(container) {
-	const store = getVariableStore(ws)
+	const ws = getAppWs()
+	const store = ws ? getVariableStore(ws) : null
 	if (!store) return
 
 	let customLabels = {}

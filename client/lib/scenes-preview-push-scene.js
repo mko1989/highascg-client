@@ -18,6 +18,7 @@ import {
 	getOccupiedPreviewLookLayersFromState,
 	resolvePreviewAmcpChannel,
 } from './scenes-preview-look-stack.js'
+import { linearGainToCasparDb } from './audio-volume-scale.js'
 import { buildPreviewContentSnapshot, isGeometryOnlyPreview, layerContentMetaForSnapshot } from './scenes-preview-snapshot.js'
 
 /**
@@ -181,7 +182,8 @@ export async function pushSceneToPreviewImpl(opts) {
 				const af = audioRouteToAudioFilter(layer.audioRoute || '1+2')
 				if (af) playCmd += ` AF ${amcpParam(af)}`
 
-				const vol = layer.muted ? 0 : layer.volume != null ? layer.volume : 1
+				const volGain = layer.muted ? 0 : layer.volume != null ? layer.volume : 1
+				const vol = linearGainToCasparDb(volGain)
 				const curKeyer = shouldApplyStraightAlphaKeyer(!!layer.straightAlpha, layer.source?.value) ? 1 : 0
 
 				const prevMeta = lastPreviewContentSnapshot?.contentByLayer?.get(Number(ln))
@@ -205,7 +207,7 @@ export async function pushSceneToPreviewImpl(opts) {
 				if (prevKeyer === undefined || prevKeyer !== curKeyer) {
 					mixerPart.push(`MIXER ${cl} KEYER ${curKeyer}`)
 				}
-				if (prevVol === undefined || prevVol !== vol) {
+				if (prevVol === undefined || prevVol !== volGain) {
 					mixerPart.push(`MIXER ${cl} VOLUME ${vol} DEFER`)
 				}
 

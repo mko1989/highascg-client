@@ -159,21 +159,30 @@ export function createTakeSceneToProgram(deps) {
 				return valid.length > 0 ? valid : [0]
 			})()
 			const scenePayloadForState = buildIncomingScenePayload(scene)
-			const incomingJsonBase = buildIncomingScenePayload(scene, {
-				timeline: timelineState.getActive(),
-				positionMs: deps.getTimelinePositionMsForTake(),
-			})
 			const prevLive = deps.stateStore.getState()?.scene?.live || {}
 			const mergedLive = { ...prevLive }
 			const touched = []
+			const variableStore = deps.getVariableStore?.() ?? null
+			const oscClient = deps.getOscClient?.() ?? null
 			for (const mainIdx of targetMains) {
 				const programCh = programChannels[mainIdx]
 				if (!Number.isFinite(Number(programCh)) || Number(programCh) <= 0) continue
 				touched.push({ mainIdx, channel: Number(programCh) })
 				const fps = cm.programResolutions?.[mainIdx]?.fps ?? 50
+				const incomingScene = buildIncomingScenePayload(scene, {
+					timeline: timelineState.getActive(),
+					positionMs: deps.getTimelinePositionMsForTake(),
+					programChannel: Number(programCh),
+					mainIdx,
+					fps,
+					stateStore: deps.stateStore,
+					variableStore,
+					oscClient,
+					transitionTake: !forceCut,
+				})
 				const body = {
 					channel: Number(programCh),
-					incomingScene: { ...incomingJsonBase, globalBorder: sceneState.getGlobalBorderForScreen(mainIdx) },
+					incomingScene: { ...incomingScene, globalBorder: sceneState.getGlobalBorderForScreen(mainIdx) },
 					framerate: fps,
 					forceCut,
 					useServerLive: true,
@@ -187,7 +196,7 @@ export function createTakeSceneToProgram(deps) {
 						}
 					}
 				} else {
-					mergedLive[String(programCh)] = { sceneId: scene.id, scene: incomingJsonBase }
+					mergedLive[String(programCh)] = { sceneId: scene.id, scene: incomingScene }
 				}
 				const liveSnap = takeRes?.sceneLive?.[String(programCh)]
 				if (liveSnap?.scene && liveSnap.sceneId === scene.id) {
