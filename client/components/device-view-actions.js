@@ -182,3 +182,9 @@ export async function resetGpuLayout() {
 		return null
 	}
 }
+
+/** Purge playout config and replace the active project with empty Untitled (no looks). */
+export async function factoryResetConfig() {
+	const { performFactoryReset } = await import('../lib/default-project.js')
+	await performFactoryReset()
+}

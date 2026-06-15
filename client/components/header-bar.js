@@ -4,7 +4,7 @@
  */
 
 import { projectState } from '../lib/project-state.js'
-import { sceneState, defaultTransition } from '../lib/scene-state.js'
+import { sceneState } from '../lib/scene-state.js'
 import { programOutputState } from '../lib/program-output-state.js'
 import { timelineState } from '../lib/timeline-state.js'
 import { multiviewState } from '../lib/multiview-state.js'
@@ -17,10 +17,14 @@ import { showPublishModal } from './publish-modal.js'
 import { showLedTestModal, getLedTestSettings, getLedTestShowGridForChannel } from './led-test-modal.js'
 import { createHeaderAudioMonitor } from './header-bar-audio.js'
 import { markLocalProjectSaved } from '../lib/project-remote-sync.js'
+import { markServerProjectSynced, resetServerProjectSync } from '../lib/server-project-sync.js'
+import { getAppWs } from '../lib/app-runtime.js'
+import { flushSceneDeckSync } from '../lib/app-scene-deck.js'
 import { initConfigStrip } from './header-bar-config-strip.js'
 import { projectFileIdFromName } from '../lib/project-files.js'
 import { importProjectWithHardwareReconcile } from '../lib/project-import-flow.js'
 import { showLoadProjectModal } from './load-project-modal.js'
+import { applyDefaultUntitledProjectLocally } from '../lib/default-project.js'
 
 import { initLedTestCard } from './header-bar-led-test.js'
 
@@ -105,6 +109,7 @@ export function initHeaderBar(headerEl, statusEl, stateStore) {
 		try {
 			await api.post('/api/project/save', { project, id })
 			markLocalProjectSaved()
+			markServerProjectSynced()
 			showHeaderToast('Saved', 'success')
 		} catch (e) {
 			showHeaderToast('Save failed: ' + (e?.message || e), 'error')
@@ -140,6 +145,9 @@ export function initHeaderBar(headerEl, statusEl, stateStore) {
 						},
 						source: 'file',
 					})
+					markServerProjectSynced()
+					const appWs = getAppWs()
+					if (appWs) flushSceneDeckSync(appWs, sceneState)
 				} catch (e) {
 					showHeaderToast('Invalid project file: ' + (e?.message || e), 'error')
 				}
@@ -176,22 +184,9 @@ export function initHeaderBar(headerEl, statusEl, stateStore) {
 	newProjectBtn.title = 'Discard the current project in memory and start empty (save first if you need a file)'
 	function startFreshProject() {
 		if (!confirm('Start a fresh project? Unsaved changes in memory will be lost.')) return
-		projectState.setProjectName('Untitled')
-		sceneState.loadFromData({
-			scenes: [],
-			liveSceneId: null,
-			previewSceneId: null,
-			activeScreenIndex: 0,
-			globalDefaultTransition: { ...defaultTransition() },
-			layerPresets: [],
-			lookPresets: [],
-		})
-		sceneState.setEditingScene(null)
-		timelineState.loadFromData({ timelines: [], activeId: null })
-		multiviewState.clearLayout()
-		programOutputState.resetForNewProject()
+		resetServerProjectSync()
+		applyDefaultUntitledProjectLocally()
 		nameInp.value = projectState.getProjectName()
-		window.dispatchEvent(new Event('project-loaded'))
 	}
 	newProjectBtn.addEventListener('click', (e) => {
 		e.preventDefault()

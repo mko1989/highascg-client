@@ -3,6 +3,19 @@ const fs = require('fs')
 const http = require('http')
 const url = require('url')
 
+const PROXY_LOG_ENABLED = process.env.HIGHASCG_PROXY_LOG !== '0'
+
+function logProxy(...args) {
+	if (!PROXY_LOG_ENABLED) return
+	const ts = new Date().toISOString().slice(11, 23)
+	console.log(`[Electron Main] [proxy ${ts}]`, ...args)
+}
+
+function logProxyError(...args) {
+	const ts = new Date().toISOString().slice(11, 23)
+	console.error(`[Electron Main] [proxy ${ts}]`, ...args)
+}
+
 /**
  * @param {string} distWebPath
  * @param {string} cgStudioTemplatesDir
@@ -93,8 +106,11 @@ function createLauncherStaticServer({
 			pathname !== '/api/modules' &&
 			/^\/(instance\/[^/]+\/)?(api|vendor|template|templates)\b/.test(pathname)
 		if (isProxyPath) {
+			const startedAt = Date.now()
 			try {
 				const targetUrl = new URL(req.url, webuiApiOrigin)
+				const targetLabel = `${targetUrl.host}${targetUrl.pathname}${parsedUrl.search || ''}`
+				logProxy(`→ ${req.method} ${req.url}  ⇒  ${targetLabel}`)
 				const proxyReq = http.request(
 					{
 						hostname: targetUrl.hostname,
@@ -107,16 +123,23 @@ function createLauncherStaticServer({
 						},
 					},
 					(proxyRes) => {
+						logProxy(
+							`← ${proxyRes.statusCode} ${req.method} ${req.url} (${Date.now() - startedAt}ms)`,
+						)
 						res.writeHead(proxyRes.statusCode, proxyRes.headers)
 						proxyRes.pipe(res)
 					},
 				)
 				proxyReq.on('error', (err) => {
+					logProxyError(
+						`✗ ${req.method} ${req.url} → upstream error after ${Date.now() - startedAt}ms: ${err.message}`,
+					)
 					res.statusCode = 502
 					res.end(`Proxy error: ${err.message}`)
 				})
 				req.pipe(proxyReq)
 			} catch (err) {
+				logProxyError(`✗ ${req.method} ${req.url} → proxy failed: ${err.message}`)
 				res.statusCode = 500
 				res.end(`Proxy failed: ${err.message}`)
 			}
@@ -196,6 +219,7 @@ function createLauncherStaticServer({
 		const webuiApiOrigin = getApiOrigin()
 		const isWsPath = /^\/(instance\/[^/]+\/)?api\/ws\b/.test(pathname)
 		if (!isWsPath) {
+			logProxy(`✗ WS upgrade rejected (non-ws path): ${req.url}`)
 			socket.destroy()
 			return
 		}
@@ -203,8 +227,12 @@ function createLauncherStaticServer({
 			const targetUrl = new URL(webuiApiOrigin)
 			const targetHost = targetUrl.hostname
 			const targetPort = targetUrl.port || (targetUrl.protocol === 'https:' ? 443 : 80)
+			logProxy(`⇅ WS upgrade ${req.url}  ⇒  ${targetHost}:${targetPort}`)
 			const net = require('net')
 			const targetSocket = net.connect(targetPort, targetHost, () => {
+				logProxy(`⇅ WS connected to upstream ${targetHost}:${targetPort} for ${req.url}`)
+				socket.on('close', () => logProxy(`⇅ WS client closed: ${req.url}`))
+				targetSocket.on('close', () => logProxy(`⇅ WS upstream closed: ${req.url}`))
 				let rawHeaders = `${req.method} ${req.url} HTTP/1.1\r\n`
 				for (let i = 0; i < req.rawHeaders.length; i += 2) {
 					const key = req.rawHeaders[i]
@@ -222,15 +250,15 @@ function createLauncherStaticServer({
 				socket.pipe(targetSocket)
 			})
 			targetSocket.on('error', (err) => {
-				console.error('[Electron Main] WebSocket Proxy target error:', err.message)
+				logProxyError(`✗ WS upstream error for ${req.url}: ${err.message}`)
 				socket.destroy()
 			})
 			socket.on('error', (err) => {
-				console.error('[Electron Main] WebSocket Proxy client error:', err.message)
+				logProxyError(`✗ WS client error for ${req.url}: ${err.message}`)
 				targetSocket.destroy()
 			})
 		} catch (err) {
-			console.error('[Electron Main] WebSocket Proxy upgrade failed:', err.message)
+			logProxyError(`✗ WS upgrade failed for ${req.url}: ${err.message}`)
 			socket.destroy()
 		}
 	})

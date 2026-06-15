@@ -34,8 +34,28 @@ export function renderCasparSettingsInspector(host, { currentSettings, lastPaylo
 		<p class="device-view__note"><strong>Audio Monitoring</strong></p>
 		<label class="device-view__cablemode">Browser monitor <select data-k="audio.browserMonitor"><option value="pgm" ${String(ar.browserMonitor || 'pgm') === 'pgm' ? 'selected' : ''}>PGM</option><option value="off" ${String(ar.browserMonitor || '') === 'off' ? 'selected' : ''}>Off</option></select></label>
 		<p class="device-view__note"><strong>System Actions</strong></p>
-		<button class="device-view__btn device-view__btn--danger" onclick="if(confirm('PURGE ALL CONFIG? This will reset everything to factory defaults.')) fetch('/api/config/reset',{method:'POST',body:JSON.stringify({reset:true})}).then(()=>location.reload())">Factory Reset</button>
+		<button type="button" class="device-view__btn device-view__btn--danger" data-factory-reset>Factory Reset</button>
 	`
+	const factoryResetBtn = box.querySelector('[data-factory-reset]')
+	if (factoryResetBtn) {
+		factoryResetBtn.onclick = async () => {
+			if (
+				!confirm(
+					'PURGE ALL CONFIG? This resets Device View / Caspar settings to factory defaults, clears all looks, and loads an empty Untitled project.',
+				)
+			) {
+				return
+			}
+			factoryResetBtn.disabled = true
+			try {
+				await Actions.factoryResetConfig()
+				location.reload()
+			} catch (e) {
+				factoryResetBtn.disabled = false
+				setStatus(statusEl, e?.message || String(e), false)
+			}
+		}
+	}
 	// Show/hide PortAudio warning dynamically when build profile changes
 	const profileSel = box.querySelector('[data-k="caspar_build_profile"]')
 	const paWarning = box.querySelector('[data-portaudio-warning]')

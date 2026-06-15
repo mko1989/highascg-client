@@ -9,7 +9,6 @@ import { initSourcesPanel } from './components/sources-panel.js'
 import { sceneState } from './lib/scene-state.js'
 import { applyEditorDefaultsToRuntime } from './lib/editor-defaults.js'
 import { setAppRuntime } from './lib/app-runtime.js'
-import { normalizeGlobalBordersArray } from './lib/scene-state-global-border.js'
 import { initScenesEditor } from './components/scenes-editor.js'
 import { initTimelineEditor } from './components/timeline-editor.js'
 import { initInspectorPanel } from './components/inspector-panel.js'
@@ -37,8 +36,14 @@ import { initOptionalModules } from './lib/optional-modules.js'
 import { initDeviceView } from './components/device-view.js'
 import { initAudioMixerView } from './components/audio-mixer-view.js'
 import { placeholderState } from './lib/placeholder-state.js'
-import { importProjectWithHardwareReconcile } from './lib/project-import-flow.js'
-import { normalizeProjectPayload } from './lib/project-load.js'
+import {
+	bootstrapFromServer,
+	canPushProjectToServer,
+	resyncFromServer,
+	setOfflineBootstrapMode,
+	shouldResyncOnWsConnect,
+} from './lib/server-project-sync.js'
+import { markLocalProjectSaved } from './lib/project-remote-sync.js'
 
 
 import * as Status from './lib/app-status.js'
@@ -53,6 +58,17 @@ settingsState.subscribe(() => applyEditorDefaultsToRuntime(sceneState))
 getVariableStore(ws)
 
 let _oscClient = null; let httpConnected = false; let _casparAmcpConnected = false; let connectionEye = null
+
+const serverSyncDeps = {
+	stateStore,
+	sceneState,
+	timelineState,
+	multiviewState,
+	programOutputState,
+	projectState,
+	getVariableStore: () => getVariableStore(ws),
+	appLogic: /** @type {Record<string, unknown>} */ ({}),
+}
 
 const appLogic = {
 	syncMultiviewCanvas: (cm) => MvSync.syncMultiviewCanvasFromChannelMap(cm, multiviewState),
@@ -70,15 +86,22 @@ const appLogic = {
 		settingsState.load().catch(() => {})
 		streamState.refreshStreams()
 		applyBrowserMonitorFromSettings(settingsState.getSettings())
+		if (shouldResyncOnWsConnect()) {
+			void resyncFromServer(serverSyncDeps)
+		}
 	},
 	handleWsDisconnect: async (reason) => {
 		if (httpConnected) {
-			try { const st = await api.get('/api/state'); if (st) stateStore.setState(st) } catch {}
+			try {
+				const st = await api.get('/api/state')
+				if (st) stateStore.setState(st)
+			} catch {}
 			appLogic.updateStatus(true)
 		} else appLogic.updateStatus(false, reason)
 		appLogic.refreshEye()
-	}
+	},
 }
+Object.assign(serverSyncDeps.appLogic, appLogic)
 
 function initTabs() {
 	const tabStorageKey = 'highascg_active_tab'
@@ -149,40 +172,100 @@ async function init() {
 	setAppRuntime({ ws, osc: _oscClient })
 
 	Handlers.attachWsHandlers(ws, { stateStore, sceneState, timelineState, multiviewState, programOutputState, projectState, dmxState, variableStore: getVariableStore(ws), appLogic })
-	let autosaveTimeout = null
-	async function triggerAutosave() {
-		try {
-			const project = projectState.exportProject(sceneState, timelineState, multiviewState, programOutputState)
-			await api.post('/api/project/autosave', { project })
-			const d = new Date()
-			const timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-			document.dispatchEvent(new CustomEvent('project-autosaved', { detail: { time: timeStr } }))
-		} catch (e) {
-			console.warn('[HighAsCG] Auto-save failed:', e.message)
-		}
-	}
-	function scheduleAutosave() {
-		if (autosaveTimeout) clearTimeout(autosaveTimeout)
-		autosaveTimeout = setTimeout(triggerAutosave, 5000)
-	}
-	setInterval(triggerAutosave, 60 * 1000)
 
-	sceneState.on('change', () => { appLogic.scheduleSceneDeckSync(); scheduleAutosave() })
-	sceneState.on('imported', () => { appLogic.scheduleSceneDeckSync(); scheduleAutosave() })
-	sceneState.on('previewScene', () => { appLogic.scheduleSceneDeckSync(); scheduleAutosave() })
-	sceneState.on('softChange', () => { appLogic.scheduleSceneDeckSync(); scheduleAutosave() })
-	document.addEventListener('highascg-global-border-config-save', () => scheduleAutosave())
+	let autosaveTimeout = null
+	let autosaveInFlight = null
+	let autosavePending = false
+
+	async function triggerAutosave() {
+		if (!canPushProjectToServer()) return
+		if (autosaveInFlight) {
+			autosavePending = true
+			return autosaveInFlight
+		}
+		autosaveInFlight = (async () => {
+			try {
+				const project = projectState.exportProject(sceneState, timelineState, multiviewState, programOutputState)
+				await api.post('/api/project/autosave', { project })
+				const d = new Date()
+				const timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+				document.dispatchEvent(new CustomEvent('project-autosaved', { detail: { time: timeStr } }))
+			} catch (e) {
+				console.warn('[HighAsCG] Auto-save failed:', e.message)
+			} finally {
+				autosaveInFlight = null
+				if (autosavePending) {
+					autosavePending = false
+					void triggerAutosave()
+				}
+			}
+		})()
+		return autosaveInFlight
+	}
+
+	/** Debounced autosave for batched editor updates (e.g. timeline nudges). */
+	function scheduleAutosave(delayMs = 3000) {
+		if (autosaveTimeout) clearTimeout(autosaveTimeout)
+		autosaveTimeout = setTimeout(() => {
+			autosaveTimeout = null
+			void triggerAutosave()
+		}, delayMs)
+	}
+
+	/** Run autosave now — use when a user action or edit session has finished. */
+	function flushAutosave() {
+		if (autosaveTimeout) {
+			clearTimeout(autosaveTimeout)
+			autosaveTimeout = null
+		}
+		return triggerAutosave()
+	}
+
+	function flushAutosaveIfPending() {
+		if (!autosaveTimeout) return Promise.resolve()
+		return flushAutosave()
+	}
+
+	sceneState.on('change', () => {
+		appLogic.scheduleSceneDeckSync()
+		void flushAutosave()
+	})
+	sceneState.on('imported', () => {
+		appLogic.scheduleSceneDeckSync()
+		void flushAutosave()
+	})
+	sceneState.on('previewScene', () => {
+		appLogic.scheduleSceneDeckSync()
+	})
+	sceneState.on('softChange', () => {
+		appLogic.scheduleSceneDeckSync()
+	})
+	sceneState.on('editingChange', (id) => {
+		if (id == null) void flushAutosave()
+	})
+	document.addEventListener('highascg-global-border-config-save', () => void flushAutosave())
 	sceneState.on('persisted', () => {
+		if (!canPushProjectToServer()) return
 		appLogic.scheduleSceneDeckSync()
 		const project = projectState.exportProject(sceneState, timelineState, multiviewState, programOutputState)
 		const id = projectFileIdFromName(project.name || projectState.getProjectName())
 		markLocalProjectSaved()
 		api.post('/api/project/save', { project, id })
 			.catch(e => console.warn('[HighAsCG] Main save failed:', e.message))
-		scheduleAutosave()
+		void flushAutosave()
 	})
 	timelineState.on('change', scheduleAutosave)
 	multiviewState.on('change', scheduleAutosave)
+
+	document.addEventListener('highascg-workspace-tab-activated', () => void flushAutosaveIfPending())
+	document.addEventListener('visibilitychange', () => {
+		if (document.visibilityState === 'hidden') void flushAutosaveIfPending()
+	})
+	window.addEventListener('pagehide', () => void flushAutosaveIfPending())
+
+	window.addEventListener('project-loaded', () => {
+		if (canPushProjectToServer()) appLogic.scheduleSceneDeckSync()
+	})
 
 	const header = document.querySelector('.header'); const statusEl = document.querySelector('.header__status')
 	if (header && statusEl) initHeaderBar(header, statusEl, stateStore)
@@ -267,6 +350,7 @@ async function init() {
 	initScenesEditor(document.querySelector('#tab-scenes'), stateStore, {
 		getOscClient: () => _oscClient,
 		getVariableStore: () => getVariableStore(ws),
+		flushSceneDeckSync: () => SceneDeck.flushSceneDeckSync(ws, sceneState),
 	})
 	initTimelineEditor(document.querySelector('#tab-timeline'), stateStore); initMultiviewEditor(document.querySelector('#tab-multiview'), stateStore)
 	initPixelMapEditor(document.querySelector('#tab-pixelmap'), stateStore); initInspectorPanel(document.getElementById('panel-inspector-scroll') || document.getElementById('panel-inspector-body') || document.querySelector('#panel-inspector .panel__body'), stateStore)
@@ -283,37 +367,20 @@ async function init() {
 			applySettingsFromServer(settings)
 			settingsState.notify()
 		}
-		if (settings?.offline_mode) await stateStore.hydrateFromCache()
-		const state = await api.get('/api/state'); if (state) {
-			stateStore.setState(state); if (state.variables) getVariableStore(ws)?.mergeFromServer(state.variables)
-			sceneState.setCanvasResolutions(state.channelMap?.programResolutions)
-			programOutputState.setCanvasResolutions(state.channelMap?.programResolutions)
-			appLogic.syncMultiviewCanvas(state.channelMap)
-			appLogic.scheduleMultiviewRefresh(); appLogic.emitCasparConnectedIfNeeded(state)
-			if (state.scene?.live) sceneState.applyServerLiveChannels(state.scene.live, state.channelMap)
-			if (Array.isArray(state.scene?.globalBorders)) {
-				sceneState.globalBorders = normalizeGlobalBordersArray(state.scene.globalBorders)
-			}
-			httpConnected = true; appLogic.updateStatus(true); appLogic.refreshEye()
+		if (settings?.offline_mode) {
+			setOfflineBootstrapMode(true)
+			await stateStore.hydrateFromCache()
+			httpConnected = true
+			appLogic.updateStatus(true)
+			appLogic.refreshEye()
+		} else {
+			const state = await bootstrapFromServer(serverSyncDeps)
+			if (state) httpConnected = true
 		}
-		if (!settings?.offline_mode) {
-			void refreshLiveAudioConfigured(stateStore)
-			try {
-				const projRaw = await api.get('/api/project')
-				const proj = normalizeProjectPayload(projRaw)
-				if (proj?.version) {
-					await importProjectWithHardwareReconcile(proj, {
-						projectState,
-						sceneState,
-						timelineState,
-						multiviewState,
-						programOutputState,
-						source: 'boot',
-					})
-				}
-			} catch {}
-		}
-	} catch (err) { console.warn('[HighAsCG] Bootstrap failed:', err.message) }
+		if (!settings?.offline_mode) void refreshLiveAudioConfigured(stateStore)
+	} catch (err) {
+		console.warn('[HighAsCG] Bootstrap failed:', err.message)
+	}
 }
 
 export function getOscClient() { return _oscClient }

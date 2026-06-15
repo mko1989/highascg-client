@@ -17,7 +17,7 @@ import { refreshLiveAudioConfigured } from '../lib/live-audio-state.js'
 import { decklinkInputForSlot, decklinkSlotFromConnector } from '../lib/input-channels.js'
 
 export function initSourcesPanel(root, stateStore, opts = {}) {
-	const wsClient = opts.wsClient; let previewFeedback = null; let currentTab = 'media'; let filter = ''; let mediaWithProbe = null; let usbBadgeTimer = null; let extraLiveSources = []
+	const wsClient = opts.wsClient; let previewFeedback = null; let currentTab = 'media'; let filter = ''; let mediaWithProbe = null; let extraLiveSources = []
 	/** @type {object | null} */
 	let liveAudioConfiguredCache = null
 	const collapsedFolders = new Set()
@@ -137,18 +137,18 @@ export function initSourcesPanel(root, stateStore, opts = {}) {
 				},
 				onMoveItem: async (sourceId, targetId) => { try { setStatus(`Moving to ${targetId}…`, 'info'); await api.post('/api/media/move', { sourceId, targetId }); setStatus('Moved successfully', 'ok'); refreshMedia() } catch (e) { setStatus(e.message, 'error') } }
 			})
-			mediaFooter.style.display = 'flex'; startUsb()
+			mediaFooter.style.display = 'flex'; watchUsbBadge()
 			if (deleteBtn) {
 				const count = selectedMedia.size
 				deleteBtn.textContent = `🗑 Delete (${count})`
 				deleteBtn.style.display = count > 0 ? 'inline-block' : 'none'
 			}
 		}
-		else if (currentTab === 'templates') { renderTemplatesBrowser(listEl, s.templates || [], filter); mediaFooter.style.display = 'flex'; startUsb() }
-		else if (currentTab === 'placeholders') { renderPlaceholdersBrowser(listEl, window.placeholderState?.getAll() || [], filter); mediaFooter.style.display = 'flex'; stopUsb() }
-		else if (currentTab === 'effects') { stopUsb(); renderEffectsTab(listEl, filter); mediaFooter.style.display = 'none' }
+		else if (currentTab === 'templates') { renderTemplatesBrowser(listEl, s.templates || [], filter); mediaFooter.style.display = 'flex'; watchUsbBadge() }
+		else if (currentTab === 'placeholders') { renderPlaceholdersBrowser(listEl, window.placeholderState?.getAll() || [], filter); mediaFooter.style.display = 'flex'; unwatchUsbBadge() }
+		else if (currentTab === 'effects') { unwatchUsbBadge(); renderEffectsTab(listEl, filter); mediaFooter.style.display = 'none' }
 		else if (currentTab === 'live') {
-			stopUsb()
+			unwatchUsbBadge()
 			const liveCfg = s.liveAudioConfigured || liveAudioConfiguredCache
 			if (!liveCfg) void fetchLiveAudioConfigured().then(() => render())
 			renderLiveTab(listEl, {
@@ -161,7 +161,7 @@ export function initSourcesPanel(root, stateStore, opts = {}) {
 			})
 			mediaFooter.style.display = 'none'
 		}
-		else { stopUsb(); renderSourceList(listEl, (timelineState.getAll() || s.timelines || []).map(t => ({ id: t.id || t.name, label: t.name || t.id })), 'timeline', filter, null); mediaFooter.style.display = 'none' }
+		else { unwatchUsbBadge(); renderSourceList(listEl, (timelineState.getAll() || s.timelines || []).map(t => ({ id: t.id || t.name, label: t.name || t.id })), 'timeline', filter, null); mediaFooter.style.display = 'none' }
 		root.querySelector('.sources-search').style.display = (['live'].includes(currentTab) ? 'none' : 'block')
 	}
 
@@ -197,13 +197,36 @@ export function initSourcesPanel(root, stateStore, opts = {}) {
 			refreshMedia()
 		}
 	}
-	const refreshUsb = async () => { try { const r = await api.get('/api/usb/drives'); const n = r.drives?.length || 0; usbBadge.textContent = n || ''; usbBadge.style.display = n ? 'inline-flex' : 'none'; usbBtn.classList.toggle('pending', !n) } catch { usbBadge.style.display = 'none'; usbBtn.classList.add('pending') } }
-	const startUsb = () => { if (!usbBadgeTimer) { refreshUsb(); usbBadgeTimer = setInterval(refreshUsb, 5000) } }; const stopUsb = () => { if (usbBadgeTimer) { clearInterval(usbBadgeTimer); usbBadgeTimer = null } }
-	if (wsClient?.on) { wsClient.on('usb:attached', refreshUsb); wsClient.on('usb:detached', refreshUsb) }
+	const refreshUsb = async () => {
+		try {
+			const r = await api.get('/api/usb/drives')
+			const n = r.drives?.length || 0
+			usbBadge.textContent = n || ''
+			usbBadge.style.display = n ? 'inline-flex' : 'none'
+			usbBtn.classList.toggle('pending', !n)
+		} catch {
+			usbBadge.style.display = 'none'
+			usbBtn.classList.add('pending')
+		}
+	}
+	/** One-shot refresh when entering Media/Templates — no background polling. */
+	let usbBadgeWatched = false
+	const watchUsbBadge = () => {
+		if (usbBadgeWatched) return
+		usbBadgeWatched = true
+		void refreshUsb()
+	}
+	const unwatchUsbBadge = () => {
+		usbBadgeWatched = false
+	}
+	if (wsClient?.on) {
+		wsClient.on('usb:attached', refreshUsb)
+		wsClient.on('usb:detached', refreshUsb)
+	}
 	usbBtn.onclick = () => { dropMenu.style.display = 'none'; showUsbImportModal({ wsClient, onImported: refreshMedia }) }
 	const upload = (fs) => Ingest.uploadFiles(fs, { setStatus, showProgress: (v) => iProgWrap.style.display = v ? 'flex' : 'none', updateProgress: (p) => { iBar.style.width = `${p}%`; iPct.textContent = `${p}%` }, refreshCallback: refreshMedia })
 	root.ondragenter = (e) => { e.preventDefault(); dragOverlay.style.display = 'flex' }; root.ondragover = e => e.preventDefault(); root.ondragleave = () => dragOverlay.style.display = 'none'; root.ondrop = e => { e.preventDefault(); dragOverlay.style.display = 'none'; if (currentTab !== 'media') tabs[0].click(); upload(e.dataTransfer?.files) }
-	plusBtn.onclick = e => { e.stopPropagation(); dropMenu.style.display = dropMenu.style.display === 'flex' ? 'none' : 'flex' }
+	plusBtn.onclick = e => { e.stopPropagation(); const opening = dropMenu.style.display !== 'flex'; dropMenu.style.display = opening ? 'flex' : 'none'; if (opening) void refreshUsb() }
 	document.onclick = e => { if (!plusBtn.contains(e.target)) dropMenu.style.display = 'none' }
 	fileBtn.onclick = () => { dropMenu.style.display = 'none'; const i = document.createElement('input'); i.type = 'file'; i.multiple = true; i.onchange = () => upload(i.files); i.click() }
 	mkdirBtn.onclick = async () => { dropMenu.style.display = 'none'; const n = prompt('New Folder Name:'); if (n) { try { await api.post('/api/media/mkdir', { path: n }); setStatus(`Folder "${n}" created`, 'ok'); refreshMedia() } catch (e) { setStatus(e.message, 'error') } } }

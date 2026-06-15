@@ -2,7 +2,7 @@
  * Shared scenes editor helpers — AMCP snippets, transition row UI, take payload.
  */
 
-import { TRANSITION_TYPES, TRANSITION_TWEENS, TRANSITION_TYPE_LABELS, migrateTransitionTypeToAnimate } from '../lib/program-output-state.js'
+import { TRANSITION_TYPES, TRANSITION_TWEENS, TRANSITION_TYPE_LABELS, migrateTransitionTypeToAnimate, PGM_ONLY_TRANSITION_TYPES, normalizeTransitionForPgmOnly } from '../lib/program-output-state.js'
 import { linearGainToCasparDb } from '../lib/audio-volume-scale.js'
 import { parseNumberInput } from '../lib/math-input.js'
 import { sceneState } from '../lib/scene-state.js'
@@ -77,11 +77,13 @@ export function dataTransferOffersDeckMedia(dt) {
  * @param {{ type?: string, duration?: number, tween?: string }} dt
  * @param {(t: { type: string, duration: number, tween: string }) => void} onChange
  * @param {string} idPrefix
- * @param {{ label?: string, hint?: string }} [opts]
+ * @param {{ label?: string, hint?: string, pgmOnly?: boolean, allowedTypes?: string[] }} [opts]
  */
 export function mountLookTransitionControls(mount, dt, onChange, idPrefix, opts = {}) {
 	const label = opts.label ?? 'Look transition'
 	const hint = opts.hint ?? ''
+	const pgmOnly = opts.pgmOnly === true
+	const allowedTypes = opts.allowedTypes || (pgmOnly ? PGM_ONLY_TRANSITION_TYPES : TRANSITION_TYPES)
 	const transitionRow = document.createElement('div')
 	transitionRow.className = 'scenes-look-transition'
 	transitionRow.innerHTML = `
@@ -98,15 +100,16 @@ export function mountLookTransitionControls(mount, dt, onChange, idPrefix, opts 
 		transitionRow.appendChild(h)
 	}
 	const typeSel = transitionRow.querySelector(`#${idPrefix}-type`)
-	for (const t of TRANSITION_TYPES) {
+	for (const t of allowedTypes) {
 		const o = document.createElement('option')
 		o.value = t
 		o.textContent = TRANSITION_TYPE_LABELS[t] || t
 		typeSel.appendChild(o)
 	}
-	const d = dt || {}
+	const d = pgmOnly ? normalizeTransitionForPgmOnly(dt) : dt || {}
 	const typeNorm = migrateTransitionTypeToAnimate(d.type)
-	typeSel.value = typeNorm && TRANSITION_TYPES.includes(typeNorm) ? typeNorm : 'CUT'
+	const typeValue = typeNorm && allowedTypes.includes(typeNorm) ? typeNorm : 'CUT'
+	typeSel.value = typeValue
 	const durIn = transitionRow.querySelector(`#${idPrefix}-dur`)
 	durIn.value = String(Math.max(0, Math.round(Number(d.duration) || 0)))
 	const tweenSel = transitionRow.querySelector(`#${idPrefix}-tween`)
@@ -121,10 +124,21 @@ export function mountLookTransitionControls(mount, dt, onChange, idPrefix, opts 
 	tweenSel.value = TRANSITION_TWEENS.includes(twNorm) ? twNorm : 'linear'
 
 	function readAndSave() {
-		const type = migrateTransitionTypeToAnimate(typeSel.value || 'CUT')
-		const duration = Math.max(0, Math.round(parseNumberInput(durIn.value, 0)))
-		const tween = tweenSel.value || 'linear'
-		onChange({ type, duration, tween })
+		const raw = {
+			type: typeSel.value || 'CUT',
+			duration: Math.max(0, Math.round(parseNumberInput(durIn.value, 0))),
+			tween: tweenSel.value || 'linear',
+		}
+		const next = pgmOnly ? normalizeTransitionForPgmOnly(raw) : {
+			type: migrateTransitionTypeToAnimate(raw.type),
+			duration: raw.duration,
+			tween: raw.tween,
+		}
+		if (pgmOnly && typeSel.value !== next.type) {
+			typeSel.value = next.type
+			durIn.value = String(next.duration)
+		}
+		onChange(next)
 	}
 	typeSel.addEventListener('change', readAndSave)
 	durIn.addEventListener('change', readAndSave)
@@ -251,6 +265,7 @@ export function playSeekFramesForSceneLayerFromTimeline(timeline, layerIdx, posi
  *   variableStore?: object,
  *   oscClient?: object,
  *   transitionTake?: boolean — when true (MIX etc.), SEEK each layer to live `current_duration` on PGM if known.
+ *   pgmOnly?: boolean — normalize transitions for PGM-only direct-program take (MIX → MIX + Animate, etc.)
  * }} [seekOpts] — adds `playSeekFrames` per layer (timeline + live PGM playhead).
  */
 export function buildIncomingScenePayload(scene, seekOpts) {
@@ -338,7 +353,8 @@ export function buildIncomingScenePayload(scene, seekOpts) {
 	}
 
 	const cv = sceneState.getCanvasForScreen(sceneState.activeScreenIndex)
-	return {
+	const pgmOnly = seekOpts?.pgmOnly === true
+	let payload = {
 		id: scene.id,
 		name: scene.name || 'Untitled look',
 		defaultTransition: scene.defaultTransition
@@ -349,6 +365,20 @@ export function buildIncomingScenePayload(scene, seekOpts) {
 		globalBorder: scene.globalBorder ? JSON.parse(JSON.stringify(scene.globalBorder)) : undefined,
 		layers,
 	}
+	if (pgmOnly) {
+		payload = {
+			...payload,
+			defaultTransition: normalizeTransitionForPgmOnly(payload.defaultTransition),
+			layers: payload.layers.map((l) => ({
+				...l,
+				transition: l.transition ? normalizeTransitionForPgmOnly(l.transition) : l.transition,
+				playlistTransition: l.playlistTransition
+					? normalizeTransitionForPgmOnly(l.playlistTransition)
+					: l.playlistTransition,
+			})),
+		}
+	}
+	return payload
 }
 
 /**

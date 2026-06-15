@@ -95,6 +95,7 @@ export function initScenesEditor(root, stateStore, opts = {}) {
 		getPreviewOutputResolution,
 		getChannelMap,
 		getPreviewChannel,
+		flushSceneDeckSync: opts.flushSceneDeckSync,
 	})
 
 	window.addEventListener('highascg-border-preset-recall', (ev) => {
@@ -168,10 +169,8 @@ export function initScenesEditor(root, stateStore, opts = {}) {
 		getChannelMap,
 		getProgramChannel,
 		showToast: showScenesToast,
-		getTimelinePositionMsForTake: () => {
-			const st = stateStore.getState()
-			return st?.timeline?.playback?.position ?? st?.timeline?.tick?.position ?? 0
-		},
+		stopActiveTimelineOnServer,
+		flushSceneDeckSync: opts.flushSceneDeckSync,
 		primePreviewSnapshotFromScene: previewRuntime.primePreviewSnapshotFromScene,
 		getOscClient,
 		getVariableStore: opts.getVariableStore || (() => null),

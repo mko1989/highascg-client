@@ -62,12 +62,11 @@ export function lookRecallItemsFromPreset(fallbackSceneId, lookPreset) {
 /**
  * @param {object} deps
  * @param {(id: string, opts?: { targetMains?: number[] }) => void | Promise<void>} deps.sendSceneToPreviewCard
- * @param {() => Promise<void>} deps.waitForPreviewPushComplete
  * @param {(id: string, forceCut: boolean) => Promise<void>} deps.takeSceneToProgram
  * @param {boolean} [deps.forceCut]
  */
 export async function runLookRecall(sceneId, lookPreset, target, deps) {
-	const { sendSceneToPreviewCard, waitForPreviewPushComplete, takeSceneToProgram, forceCut = false, showScenesToast } = deps
+	const { sendSceneToPreviewCard, takeSceneToProgram, forceCut = false, showScenesToast } = deps
 	const items = lookRecallItemsFromPreset(sceneId, lookPreset)
 	if (!items.length) return
 	
@@ -86,7 +85,6 @@ export async function runLookRecall(sceneId, lookPreset, target, deps) {
 	for (const it of items) {
 		if (target === 'prv') {
 			await sendSceneToPreviewCard(it.sceneId, { targetMains: [it.mainIdx] })
-			await waitForPreviewPushComplete()
 		} else {
 			await takeSceneToProgram(it.sceneId, forceCut)
 		}

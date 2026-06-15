@@ -87,16 +87,18 @@ export class ProjectState {
 	 * @param {object} timelineState
 	 * @param {object} multiviewState
 	 * @param {object} [programOutputState]
+	 * @param {{ silent?: boolean }} [opts] - when true, persist locally without outbound change events
 	 */
-	importProject(data, sceneState, timelineState, multiviewState, programOutputState) {
+	importProject(data, sceneState, timelineState, multiviewState, programOutputState, opts = {}) {
 		if (!data || typeof data !== 'object') return false
+		const silent = !!opts.silent
 		const name = data.name
 		if (name) this.setProjectName(name)
-		if (data.scenes && sceneState?.loadFromData) sceneState.loadFromData(data.scenes)
+		if (data.scenes && sceneState?.loadFromData) sceneState.loadFromData(data.scenes, { silent })
 		const po = data.programOutput || data.dashboard
-		if (po && programOutputState?.loadFromData) programOutputState.loadFromData(po)
-		if (data.timelines && timelineState?.loadFromData) timelineState.loadFromData(data.timelines)
-		if (data.multiview && multiviewState?.loadFromData) multiviewState.loadFromData(data.multiview)
+		if (po && programOutputState?.loadFromData) programOutputState.loadFromData(po, { silent })
+		if (data.timelines && timelineState?.loadFromData) timelineState.loadFromData(data.timelines, { silent })
+		if (data.multiview && multiviewState?.loadFromData) multiviewState.loadFromData(data.multiview, { silent })
 		if (data.placeholders && window.placeholderState?.loadFromData) window.placeholderState.loadFromData(data.placeholders)
 		this._emit('imported')
 		return true

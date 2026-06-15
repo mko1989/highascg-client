@@ -4,17 +4,19 @@
 
 import { mountLookTransitionControls } from './scenes-shared.js'
 import { escapeHtml } from './scenes-editor-support.js'
+import { isPreviewBusAvailable } from '../lib/scenes-preview-look-stack.js'
 
 /**
- * Clear-preview only when clicking unused grid area inside a `.scenes-deck` (gaps, empty placeholder).
+ * Click on unused deck column area (gaps, empty placeholder, padding below cards).
  * @param {EventTarget | null} target
+ * @param {HTMLElement} colRoot
  */
-function isScenesDeckBlankClick(target) {
+function isScenesDeckColBlankClick(target, colRoot) {
 	const t = /** @type {HTMLElement | null} */ (target)
-	if (!t?.closest) return false
-	if (!t.closest('.scenes-deck')) return false
+	if (!t?.closest || !colRoot?.contains(t)) return false
 	if (t.closest('.scenes-card')) return false
 	if (t.closest('.scenes-deck__add-look')) return false
+	if (t.closest('.scenes-deck-col__head')) return false
 	if (t.closest('button, input, select, textarea, a, [role="button"]')) return false
 	return true
 }
@@ -123,12 +125,23 @@ export function renderSceneDeck(ctx) {
 	deckWrap.appendChild(toolbar)
 
 	const transMount = toolbar.querySelector('#scenes-deck-transition-mount')
+	const anyPgmOnlyMain = (() => {
+		for (let i = 0; i < screenCount; i++) {
+			if (!isPreviewBusAvailable(cm, i)) return true
+		}
+		return false
+	})()
 	mountLookTransitionControls(
 		transMount,
 		sceneState.globalDefaultTransition,
 		(t) => sceneState.setGlobalDefaultTransition(t),
 		'scenes-deck-dt',
-		{ label: 'Default transition', hint: '' },
+		{
+			label: 'Default transition',
+			hint: anyPgmOnlyMain
+				? 'MIX/WIPE/Slide/Push use +Animate on PGM-only screens at take.'
+				: '',
+		},
 	)
 	const applyAllBtn = document.createElement('button')
 	applyAllBtn.type = 'button'
@@ -302,13 +315,25 @@ export function renderSceneDeck(ctx) {
 			const sendPrv = async (e) => {
 				e.stopPropagation()
 				ensureMainForColumn(col)
-				// Always push AMCP: previewSceneId can match the compose UI while Caspar PRV is stale,
-				// and users expect a re-click to resync the physical preview bus.
+				const cm = getChannelMap()
+				if (!isPreviewBusAvailable(cm, col)) {
+					showToast('PGM-only — use Take', 'info')
+					return
+				}
 				await sendSceneToPreviewCard(sc.id, { targetMains: [col] })
 			}
 			card.querySelectorAll('[data-action="prv"]').forEach((el) => el.addEventListener('click', sendPrv))
 
-			card.addEventListener('click', sendPrv)
+			card.addEventListener('click', (e) => {
+				if (e.target.closest('[data-action]')) return
+				ensureMainForColumn(col)
+				const cm = getChannelMap()
+				if (!isPreviewBusAvailable(cm, col)) {
+					showToast('PGM-only — use Take', 'info')
+					return
+				}
+				void sendPrv(e)
+			})
 
 			card.querySelector('[data-action="take"]')?.addEventListener('click', (e) => {
 				e.stopPropagation()
@@ -323,7 +348,13 @@ export function renderSceneDeck(ctx) {
 			card.querySelector('[data-action="edit"]')?.addEventListener('click', async (e) => {
 				e.stopPropagation()
 				ensureMainForColumn(col)
-				if (sceneState.getPreviewSceneIdForMain(col) !== sc.id) await sendSceneToPreviewCard(sc.id, { targetMains: [col] })
+				const cm = getChannelMap()
+				if (
+					isPreviewBusAvailable(cm, col) &&
+					sceneState.getPreviewSceneIdForMain(col) !== sc.id
+				) {
+					await sendSceneToPreviewCard(sc.id, { targetMains: [col] })
+				}
 				sceneState.setEditingScene(sc.id)
 				selectedLayerIndexRef.current = null
 				dispatchLayerSelect(null)
@@ -377,13 +408,10 @@ export function renderSceneDeck(ctx) {
 		})
 		grid.appendChild(addTile)
 
-		if (typeof clearPreviewBusForMain === 'function') {
-			grid.addEventListener('click', (e) => {
+		if (typeof clearPreviewBusForMain === 'function' && isPreviewBusAvailable(cm, col)) {
+			colEl.addEventListener('click', (e) => {
 				if (e.defaultPrevented) return
-				if (!isScenesDeckBlankClick(e.target)) return
-				const t = /** @type {HTMLElement | null} */ (e.target)
-				const onEmptyPlaceholder = !!t?.closest?.('.scenes-deck__empty--clear-prv')
-				if (!onEmptyPlaceholder && !sceneState.getPreviewSceneIdForMain(col)) return
+				if (!isScenesDeckColBlankClick(e.target, colEl)) return
 				e.preventDefault()
 				ensureMainForColumn(col)
 				void clearPreviewBusForMain(col, { full: true })

@@ -5,9 +5,19 @@ import { defaultTransition as defaultTransitionDef } from '../lib/scene-state.js
 import { mountLookTransitionControls } from './scenes-shared.js'
 import { appendLayerPresetBar, appendSceneLayerStripRows } from './scene-layer-row.js'
 import { escapeHtml } from './scenes-editor-support.js'
+import { isPreviewBusAvailable } from '../lib/scenes-preview-look-stack.js'
+
+function mainIdxForScene(scene, sceneState) {
+	const scope = String(scene?.mainScope || 'all')
+	if (scope !== 'all') {
+		const n = parseInt(scope, 10)
+		if (Number.isFinite(n) && n >= 0) return n
+	}
+	return sceneState.activeScreenIndex ?? 0
+}
 
 export function renderEdit(ctx) {
-	const { mainHost, sceneState, stateStore, takeSceneToProgram, clearLastPreviewLayers, dispatchLayerSelect, schedulePreviewPush, applyNativeFillForSource, buildLayerRouteLiveSourceItem, renderCompose, selectedLayerIndexRef, showScenesToast } = ctx
+	const { mainHost, sceneState, stateStore, getChannelMap = () => ({}), takeSceneToProgram, clearLastPreviewLayers, dispatchLayerSelect, schedulePreviewPush, applyNativeFillForSource, buildLayerRouteLiveSourceItem, renderCompose, selectedLayerIndexRef, showScenesToast } = ctx
 	const id = sceneState.editingSceneId; const scene = id ? sceneState.getScene(id) : null
 	if (!scene) { sceneState.setEditingScene(null); return }
 
@@ -42,7 +52,20 @@ export function renderEdit(ctx) {
 	appendLayerPresetBar(layerStrip, { scene, render: renderFn, showToast: showScenesToast, schedulePreviewPush, selectedLayerIndexRef, sceneState })
 
 	mainRow.appendChild(layerStrip); mainRow.appendChild(renderCompose(scene))
-	mountLookTransitionControls(body, scene.defaultTransition || defaultTransitionDef(), t => sceneState.setDefaultTransition(scene.id, t), 'scenes-edit-dt', { label: 'Look transition (this look)', hint: 'Applies when layers enter or change.' })
+	const editMainIdx = mainIdxForScene(scene, sceneState)
+	const editPgmOnly = !isPreviewBusAvailable(getChannelMap(), editMainIdx)
+	mountLookTransitionControls(
+		body,
+		scene.defaultTransition || defaultTransitionDef(),
+		(t) => sceneState.setDefaultTransition(scene.id, t),
+		'scenes-edit-dt',
+		{
+			label: 'Look transition (this look)',
+			hint: editPgmOnly
+				? 'MIX/WIPE/Slide/Push use +Animate on this PGM-only screen at take.'
+				: 'Applies when layers enter or change.',
+		},
+	)
 	
 
 

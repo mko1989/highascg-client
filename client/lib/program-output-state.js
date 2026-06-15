@@ -6,38 +6,22 @@
 
 import { sceneState } from './scene-state.js'
 
+export {
+	DEFAULT_TRANSITION,
+	TRANSITION_TYPES,
+	TRANSITION_TWEENS,
+	TRANSITION_TYPE_LABELS,
+	PGM_ONLY_TRANSITION_TYPES,
+	migrateTransitionTypeToAnimate,
+	normalizeTransitionForPgmOnly,
+} from './transition-presets.js'
+
 const STORAGE_KEY = 'casparcg_program_output'
 const STORAGE_LEGACY = 'casparcg_dashboard'
 const DEFAULT_LAYER_COUNT = 9
 
 /** @deprecated Legacy name — use STORAGE_LEGACY migration only */
 export const DASHBOARD_STORAGE_LEGACY = STORAGE_LEGACY
-
-/** Default transition presets (shared with scene/timeline UI). */
-export const DEFAULT_TRANSITION = { type: 'CUT', duration: 0, tween: 'linear' }
-/** Values persisted on scenes / timeline. Labels for the UI are in {@link TRANSITION_TYPE_LABELS}. */
-export const TRANSITION_TYPES = ['CUT', 'MIX', 'PUSH', 'WIPE', 'SLIDE', 'MIX + ANIMATE', 'WIPE + ANIMATE', 'SLIDE + ANIMATE', 'PUSH + ANIMATE']
-export const TRANSITION_TWEENS = ['linear', 'easein', 'easeout', 'easeboth']
-
-/** UI label for each transition type value (legacy `+ MERGE` is migrated to `+ ANIMATE` on load). */
-export const TRANSITION_TYPE_LABELS = {
-	CUT: 'CUT',
-	MIX: 'MIX',
-	PUSH: 'PUSH',
-	WIPE: 'WIPE',
-	SLIDE: 'SLIDE',
-	'MIX + ANIMATE': 'MIX + Animate',
-	'WIPE + ANIMATE': 'WIPE + Animate',
-	'SLIDE + ANIMATE': 'SLIDE + Animate',
-	'PUSH + ANIMATE': 'PUSH + Animate',
-}
-
-/** Map persisted transition type to current dropdown value (same-layer animate path). */
-export function migrateTransitionTypeToAnimate(t) {
-	return String(t || '')
-		.replace(/\s*\+\s*MERGE\b/gi, '+ ANIMATE')
-		.trim()
-}
 
 const FALLBACK_RESOLUTION = { w: 1920, h: 1080 }
 
@@ -219,19 +203,28 @@ export class ProgramOutputState {
 		}
 	}
 
-	resetForNewProject() {
+	resetForNewProject(opts = {}) {
 		const res = this._getCanvasResolution(this._screenIdx())
 		this.layerNames = Array.from({ length: DEFAULT_LAYER_COUNT }, (_, i) => `Layer ${i + 1}`)
 		this.layerSettings = Array.from({ length: DEFAULT_LAYER_COUNT }, () => defaultLayerSetting(res))
 		this._applyCanvasSizeToUnsetDefaults(this._screenIdx())
-		this._save()
+		if (opts.silent) {
+			try {
+				localStorage.setItem(
+					storageKey(this._screenIdx()),
+					JSON.stringify({ layerNames: this.layerNames, layerSettings: this.layerSettings }),
+				)
+			} catch {}
+		} else {
+			this._save()
+		}
 	}
 
 	/**
 	 * Load from project JSON. Accepts new `programOutput` shape or legacy `dashboard` blobs;
 	 * column/grid fields are ignored.
 	 */
-	loadFromData(data) {
+	loadFromData(data, opts = {}) {
 		if (!data || typeof data !== 'object') return
 		const res = this._getCanvasResolution(this._screenIdx())
 		if (Array.isArray(data.layerNames)) {
@@ -247,8 +240,16 @@ export class ProgramOutputState {
 			}
 		}
 		this._applyCanvasSizeToUnsetDefaults(this._screenIdx())
-		this._save()
-		this._emit('change', null)
+		if (opts.silent) {
+			try {
+				localStorage.setItem(
+					storageKey(this._screenIdx()),
+					JSON.stringify({ layerNames: this.layerNames, layerSettings: this.layerSettings }),
+				)
+			} catch {}
+		} else {
+			this._save()
+		}
 	}
 
 	persist() {

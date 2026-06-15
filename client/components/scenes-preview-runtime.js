@@ -10,6 +10,7 @@ import {
 	allMatrixLayersOnPreviewChannel,
 	defaultLookDecadeLayersForSweep,
 	getOccupiedPreviewLookLayersFromState,
+	isPreviewBusAvailable,
 	PREVIEW_SCENE_LAYER_MIN,
 	TIMELINE_LAYER_BASE,
 	TIMELINE_LAYER_CLEAR_COUNT,
@@ -20,9 +21,9 @@ import { createScenesPreviewGlobalBorder } from '../lib/scenes-preview-global-bo
 
 const PREVIEW_PUSH_DEBOUNCE_MS = 16
 
-/** @param {{ sceneState: object, stateStore: object, getChannelMap: () => object, getPreviewChannel: () => number|null, getPreviewOutputResolution: () => { w: number, h: number, fps?: number } }} opts */
+/** @param {{ sceneState: object, stateStore: object, getChannelMap: () => object, getPreviewChannel: () => number|null, getPreviewOutputResolution: () => { w: number, h: number, fps?: number }, flushSceneDeckSync?: () => void }} opts */
 export function createScenesPreviewRuntime(opts) {
-	const { sceneState, stateStore, getChannelMap, getPreviewChannel, getPreviewOutputResolution } = opts
+	const { sceneState, stateStore, getChannelMap, getPreviewChannel, getPreviewOutputResolution, flushSceneDeckSync } = opts
 
 	/** @type {Map<string, { sceneId: string, borderType: string }>} — key `${channel}-${layer}` */
 	const lastGlobalBorderPushMeta = new Map()
@@ -119,11 +120,64 @@ export function createScenesPreviewRuntime(opts) {
 	}
 
 	/**
+	 * Stage a look on the PRV bus via server take API (no client look-stack AMCP).
+	 * @param {string} sceneId
+	 * @param {number[]|undefined} restrictMains
+	 * @param {boolean} [forceCut]
+	 */
+	async function pushSceneToPreviewViaServer(sceneId, restrictMains, forceCut = true) {
+		const scene = sceneState.getScene(sceneId)
+		if (!scene) return
+		flushSceneDeckSync?.()
+		const cm = getChannelMap()
+		let targetIdxs = (() => {
+			const scope = String(scene.mainScope || 'all')
+			if (scope === 'all') return Array.from({ length: cm.screenCount || 1 }, (_, i) => i)
+			const n = parseInt(scope, 10)
+			if (Number.isFinite(n) && n >= 0 && n < (cm.screenCount || 1)) return [n]
+			return sceneState.armedScreenIndices?.length ? sceneState.armedScreenIndices : [sceneState.activeScreenIndex]
+		})()
+		if (Array.isArray(restrictMains) && restrictMains.length > 0) {
+			const allow = new Set(restrictMains.map((x) => Number(x)).filter((n) => Number.isFinite(n)))
+			const narrowed = targetIdxs.filter((i) => allow.has(i))
+			targetIdxs =
+				narrowed.length > 0
+					? narrowed
+					: [...allow].filter((i) => Number.isFinite(i) && i >= 0 && i < (cm.screenCount || 1))
+		}
+		for (const mIdx of targetIdxs) {
+			if (!isPreviewBusAvailable(cm, mIdx)) {
+				sceneState.setPreviewSceneId(sceneId, mIdx)
+				continue
+			}
+			const programCh = Number(cm.programChannels?.[mIdx] ?? cm.playbackChannels?.[mIdx])
+			if (!Number.isFinite(programCh) || programCh <= 0) continue
+			const prvCh = Number(cm.previewChannels?.[mIdx])
+			const fps = cm.programResolutions?.[mIdx]?.fps ?? 50
+			await api.post('/api/scene/take', {
+				channel: programCh,
+				sceneId,
+				target: 'preview',
+				forceCut,
+				useServerLive: true,
+				framerate: fps,
+			})
+			sceneState.setPreviewSceneId(sceneId, mIdx)
+			if (Number.isFinite(prvCh) && prvCh > 0) lastPreviewChannel = prvCh
+		}
+		primePreviewSnapshotFromScene(sceneId)
+	}
+
+	/**
 	 * @param {string} sceneId
 	 * @param {number[]|undefined} restrictMains - If set, only push AMCP / set preview state for these main indices (deck column, look recall, etc.).
 	 * @param {boolean} [forcePrvBus] - When true (deck / recall), always use the mapped preview channel, not PGM from edit-on-PGM compose mode.
 	 */
 	async function pushSceneToPreview(sceneId, restrictMains, forcePrvBus = false) {
+		if (forcePrvBus) {
+			await pushSceneToPreviewViaServer(sceneId, restrictMains, true)
+			return
+		}
 		const out = await pushSceneToPreviewImpl({
 			sceneId,
 			restrictMains,
@@ -151,14 +205,18 @@ export function createScenesPreviewRuntime(opts) {
 
 	/**
 	 * @param {string} sceneId
-	 * @param {{ targetMains?: number[] }} [opts]
+	 * @param {{ targetMains?: number[], forcePrvBus?: boolean }} [opts]
 	 */
-	function sendSceneToPreviewCard(sceneId, opts = {}) {
+	async function sendSceneToPreviewCard(sceneId, opts = {}) {
 		if (previewDebounce != null) clearTimeout(previewDebounce)
 		previewDebounce = null
 		const forcePrvBus = opts.forcePrvBus !== false
+		if (forcePrvBus) {
+			await pushSceneToPreviewViaServer(sceneId, opts.targetMains, true)
+			return
+		}
 		previewPushRequest = { sceneId, targetMains: opts.targetMains, forcePrvBus }
-		void drainPreviewPushQueue()
+		await drainPreviewPushQueue()
 	}
 
 	/** @type {number | null} */

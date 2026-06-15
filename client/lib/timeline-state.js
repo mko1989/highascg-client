@@ -449,7 +449,7 @@ class TimelineStateManager {
 	}
 
 	/** Load from project data (replaces current state, persists to localStorage). */
-	loadFromData(data) {
+	loadFromData(data, opts = {}) {
 		if (!data || !Array.isArray(data.timelines)) return
 		this.timelines = data.timelines.length ? data.timelines : [defaultTimeline()]
 		for (const tl of this.timelines) {
@@ -462,7 +462,13 @@ class TimelineStateManager {
 			}
 		}
 		this.activeId = data.activeId || this.timelines[0]?.id || null
-		this._save()
+		if (opts.silent) {
+			try {
+				localStorage.setItem(STORAGE_KEY, JSON.stringify({ timelines: this.timelines, activeId: this.activeId }))
+			} catch {}
+		} else {
+			this._save()
+		}
 	}
 
 	_load() {

@@ -1,7 +1,7 @@
 import { sceneState } from '../lib/scene-state.js'
 import { buildIncomingScenePayload } from './scenes-shared.js'
-import { timelineState } from '../lib/timeline-state.js'
 import { UI_FONT_FAMILY } from '../lib/ui-font.js'
+import { isPreviewBusAvailable } from '../lib/scenes-preview-look-stack.js'
 
 /** Thumbnail width for the compose preview canvas (local ffmpeg path yields higher quality). */
 export const SCENE_THUMB_MAX_W = 960
@@ -124,7 +124,8 @@ export function bindScenesPreviewSplitDrag({ splitHandle, previewHost, previewPa
  * @param {import('../lib/state-store.js').StateStore} deps.stateStore
  * @param {() => object} deps.getChannelMap
  * @param {() => number} deps.getProgramChannel
- * @param {() => number} deps.getTimelinePositionMsForTake
+ * @param {() => Promise<void>} [deps.stopActiveTimelineOnServer]
+ * @param {() => void} [deps.flushSceneDeckSync]
  * @param {function(string, string=): void} deps.showToast
  * @param {function(string): void} deps.primePreviewSnapshotFromScene
  */
@@ -143,6 +144,8 @@ export function createTakeSceneToProgram(deps) {
 
 		takeBusy = true
 		try {
+			await deps.stopActiveTimelineOnServer?.()
+			deps.flushSceneDeckSync?.()
 			const cm = deps.getChannelMap() || {}
 			const programChannels = (Array.isArray(cm.programChannels) && cm.programChannels.length > 0) ? cm.programChannels : [deps.getProgramChannel()]
 			const targetMains = (() => {
@@ -169,25 +172,56 @@ export function createTakeSceneToProgram(deps) {
 				if (!Number.isFinite(Number(programCh)) || Number(programCh) <= 0) continue
 				touched.push({ mainIdx, channel: Number(programCh) })
 				const fps = cm.programResolutions?.[mainIdx]?.fps ?? 50
+				const pgmOnly = !isPreviewBusAvailable(cm, mainIdx)
+				const buildTakeBody = (withFullScene) => {
+					const base = {
+						channel: Number(programCh),
+						sceneId: scene.id,
+						framerate: fps,
+						forceCut,
+						useServerLive: true,
+					}
+					if (!withFullScene) return base
+					const incomingScene = buildIncomingScenePayload(scene, {
+						timeline: null,
+						positionMs: 0,
+						programChannel: Number(programCh),
+						mainIdx,
+						fps,
+						stateStore: deps.stateStore,
+						variableStore,
+						oscClient,
+						transitionTake: !forceCut && !pgmOnly,
+						pgmOnly,
+					})
+					return {
+						...base,
+						incomingScene: { ...incomingScene, globalBorder: sceneState.getGlobalBorderForScreen(mainIdx) },
+					}
+				}
+				let takeRes
+				try {
+					takeRes = await deps.api.post('/api/scene/take', buildTakeBody(false))
+				} catch (takeErr) {
+					const msg = String(takeErr?.message || takeErr)
+					if (/incomingScene/i.test(msg)) {
+						takeRes = await deps.api.post('/api/scene/take', buildTakeBody(true))
+					} else {
+						throw takeErr
+					}
+				}
 				const incomingScene = buildIncomingScenePayload(scene, {
-					timeline: timelineState.getActive(),
-					positionMs: deps.getTimelinePositionMsForTake(),
+					timeline: null,
+					positionMs: 0,
 					programChannel: Number(programCh),
 					mainIdx,
 					fps,
 					stateStore: deps.stateStore,
 					variableStore,
 					oscClient,
-					transitionTake: !forceCut,
+					transitionTake: !forceCut && !pgmOnly,
+					pgmOnly,
 				})
-				const body = {
-					channel: Number(programCh),
-					incomingScene: { ...incomingScene, globalBorder: sceneState.getGlobalBorderForScreen(mainIdx) },
-					framerate: fps,
-					forceCut,
-					useServerLive: true,
-				}
-				const takeRes = await deps.api.post('/api/scene/take', body)
 				sceneState.setLiveSceneId(sceneId, mainIdx, { silent: true })
 				if (takeRes?.sceneLive && typeof takeRes.sceneLive === 'object') {
 					for (const [k, v] of Object.entries(takeRes.sceneLive)) {

@@ -83,7 +83,7 @@ export function attachWsHandlers(ws, { stateStore, sceneState, timelineState, mu
 	ws.on('project_sync', (project) => {
 		if (!project || project.error || !project.version || consumeSkipRemoteProjectSync()) return
 		try {
-			projectState.importProject(project, sceneState, timelineState, multiviewState, programOutputState)
+			projectState.importProject(project, sceneState, timelineState, multiviewState, programOutputState, { silent: true })
 			window.dispatchEvent(new Event('project-loaded'))
 		} catch (e) { console.warn('[HighAsCG] project_sync failed:', e.message) }
 	})
@@ -116,7 +116,7 @@ export function attachWsHandlers(ws, { stateStore, sceneState, timelineState, mu
 
 	ws.on('connect', () => {
 		appLogic.updateStatus(true, null); appLogic.refreshEye()
-		appLogic.scheduleMultiviewRefresh(); appLogic.scheduleSceneDeckSync()
+		appLogic.scheduleMultiviewRefresh()
 		appLogic.onConnect()
 	})
 

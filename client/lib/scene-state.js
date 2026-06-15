@@ -38,7 +38,6 @@ import {
 	sceneStateImportLayerPresetsFromServer,
 	sceneStateImportLookPresetsFromServer,
 } from './scene-state-preset-actions.js'
-
 export {
 	defaultTransition,
 	previewChannelLayerForSceneLayer,
@@ -448,7 +447,17 @@ export class SceneState {
 		}))
 	}
 
-	loadFromData(data) { if (this._applyPersistedData(data)) { this._save(); this._emit('imported') } }
+	loadFromData(data, opts = {}) {
+		if (!this._applyPersistedData(data)) return
+		if (opts.silent) {
+			try {
+				localStorage.setItem(Persistence.STORAGE_KEY, Persistence.getPersistPayload(this))
+			} catch {}
+		} else {
+			this._save()
+		}
+		this._emit('imported')
+	}
 }
 
 export const sceneState = new SceneState()

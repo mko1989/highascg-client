@@ -16,6 +16,9 @@ import { sceneState } from '../lib/scene-state.js'
 import { programOutputState } from '../lib/program-output-state.js'
 import { timelineState } from '../lib/timeline-state.js'
 import { multiviewState } from '../lib/multiview-state.js'
+import { markServerProjectSynced } from '../lib/server-project-sync.js'
+import { getAppWs } from '../lib/app-runtime.js'
+import { flushSceneDeckSync } from '../lib/app-scene-deck.js'
 
 const MODAL_ID = 'load-project-modal'
 
@@ -254,6 +257,9 @@ export function showLoadProjectModal(opts = {}) {
 	async function finishImport(project, entry) {
 		const result = await importProjectWithHardwareReconcile(project, importDeps(entry))
 		if (result === 'cancelled') return
+		markServerProjectSynced()
+		const appWs = getAppWs()
+		if (appWs) flushSceneDeckSync(appWs, sceneState)
 		onLoaded?.()
 		if (result === 'full') showToast?.('Loaded with project hardware', 'success')
 		else showToast?.('Loaded (looks only)', 'success')

@@ -35,6 +35,54 @@ export function defaultLookDecadeLayersForSweep() {
 }
 
 /**
+ * Layer numbers to clear on PGM before a direct take (PGM-only — no PRV bus).
+ * Merges matrix occupancy + previous live look snapshot so orphan layers do not stack.
+ * @param {object} stateStore
+ * @param {object} sceneState
+ * @param {number} programCh
+ * @param {number} mainIdx
+ * @returns {Set<number>}
+ */
+export function layersToClearBeforePgmTake(stateStore, sceneState, programCh, mainIdx) {
+	const occupied = new Set()
+	for (const n of allMatrixLayersOnPreviewChannel(stateStore, programCh)) occupied.add(n)
+	const prevSnap = sceneState.getLiveSceneSnapshot?.(mainIdx)
+	if (prevSnap?.layers) {
+		for (const l of prevSnap.layers) {
+			const ln = Number(l.layerNumber)
+			if (Number.isFinite(ln) && ln >= PREVIEW_SCENE_LAYER_MIN && ln < 10000) occupied.add(ln)
+		}
+	}
+	const stLive = stateStore?.getState?.()?.scene?.live?.[String(programCh)]?.scene
+	if (stLive?.layers) {
+		for (const l of stLive.layers) {
+			const ln = Number(l.layerNumber)
+			if (Number.isFinite(ln) && ln >= PREVIEW_SCENE_LAYER_MIN && ln < 10000) occupied.add(ln)
+		}
+	}
+	return occupied
+}
+
+/**
+ * @param {number} channel
+ * @param {Iterable<number>} layerNums
+ * @param {(ch: number, ln: number, nextLn: number) => string[]} [pipRemoveLines]
+ * @returns {string[]}
+ */
+export function buildClearLookStackLayerCommands(channel, layerNums, pipRemoveLines) {
+	const ch = Number(channel)
+	if (!Number.isFinite(ch) || ch <= 0) return []
+	const queue = []
+	for (const ln of [...layerNums].sort((a, b) => a - b)) {
+		const dl = `${ch}-${ln}`
+		queue.push(`STOP ${dl}`, `MIXER ${dl} CLEAR`)
+		if (pipRemoveLines) queue.push(...pipRemoveLines(ch, ln, 10000))
+	}
+	if (queue.length) queue.push(`MIXER ${ch} COMMIT`)
+	return queue
+}
+
+/**
  * Read currently occupied look-stack layers from live state for a given PRV channel.
  * @param {object} stateStore
  * @param {number} previewCh
@@ -59,7 +107,30 @@ export function getOccupiedPreviewLookLayersFromState(stateStore, previewCh) {
 }
 
 /**
+ * Whether this main has a separate preview bus (not PGM-only / mirrored PGM).
+ * Matches {@link createScenesPreviewRuntime} `clearPreviewBusForMain` separate-PRV check.
+ * @param {object} cm - channelMap from state
+ * @param {number} mIdx
+ * @returns {boolean}
+ */
+export function isPreviewBusAvailable(cm, mIdx) {
+	if (cm?.previewEnabledByMain?.[mIdx] === false) return false
+	const pgm = Number(cm?.programChannels?.[mIdx] ?? cm?.playbackChannels?.[mIdx])
+	const prv = Number(cm?.previewChannels?.[mIdx])
+	if (!Number.isFinite(prv) || prv <= 0) return false
+	if (!Number.isFinite(pgm) || pgm <= 0) return true
+	return prv !== pgm
+}
+
+function previewChannelForMain(cm, mIdx) {
+	if (!isPreviewBusAvailable(cm, mIdx)) return null
+	const prv = Number(cm?.previewChannels?.[mIdx])
+	return Number.isFinite(prv) && prv > 0 ? prv : null
+}
+
+/**
  * Caspar channel used for look-stack preview AMCP (L10+, PIPs, etc.).
+ * On PGM-only outputs returns null unless {@link sceneState.editOnPgm} is enabled.
  * @param {object} sceneState
  * @param {() => object} getChannelMap
  * @param {number} mIdx
@@ -68,16 +139,13 @@ export function getOccupiedPreviewLookLayersFromState(stateStore, previewCh) {
  */
 export function resolvePreviewAmcpChannel(sceneState, getChannelMap, mIdx, forcePrvBus) {
 	const cm = getChannelMap()
+	if (!isPreviewBusAvailable(cm, mIdx)) return null
 	if (forcePrvBus) {
-		const prv = Number(cm.previewChannels?.[mIdx])
-		if (Number.isFinite(prv) && prv > 0) return prv
-		const pgm = Number(cm.programChannels?.[mIdx] ?? cm.playbackChannels?.[mIdx])
-		return Number.isFinite(pgm) && pgm > 0 ? pgm : null
+		return previewChannelForMain(cm, mIdx)
 	}
 	if (sceneState.editOnPgm) {
 		const pgm = Number(cm.programChannels?.[mIdx] ?? cm.playbackChannels?.[mIdx])
 		return Number.isFinite(pgm) && pgm > 0 ? pgm : null
 	}
-	const prv = Number(cm.previewChannels?.[mIdx])
-	return Number.isFinite(prv) && prv > 0 ? prv : null
+	return previewChannelForMain(cm, mIdx)
 }

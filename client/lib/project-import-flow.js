@@ -32,12 +32,14 @@ export async function importProjectWithHardwareReconcile(project, deps) {
 	if (!project || typeof project !== 'object') return 'cancelled'
 
 	const importLooks = () => {
+		const silent = deps.source === 'server-bootstrap' || deps.source === 'server-reconnect'
 		deps.projectState.importProject(
 			project,
 			deps.sceneState,
 			deps.timelineState,
 			deps.multiviewState,
 			deps.programOutputState,
+			{ silent },
 		)
 		deps.onNameSync?.(deps.projectState.getProjectName())
 		window.dispatchEvent(new Event('project-loaded'))

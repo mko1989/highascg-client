@@ -1,6 +1,8 @@
 /**
  * Scene Deck sync logic (Companion support).
  */
+import { canPushProjectToServer } from './server-project-sync.js'
+
 export function buildSceneDeckPayload(sceneState) {
 	const prv = sceneState.previewSceneId
 	const scenes = Array.isArray(sceneState.scenes) ? sceneState.scenes : []
@@ -18,9 +20,20 @@ export function buildSceneDeckPayload(sceneState) {
 
 let sceneDeckSyncTimer = null
 export function scheduleSceneDeckSync(ws, sceneState) {
+	if (!canPushProjectToServer()) return
 	if (sceneDeckSyncTimer) clearTimeout(sceneDeckSyncTimer)
 	sceneDeckSyncTimer = setTimeout(() => {
 		sceneDeckSyncTimer = null
 		try { ws.send({ type: 'scene_deck_sync', data: buildSceneDeckPayload(sceneState) }) } catch {}
 	}, 100)
+}
+
+/** Send deck sync immediately (e.g. before program take so server resolves sceneId). */
+export function flushSceneDeckSync(ws, sceneState) {
+	if (!canPushProjectToServer()) return
+	if (sceneDeckSyncTimer) {
+		clearTimeout(sceneDeckSyncTimer)
+		sceneDeckSyncTimer = null
+	}
+	try { ws.send({ type: 'scene_deck_sync', data: buildSceneDeckPayload(sceneState) }) } catch {}
 }

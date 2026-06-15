@@ -141,23 +141,7 @@ export class MultiviewState {
 	 * @param {boolean} [applyToCaspar] - when false, persist + redraw clients only; skip `/api/multiview/apply` (server sync, project load, audio focus, canvas size).
 	 */
 	_save(applyToCaspar = true) {
-		const key = this.currentIndex === 1 ? STORAGE_KEY_BASE : `${STORAGE_KEY_BASE}_${this.currentIndex}`
-		try {
-			localStorage.setItem(
-				key,
-				JSON.stringify({
-					cells: this.cells,
-					canvasWidth: this.canvasWidth,
-					canvasHeight: this.canvasHeight,
-					showOverlay: this.showOverlay,
-					bgColor: this.bgColor,
-					showTimersUnderLabels: this.showTimersUnderLabels,
-					audioActiveCellId: this.audioActiveCellId,
-				})
-			)
-		} catch {}
-		this._emit('change')
-		if (applyToCaspar) this._emit('apply-request')
+		this._persistLayout(applyToCaspar, true)
 	}
 
 	_emit(key) {
@@ -278,7 +262,7 @@ export class MultiviewState {
 	}
 
 	/** Load from project data (replaces current state, persists to localStorage). */
-	loadFromData(data) {
+	loadFromData(data, opts = {}) {
 		if (!data || !Array.isArray(data.cells)) return
 		this.cells = migratePreviewRouteSources(data.cells)
 		this.canvasWidth = data.canvasWidth ?? DEFAULT_WIDTH
@@ -287,7 +271,27 @@ export class MultiviewState {
 		this.bgColor = data.bgColor || '#000000'
 		this.showTimersUnderLabels = !!data.showTimersUnderLabels
 		// Do not re-apply the whole layout to Caspar on every WebUI refresh / project hydrate
-		this._save(false)
+		this._persistLayout(false, !opts.silent)
+	}
+
+	_persistLayout(applyToCaspar, emitChange) {
+		const key = this.currentIndex === 1 ? STORAGE_KEY_BASE : `${STORAGE_KEY_BASE}_${this.currentIndex}`
+		try {
+			localStorage.setItem(
+				key,
+				JSON.stringify({
+					cells: this.cells,
+					canvasWidth: this.canvasWidth,
+					canvasHeight: this.canvasHeight,
+					showOverlay: this.showOverlay,
+					bgColor: this.bgColor,
+					showTimersUnderLabels: this.showTimersUnderLabels,
+					audioActiveCellId: this.audioActiveCellId,
+				}),
+			)
+		} catch {}
+		if (emitChange) this._emit('change')
+		if (applyToCaspar) this._emit('apply-request')
 	}
 
 	/**

@@ -100,6 +100,11 @@
 	overflow-x: auto;
 }
 
+.scenes-deck-col .scenes-deck {
+	flex: 1;
+	min-height: 140px;
+}
+
 .scenes-deck-col {
 	flex: 1 1 280px;
 	min-width: 220px;
