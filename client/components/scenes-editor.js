@@ -274,8 +274,8 @@ export function initScenesEditor(root, stateStore, opts = {}) {
 					id = sceneState.getPreviewSceneIdForMain(mainIdx) || (sceneState.editOnPgm ? null : fallbackEditingId)
 					scene = id ? sceneState.getScene(id) : null
 				}
-				drawDualComposeCellPreview(ctx, W, H, cellW, cellH, c => {
-					const r = Logic.getResolutionForScreen(mainIdx, sceneState, stateStore)
+				const r = Logic.getResolutionForScreen(mainIdx, sceneState, stateStore)
+				drawDualComposeCellPreview(ctx, r.w, r.h, cellW, cellH, c => {
 					const cm = getChannelMap()
 					const prvForMain = cm.previewChannels?.[mainIdx]
 					const pgmForMain = cm.playbackChannels?.[mainIdx] ?? cm.programChannels?.[mainIdx] ?? getPlaybackChannel()

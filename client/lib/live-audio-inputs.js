@@ -1,7 +1,7 @@
 /**
  * ALSA / USB live audio inputs — each slot on its own dedicated Caspar channel (WO-53).
  */
-import { listInputChannels } from './input-channels.js'
+import { liveAudioInputForSlot, listInputChannels } from './input-channels.js'
 
 export const LIVE_AUDIO_MAX_SLOTS = 8
 /** Default PGM layer for slot N when playing directly on program (slots 1→L1, 2→L2, …). */

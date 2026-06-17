@@ -153,6 +153,7 @@ export function renderStreamOutControls(h, conn, { currentSettings, streamingSta
 				audioBitrateKbps,
 			})
 			setStatus(statusEl, 'Streaming started', true)
+			document.dispatchEvent(new CustomEvent('highascg-streaming-changed'))
 			await load()
 			renderStreamLogs()
 		} catch (e) { setStatus(statusEl, e.message, false) }
@@ -161,6 +162,7 @@ export function renderStreamOutControls(h, conn, { currentSettings, streamingSta
 		try {
 			await Actions.stopStreamingChannelRtmp()
 			setStatus(statusEl, 'Streaming stopped', true)
+			document.dispatchEvent(new CustomEvent('highascg-streaming-changed'))
 			await load()
 			renderStreamLogs()
 		} catch (e) { setStatus(statusEl, e.message, false) }

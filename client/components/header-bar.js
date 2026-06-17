@@ -27,6 +27,7 @@ import { showLoadProjectModal } from './load-project-modal.js'
 import { applyDefaultUntitledProjectLocally } from '../lib/default-project.js'
 
 import { initLedTestCard } from './header-bar-led-test.js'
+import { initStreamingBadge } from './header-bar-streaming.js'
 
 /**
  * @param {HTMLElement} headerEl - Header element (contains title + status)
@@ -228,7 +229,7 @@ export function initHeaderBar(headerEl, statusEl, stateStore) {
 	ledTestWrap.className = 'header-led-test'
 	
 	initLedTestCard(ledTestWrap, stateStore)
-
+	initStreamingBadge(ledTestWrap)
 
 	const audioGroup = createHeaderAudioMonitor(stateStore)
 

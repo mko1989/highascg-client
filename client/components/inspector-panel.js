@@ -17,6 +17,7 @@ import {
 } from './inspector-panel-timeline.js'
 import { renderSceneLayerInspector, renderMultiviewInspector, renderSceneInspector, renderGlobalBorderInspector } from './inspector-panel-views.js'
 import { renderLayerPresetsMode, renderLookPresetsMode } from './inspector-panel-presets-modes.js'
+import { renderLiveAudioInputInspector } from './inspector-live-audio-input.js'
 
 /** @deprecated import from ../lib/mixer-fill.js */
 export { calcMixerFill, getContentResolution }
@@ -145,6 +146,11 @@ export function initInspectorPanel(root, stateStore) {
 		}
 		if (data.type === 'globalBorder' && data.screenIndex != null) {
 			renderGlobalBorderInspector(root, data.screenIndex, stateStore)
+			scheduleSelectionSync(stateStore, selection)
+			return
+		}
+		if (data.type === 'liveAudioInput' && data.slot != null) {
+			renderLiveAudioInputInspector(root, stateStore, data, { onClearSelection: () => update(null) })
 			scheduleSelectionSync(stateStore, selection)
 			return
 		}
@@ -287,6 +293,20 @@ export function initInspectorPanel(root, stateStore) {
 	window.addEventListener('global-border-state-changed', () => {
 		if (selection?.type === 'globalBorder' && selection.screenIndex != null) {
 			renderGlobalBorderInspector(root, selection.screenIndex, stateStore)
+		}
+	})
+
+	window.addEventListener('live-audio-input-select', (e) => {
+		const d = e.detail
+		if (d && d.slot != null) {
+			const s = parseInt(String(d.slot), 10)
+			if (Number.isFinite(s) && s >= 1) {
+				update({ type: 'liveAudioInput', slot: Math.floor(s) })
+				return
+			}
+		}
+		if (d == null) {
+			if (selection?.type === 'liveAudioInput') update(null)
 		}
 	})
 

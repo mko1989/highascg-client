@@ -447,5 +447,6 @@ let mounted = false; export function initDeviceView(root) {
 	window.addEventListener('highascg-device-view-reload', load);
 	window.addEventListener('highascg-device-view-focus-connector', (ev) => { const cid = String(ev?.detail?.connectorId || '').trim(); if (cid) focusConnectorById(cid) }); 
 	window.addEventListener('highascg-device-view-focus-device', (ev) => { if (ev.detail?.deviceId) selectDevice(ev.detail.deviceId, lastPayload?.live) });
+	window.addEventListener('highascg-caspar-restart-dirty', () => setCasparRestartDirty(true))
 	void load()
 }

@@ -88,6 +88,7 @@ export function renderRecordOutControls(h, conn, { currentSettings, statusEl, lo
 				audioBitrateKbps: Math.max(32, parseInt(String(aBitrateIn.value || '128'), 10) || 128),
 			})
 			setStatus(statusEl, `Recording started (${conn.id})`, true)
+			document.dispatchEvent(new CustomEvent('highascg-streaming-changed'))
 			await load()
 		} catch (e) { setStatus(statusEl, e.message, false) }
 	}
@@ -95,6 +96,7 @@ export function renderRecordOutControls(h, conn, { currentSettings, statusEl, lo
 		try {
 			await Actions.stopPgmRecord({ outputId: String(conn.id) })
 			setStatus(statusEl, `Recording stopped (${conn.id})`, true)
+			document.dispatchEvent(new CustomEvent('highascg-streaming-changed'))
 			await load()
 		} catch (e) { setStatus(statusEl, e.message, false) }
 	}

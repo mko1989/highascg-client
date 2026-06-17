@@ -6,6 +6,7 @@
 
 import { api } from '../lib/api-client.js'
 import { decklinkInputForSlot } from '../lib/input-channels.js'
+import { markCasparRestartDirty } from '../lib/caspar-restart-hint.js'
 
 function suggestLiveInputChannel(cm) {
 	if (!cm || typeof cm !== 'object') return 5
@@ -263,6 +264,7 @@ export function showLiveInputModal(stateStore) {
 				if (Array.isArray(r?.extraLiveSources) && typeof window.__highascgApplyExtraLiveSources === 'function') {
 					window.__highascgApplyExtraLiveSources(r.extraLiveSources)
 				}
+				markCasparRestartDirty()
 				setStatus('Added to Live Sources', false)
 				setTimeout(close, 1000)
 			} catch (e) {
@@ -290,6 +292,7 @@ export function showLiveInputModal(stateStore) {
 				if (Array.isArray(r?.extraLiveSources) && typeof window.__highascgApplyExtraLiveSources === 'function') {
 					window.__highascgApplyExtraLiveSources(r.extraLiveSources)
 				}
+				markCasparRestartDirty()
 				setStatus('Added to Live Sources', false)
 				setTimeout(close, 1000)
 			} catch (e) {

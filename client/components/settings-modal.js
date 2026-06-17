@@ -9,6 +9,7 @@ import { getOptionalSettingsTabs } from '../lib/optional-modules.js'
 import * as Templates from './settings-modal-templates.js'
 import * as Logic from './settings-modal-logic.js'
 import * as MountHw from './settings-modal-mount-hardware.js'
+import { mountLiveAudioSettingsPanel } from './settings-live-audio-panel.js'
 export function showSettingsModal(initialTab) {
 	if (document.getElementById('settings-modal')) return
 	const modal = document.createElement('div')
@@ -20,7 +21,9 @@ export function showSettingsModal(initialTab) {
 	const optionalById = new Map(optionalTabDefs.map(t => [t.id, t]))
 	const optionalDisposers = []
 	const optionalMounted = new Set()
+	let liveAudioMounted = false
 	/** @type {(() => Promise<void>) | null} */
+	let refreshLiveAudioPanel = null
 	const tabsRow = modal.querySelector('.settings-tabs'); const varTab = tabsRow?.querySelector('[data-tab="variables"]')
 	const panesRow = modal.querySelector('.settings-panes'); const varPane = modal.querySelector('#settings-pane-variables')
 	
@@ -57,6 +60,15 @@ export function showSettingsModal(initialTab) {
 		}
 		if (tabName === 'system-hardware') void MountHw.refreshSystemHardwarePanel(modal)
 		if (tabName === 'decklink') void MountHw.refreshDecklinkPanel(modal)
+		if (tabName === 'live-audio' && pane && !liveAudioMounted) {
+			liveAudioMounted = true
+			void mountLiveAudioSettingsPanel(pane, {
+				getLaunchPassword: () => (modal.querySelector('#set-nuclear-action-password') || {}).value || '',
+			}).then((refresh) => {
+				if (typeof refresh === 'function') refreshLiveAudioPanel = refresh
+			})
+		}
+		if (tabName === 'live-audio' && refreshLiveAudioPanel) void refreshLiveAudioPanel()
 	}
 
 	modal.querySelector('#system-hw-nvidia-refresh')?.addEventListener('click', () => void MountHw.refreshSystemHardwarePanel(modal))
@@ -144,6 +156,7 @@ export function showSettingsModal(initialTab) {
 	const scheduleSave = () => { if (!autosaveSuspended) { clearTimeout(autosaveTimer); autosaveTimer = setTimeout(persistSettings, 600) } }
 	const onSettingsFieldChange = (e) => {
 		if (e.target.closest('#settings-pane-variables')) return
+		if (e.target.closest('#settings-pane-live-audio')) return
 		if (e.target.closest('#settings-pane-defaults')) Logic.syncEditorDefaultsFromModal(modal)
 		scheduleSave()
 	}

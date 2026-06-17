@@ -2,6 +2,8 @@ import { UI_FONT_FAMILY } from '../lib/ui-font.js'
 import { fillToPixelRect } from '../lib/fill-math.js'
 import { clipPixelRectAtLocalTime } from '../lib/timeline-clip-interp.js'
 import { isLikelyAudioOnlySource } from '../lib/media-audio-kind.js'
+import { sceneState } from '../lib/scene-state.js'
+import { getResolutionForScreen } from './scenes-editor-logic.js'
 import {
 	COMPOSE_DUAL_PREVIEW_BG,
 	drawComposePrvPgmCellEdgeBar,
@@ -346,8 +348,10 @@ export function drawTimelineStack(ctx, W, H, opts) {
 			drawComposePrvPgmCellEdgeBar(ctx, cellW, cellH, { layout, cell: composeCell })
 			return
 		}
-		drawDualComposeCellPreview(ctx, W, H, cellW, cellH, (c) => {
-			drawTimelineStack(c, W, H, {
+		const cellIdx = screenIdx ?? 0
+		const res = getResolutionForScreen(cellIdx, sceneState, stateStore)
+		drawDualComposeCellPreview(ctx, res.w, res.h, cellW, cellH, (c) => {
+			drawTimelineStack(c, res.w, res.h, {
 				...opts,
 				composeDualStreamPreview: false,
 				composeCell: undefined,

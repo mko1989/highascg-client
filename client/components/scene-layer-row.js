@@ -4,6 +4,7 @@
 
 import { createEffectInstance } from '../lib/effect-registry.js'
 import { api } from '../lib/api-client.js'
+import { markCasparRestartDirty } from '../lib/caspar-restart-hint.js'
 import { parseRouteChannelLayer } from './scenes-shared.js'
 import { resolveLookStackChannelForBus } from '../lib/look-stack-amcp-channel.js'
 
@@ -253,6 +254,7 @@ export function appendSceneLayerStripRows(layerStrip, opts) {
 					if (Array.isArray(addRes?.extraLiveSources) && typeof window.__highascgApplyExtraLiveSources === 'function') {
 						window.__highascgApplyExtraLiveSources(addRes.extraLiveSources)
 					}
+					markCasparRestartDirty()
 					showToast('Added to Live sources.', 'info')
 				} catch (err) {
 					showToast(err?.message || String(err), 'error')

@@ -16,6 +16,7 @@ export function getMainModalHtml() {
 					<button class="settings-tab" data-tab="media-usb">media/usb</button>
 					<button class="settings-tab" data-tab="system-hardware">system</button>
 					<button class="settings-tab" data-tab="decklink">decklink</button>
+					<button class="settings-tab" data-tab="live-audio">Live audio</button>
 					<button class="settings-tab" data-tab="variables">Variables</button>
 					<button class="settings-tab" data-tab="nuclear">Nuclear</button>
 				</div>
@@ -159,6 +160,7 @@ export function getMainModalHtml() {
 						</div>
 						<p class="settings-note" id="decklink-status-line" style="margin-top:0.35rem"></p>
 					</div>
+					<div class="settings-pane" id="settings-pane-live-audio"></div>
 					<div class="settings-pane" id="settings-pane-variables"></div>
 					<div class="settings-pane" id="settings-pane-nuclear">
 						<h3 class="settings-category">Danger zone</h3>

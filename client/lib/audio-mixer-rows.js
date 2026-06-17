@@ -4,7 +4,7 @@ import { sceneState } from './scene-state.js'
 import { shortenMediaName } from './audio-mixer-ui.js'
 import { settingsState } from './settings-state.js'
 import { enumerateLiveAudioMixerSlots, readLiveAudioCasparSettings } from './live-audio-inputs.js'
-import { listInputChannels } from './input-channels.js'
+import { listInputChannels, LIVE_AUDIO_INPUT_LAYER } from './input-channels.js'
 
 /** Layers that expose a per-strip fader in the program mixer. */
 export function layerHasMixerAudio(layer) {
@@ -117,15 +117,23 @@ export function collectProgramAudioRows(stateStore, { masterLabel, labelMax = 22
  * @param {object | null | undefined} channelMap
  */
 export function collectLiveInputMeterRows(channelMap) {
-	return listInputChannels(channelMap).map((entry) => ({
-		key: `input:${entry.channel}`,
-		ch: entry.channel,
-		label: entry.label || `${entry.kind === 'live_audio' ? 'Live audio' : 'DeckLink'} ${entry.slot}`,
-		labelTitle: `Ch ${entry.channel}${entry.layer != null && entry.kind === 'decklink' ? ` · L${entry.layer}` : ''} — ${entry.route || ''}`,
-		v: 1,
-		isMaster: true,
-		isLiveInput: true,
-		inputKind: entry.kind,
-		slot: entry.slot,
-	}))
+	return listInputChannels(channelMap)
+		.filter((entry) => entry.kind === 'live_audio')
+		.map((entry) => {
+			const key = `input:${entry.channel}`
+			const layer = entry.layer ?? LIVE_AUDIO_INPUT_LAYER
+			return {
+				key,
+				ch: entry.channel,
+				layer,
+				label: entry.label || `Live audio ${entry.slot}`,
+				labelTitle: `Ch ${entry.channel} · L${layer} — ${entry.route || ''}`,
+				v: audioMixerState.getMasterVolume(key),
+				muted: audioMixerState.getMuted(key),
+				isMaster: false,
+				isLiveInput: true,
+				inputKind: entry.kind,
+				slot: entry.slot,
+			}
+		})
 }

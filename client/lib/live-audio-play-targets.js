@@ -5,6 +5,7 @@
 import { liveAudioInputForSlot } from './input-channels.js'
 
 const LS_KEY = 'highascg_live_audio_play_targets'
+const LS_MULTI_KEY = 'highascg_live_audio_play_targets_multi'
 
 /** Previous default was 9 + slot (L10 for slot 1) — remap on read so saved targets don't collide with video. */
 function migrateLegacyLayer(slot, layer) {
@@ -79,6 +80,82 @@ export function clearPlayTarget(slot) {
 		/* ignore */
 	}
 }
+
+/**
+ * Multi-destination routing: one live audio slot can be routed to multiple Caspar channel/layers.
+ * Stored as: { [slotNumber]: Array<{ channel:number, layer:number }> }
+ *
+ * This is purely client routing state; actual Caspar playback is started/stopped by the UI.
+ * @param {number} slot - 1-based
+ * @returns {{ channel: number, layer: number }[]}
+ */
+export function getMultiPlayTargets(slot) {
+	const key = String(Math.max(1, parseInt(String(slot), 10) || 1))
+	try {
+		const raw = localStorage.getItem(LS_MULTI_KEY)
+		const j = raw ? JSON.parse(raw) : {}
+		const arr = j && typeof j === 'object' ? j[key] : null
+		if (!Array.isArray(arr)) return []
+		return arr
+			.map((t) => {
+				if (!t || typeof t !== 'object') return null
+				const ch = Math.max(1, parseInt(String(t.channel), 10) || 0)
+				const ln = Math.max(1, parseInt(String(t.layer), 10) || 0)
+				if (!Number.isFinite(ch) || !Number.isFinite(ln)) return null
+				return { channel: ch, layer: ln }
+			})
+			.filter(Boolean)
+	} catch {
+		return []
+	}
+}
+
+/**
+ * @param {number} slot - 1-based
+ * @param {{ channel: number, layer: number }[]} targets
+ */
+export function setMultiPlayTargets(slot, targets) {
+	const key = String(Math.max(1, parseInt(String(slot), 10) || 1))
+	const cleaned = Array.isArray(targets) ? targets : []
+	const uniq = []
+	const seen = new Set()
+	for (const t of cleaned) {
+		if (!t || typeof t !== 'object') continue
+		const ch = Math.max(1, parseInt(String(t.channel), 10) || 0)
+		const ln = Math.max(1, parseInt(String(t.layer), 10) || 0)
+		if (!Number.isFinite(ch) || !Number.isFinite(ln)) continue
+		const k = `${ch}-${ln}`
+		if (seen.has(k)) continue
+		seen.add(k)
+		uniq.push({ channel: ch, layer: ln })
+	}
+	try {
+		const raw = localStorage.getItem(LS_MULTI_KEY)
+		const j = raw ? JSON.parse(raw) : {}
+		const all = j && typeof j === 'object' ? j : {}
+		all[key] = uniq
+		localStorage.setItem(LS_MULTI_KEY, JSON.stringify(all))
+	} catch {
+		/* ignore */
+	}
+}
+
+/**
+ * @param {number} slot - 1-based
+ */
+export function clearMultiPlayTargets(slot) {
+	const key = String(Math.max(1, parseInt(String(slot), 10) || 1))
+	try {
+		const raw = localStorage.getItem(LS_MULTI_KEY)
+		const j = raw ? JSON.parse(raw) : {}
+		const all = j && typeof j === 'object' ? j : {}
+		delete all[key]
+		localStorage.setItem(LS_MULTI_KEY, JSON.stringify(all))
+	} catch {
+		/* ignore */
+	}
+}
+
 
 /**
  * @param {object | null | undefined} channelMap

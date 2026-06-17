@@ -10,6 +10,8 @@ import {
 	readLiveAudioCasparSettings,
 } from '../lib/live-audio-inputs.js'
 import { listInputChannels } from '../lib/input-channels.js'
+import { markCasparRestartDirty } from '../lib/caspar-restart-hint.js'
+import { mountAlsaMixerPanel } from './settings-alsa-mixer-panel.js'
 
 function esc(s) {
 	return String(s ?? '')
@@ -21,9 +23,23 @@ function esc(s) {
 
 /**
  * @param {HTMLElement} container
+ * @param {{ getLaunchPassword?: () => string }} [opts]
  */
-export async function mountLiveAudioSettingsPanel(container) {
-	container.innerHTML = '<p class="settings-note">Loading live audio settings…</p>'
+export async function mountLiveAudioSettingsPanel(container, opts = {}) {
+	container.innerHTML = `
+		<div id="live-audio-settings-main"><p class="settings-note">Loading live audio settings…</p></div>
+		<div id="live-audio-alsa-mixer-mount"></div>
+	`
+	const mainEl = container.querySelector('#live-audio-settings-main')
+	const alsaMount = container.querySelector('#live-audio-alsa-mixer-mount')
+	let refreshAlsaMixer = null
+	if (alsaMount) {
+		try {
+			refreshAlsaMixer = await mountAlsaMixerPanel(alsaMount, opts)
+		} catch (e) {
+			alsaMount.innerHTML = `<p class="status-error">ALSA mixer failed: ${esc(e?.message || e)}</p>`
+		}
+	}
 
 	let captureDevices = []
 	let liveState = null
@@ -45,23 +61,23 @@ export async function mountLiveAudioSettingsPanel(container) {
 	function readUiFromDom() {
 		const cs = settingsState.getSettings()?.casparServer || {}
 		const base = readLiveAudioCasparSettings(cs)
-		const countEl = container.querySelector('#live-audio-slot-count')
+		const countEl = mainEl.querySelector('#live-audio-slot-count')
 		const count = countEl ? parseInt(String(countEl.value || '0'), 10) || 0 : base.count
 		const slots = []
 		for (let i = 1; i <= LIVE_AUDIO_MAX_SLOTS; i++) {
-			const sel = container.querySelector(`#live-audio-slot-${i}-device`)
+			const sel = mainEl.querySelector(`#live-audio-slot-${i}-device`)
 			slots.push(sel ? String(sel.value || '').trim() : base.slots[i - 1] || '')
 		}
 		const chk = (id, fallback) => {
-			const el = container.querySelector(id)
+			const el = mainEl.querySelector(id)
 			return el ? !!el.checked : fallback
 		}
 		const num = (id, fallback) => {
-			const el = container.querySelector(id)
+			const el = mainEl.querySelector(id)
 			return el ? parseInt(String(el.value || fallback), 10) || fallback : fallback
 		}
 		const str = (id, fallback) => {
-			const el = container.querySelector(id)
+			const el = mainEl.querySelector(id)
 			return el ? String(el.value || '').trim() : fallback
 		}
 		return {
@@ -83,7 +99,7 @@ export async function mountLiveAudioSettingsPanel(container) {
 	}
 
 	function renderSlotRows(ui) {
-		const wrap = container.querySelector('#live-audio-slots')
+		const wrap = mainEl.querySelector('#live-audio-slots')
 		if (!wrap) return
 		const opts = alsaCaptureDeviceOptions(captureDevices)
 		const configured = liveState?.configured?.slots || []
@@ -102,10 +118,7 @@ export async function mountLiveAudioSettingsPanel(container) {
 			html += `
 				<div class="settings-group live-audio-slot-row" data-slot="${i}" style="display:${show ? 'block' : 'none'};margin-bottom:0.75rem">
 					<label>Slot ${i} — capture device</label>
-					<div style="display:flex;gap:0.5rem;align-items:center;">
-						<select id="live-audio-slot-${i}-device" class="live-audio-device-select" style="flex:1">${optHtml}</select>
-						<button type="button" class="btn btn--secondary live-audio-remove-slot" data-slot-index="${i - 1}" style="padding:4px 12px;font-size:0.8rem;white-space:nowrap;">Remove</button>
-					</div>
+					<select id="live-audio-slot-${i}-device" class="live-audio-device-select" style="width:100%">${optHtml}</select>
 					${routeHint}
 				</div>`
 		}
@@ -113,7 +126,7 @@ export async function mountLiveAudioSettingsPanel(container) {
 	}
 
 	function renderStatus() {
-		const el = container.querySelector('#live-audio-status')
+		const el = mainEl.querySelector('#live-audio-status')
 		if (!el) return
 		const st = liveState?.status || liveState?.liveAudioInputsStatus
 		const cm = liveState?.channelMap || {}
@@ -156,6 +169,7 @@ export async function mountLiveAudioSettingsPanel(container) {
 	}
 
 	function renderPanel() {
+		if (!mainEl) return
 		const cfg = settingsState.getSettings() || {}
 		const ui = readLiveAudioCasparSettings(cfg.casparServer || {})
 		const deviceOpts = alsaCaptureDeviceOptions(captureDevices)
@@ -165,16 +179,13 @@ export async function mountLiveAudioSettingsPanel(container) {
 			if (n) previewDevices.push({ value: n, label: n })
 		}
 
-		container.innerHTML = `
+		mainEl.innerHTML = `
 			<h3 class="settings-category">Live audio (ALSA / USB)</h3>
-			<p class="settings-note">Each capture device uses its own Caspar channel (no shared inputs host). Set devices below, then <strong>Apply server config and restart</strong> so channels are allocated. Drag inputs from Sources → Live onto looks.</p>
+			<p class="settings-note">Configure capture devices and PGM routing defaults here. To <strong>add or remove</strong> live audio inputs, use the <strong>+</strong> button in the Audio Mixer tab.</p>
 			<div id="live-audio-status" class="settings-note" style="margin-bottom:0.75rem"></div>
 
 			<input type="hidden" id="live-audio-slot-count" value="${ui.count}" />
 			<div id="live-audio-slots"></div>
-			<div class="settings-group" style="margin-top:0.5rem;margin-bottom:1rem">
-				<button type="button" class="btn btn--secondary" id="live-audio-add-slot"${ui.count >= LIVE_AUDIO_MAX_SLOTS ? ' disabled' : ''}>+ Add Live Audio Input</button>
-			</div>
 
 			<hr style="border:none;border-top:1px solid rgba(255,255,255,0.12);margin:1rem 0" />
 
@@ -229,50 +240,13 @@ export async function mountLiveAudioSettingsPanel(container) {
 				<button type="button" class="btn btn--secondary" id="live-audio-apply-routes">Apply PLAY + PGM routes</button>
 			</div>
 			<p class="settings-note" id="live-audio-action-status" style="margin-top:0.35rem"></p>
-			<p class="settings-note small"><strong>Note:</strong> Regenerating CasparCG config and restarting the server is only required when adding or removing slots (which alters the audio channel map layout). If you only changed capture device names for existing slots, just click <strong>Apply PLAY + PGM routes</strong> below to apply changes instantly.</p>
+			<p class="settings-note small"><strong>Note:</strong> Add/remove inputs in the Audio Mixer tab (+). Regenerating CasparCG config and restarting is only required when slot count changes. Device-only changes: save here, then <strong>Apply PLAY + PGM routes</strong>.</p>
 		`
 
 		renderSlotRows(ui)
 		renderStatus()
 
-		container.querySelector('#live-audio-add-slot')?.addEventListener('click', (e) => {
-			e.preventDefault()
-			const currentUi = readUiFromDom()
-			if (currentUi.count >= LIVE_AUDIO_MAX_SLOTS) return
-
-			currentUi.count++
-
-			const countEl = container.querySelector('#live-audio-slot-count')
-			if (countEl) countEl.value = currentUi.count
-
-			renderSlotRows(currentUi)
-
-			const addBtn = container.querySelector('#live-audio-add-slot')
-			if (addBtn) addBtn.disabled = currentUi.count >= LIVE_AUDIO_MAX_SLOTS
-		})
-
-		container.querySelector('#live-audio-slots')?.addEventListener('click', (e) => {
-			const btn = e.target.closest('.live-audio-remove-slot')
-			if (!btn) return
-			e.preventDefault()
-
-			const idx = parseInt(btn.getAttribute('data-slot-index') || '0', 10)
-			const currentUi = readUiFromDom()
-
-			currentUi.slots.splice(idx, 1)
-			currentUi.slots.push('')
-			currentUi.count = Math.max(0, currentUi.count - 1)
-
-			const countEl = container.querySelector('#live-audio-slot-count')
-			if (countEl) countEl.value = currentUi.count
-
-			renderSlotRows(currentUi)
-
-			const addBtn = container.querySelector('#live-audio-add-slot')
-			if (addBtn) addBtn.disabled = currentUi.count >= LIVE_AUDIO_MAX_SLOTS
-		})
-
-		const statusLine = container.querySelector('#live-audio-action-status')
+		const statusLine = mainEl.querySelector('#live-audio-action-status')
 		const setActionStatus = (msg, ok = true) => {
 			if (statusLine) {
 				statusLine.textContent = msg || ''
@@ -280,7 +254,7 @@ export async function mountLiveAudioSettingsPanel(container) {
 			}
 		}
 
-		container.querySelector('#live-audio-refresh-devices')?.addEventListener('click', async () => {
+		mainEl.querySelector('#live-audio-refresh-devices')?.addEventListener('click', async () => {
 			setActionStatus('Refreshing capture devices…', true)
 			try {
 				await loadDevices(true)
@@ -291,17 +265,18 @@ export async function mountLiveAudioSettingsPanel(container) {
 			}
 		})
 
-		container.querySelector('#live-audio-save-config')?.addEventListener('click', async () => {
+		mainEl.querySelector('#live-audio-save-config')?.addEventListener('click', async () => {
 			const ui = readUiFromDom()
 			if (ui.count > 0) ui.hostChannelEnabled = true
 			setActionStatus('Saving…', true)
 			try {
 				await api.post('/api/audio/live-inputs/config', buildLiveAudioConfigBody(ui))
 				await settingsState.load()
+				markCasparRestartDirty()
 				await loadLiveInputs()
 				renderStatus()
 				renderSlotRows(readUiFromDom())
-				setActionStatus('Saved. (Only regenerate Caspar config & restart if slot count changed; otherwise, click "Apply PLAY + PGM routes")', true)
+				setActionStatus('Saved. Regenerate Caspar config in Device View (Apply turns orange) and restart if slot count changed.', true)
 				document.dispatchEvent(new CustomEvent('highascg-settings-applied'))
 				document.dispatchEvent(new CustomEvent('highascg-live-audio-configured', { detail: liveState }))
 			} catch (e) {
@@ -309,7 +284,7 @@ export async function mountLiveAudioSettingsPanel(container) {
 			}
 		})
 
-		container.querySelector('#live-audio-apply-routes')?.addEventListener('click', async () => {
+		mainEl.querySelector('#live-audio-apply-routes')?.addEventListener('click', async () => {
 			setActionStatus('Applying routes…', true)
 			try {
 				await api.post('/api/audio/live-inputs/apply', {})
@@ -327,11 +302,12 @@ export async function mountLiveAudioSettingsPanel(container) {
 		await Promise.all([loadDevices(false), loadLiveInputs(), settingsState.load()])
 		renderPanel()
 	} catch (e) {
-		container.innerHTML = `<p class="status-error">Failed to load live audio settings: ${esc(e?.message || e)}</p>`
+		if (mainEl) mainEl.innerHTML = `<p class="status-error">Failed to load live audio settings: ${esc(e?.message || e)}</p>`
 	}
 
 	return async function refresh() {
 		await Promise.all([loadDevices(false), loadLiveInputs()])
 		renderPanel()
+		if (refreshAlsaMixer) await refreshAlsaMixer()
 	}
 }

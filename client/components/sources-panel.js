@@ -14,6 +14,7 @@ import * as Ingest from './sources-panel-ingest-logic.js'
 import { renderLiveTab } from './sources-panel-live-render.js'
 import { showPlaceholderModal } from './placeholder-modal.js'
 import { refreshLiveAudioConfigured } from '../lib/live-audio-state.js'
+import { markCasparRestartDirty } from '../lib/caspar-restart-hint.js'
 import { decklinkInputForSlot, decklinkSlotFromConnector } from '../lib/input-channels.js'
 
 export function initSourcesPanel(root, stateStore, opts = {}) {
@@ -83,6 +84,7 @@ export function initSourcesPanel(root, stateStore, opts = {}) {
 			const cm = stateStore.getState()?.channelMap || {}
 			const entry = decklinkInputForSlot(cm, slot)
 			if (entry?.channel == null) {
+				markCasparRestartDirty()
 				setStatus(`Mapped ${connectorId} to input. Set decklink_input_count ≥ ${slot} and restart Caspar.`, 'ok')
 				return
 			}
@@ -107,6 +109,7 @@ export function initSourcesPanel(root, stateStore, opts = {}) {
 			if (Array.isArray(addRes?.extraLiveSources) && typeof window.__highascgApplyExtraLiveSources === 'function') {
 				window.__highascgApplyExtraLiveSources(addRes.extraLiveSources)
 			}
+			markCasparRestartDirty()
 			setStatus(`Live source ready: ${routeVal} (${connectorId})`, 'ok')
 			showDecklinkDropHint(`route://${cl}`, connectorId)
 			activateTab('live')

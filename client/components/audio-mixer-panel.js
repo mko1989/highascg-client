@@ -19,6 +19,13 @@ import {
 import { bindFaderResetGestures, UNITY_LINEAR_GAIN } from '../lib/audio-mixer-fader-bind.js'
 import { syncFaderUI, syncMuteUI, syncAllSolosUI } from './audio-mixer-panel-sync.js'
 import { settingsState } from '../lib/settings-state.js'
+import { readLiveAudioCasparSettings } from '../lib/live-audio-inputs.js'
+import { getMultiPlayTargets, setMultiPlayTargets } from '../lib/live-audio-play-targets.js'
+import {
+	disableLiveAudioPgmRoute,
+	enableLiveAudioPgmRoute,
+	pgmDestLayerForSlot,
+} from '../lib/live-audio-routing.js'
 
 export { syncFaderUI, syncMuteUI, syncAllSolosUI } from './audio-mixer-panel-sync.js'
 
@@ -131,27 +138,158 @@ export function initAudioMixerPanel(stateStore, mountEl) {
 
 		const liveInputMeters = collectLiveInputMeterRows(stateStore.getState()?.channelMap || {})
 		if (liveInputMeters.length > 0) {
+			const liveUi = readLiveAudioCasparSettings(settingsState.getSettings()?.casparServer || {})
 			const liveDivider = document.createElement('div')
 			liveDivider.className = 'audio-mixer__channel-divider'
 			liveDivider.textContent = 'Live inputs'
 			inputsEl.appendChild(liveDivider)
 
 			for (const r of liveInputMeters) {
+				const slot = r?.slot
+				const device = liveUi?.slots?.[slot - 1] || ''
+				const destLayer = pgmDestLayerForSlot(slot, liveUi)
+				const cm = stateStore.getState()?.channelMap || {}
+				const enabledTargets = getMultiPlayTargets(slot)
+				const enabledChannels = new Set(enabledTargets.map((t) => Number(t.channel)))
+
+				const isMuted = !!r.muted
+				const muteHtml = `<button type="button" class="audio-mixer__mute-btn${isMuted ? ' audio-mixer__mute-btn--active' : ''}" data-key="${escapeAttr(r.key)}" title="Mute live input">M</button>`
 				const row = document.createElement('div')
 				row.className = 'audio-mixer__bus-layer audio-mixer__bus-layer--live-input'
 				const labelTitle = r.labelTitle || r.label
 				row.innerHTML = `
 					<div class="audio-mixer__layer-info">
 						<div class="audio-mixer__layer-label" title="${escapeAttr(labelTitle)}">${escapeHtml(r.label)}</div>
+						<div class="audio-mixer__layer-actions">${muteHtml}</div>
 					</div>
 					<div class="audio-mixer__layer-fader-row">
 						<div class="audio-mixer__meter-horizontal" aria-hidden="true">
 							<div class="audio-mixer__meter-fill"></div>
 						</div>
+						<input type="range" class="audio-mixer__fader-horizontal" min="0" max="100" value="${linearGainToFaderPercent(r.v)}" data-ch="${r.ch}" data-layer="${r.layer}" data-key="${escapeAttr(r.key)}" aria-label="Volume" />
+						<span class="audio-mixer__fader-val">${formatVolumeDb(r.v)}</span>
 					</div>
+					<div class="audio-mixer__live-route-buttons" data-slot="${slot}"></div>
 				`
+				row.title = 'Click to inspect / remove'
+				row.addEventListener('click', (e) => {
+					const t = /** @type {HTMLElement} */ (e.target)
+					if (t?.closest?.('button, input, select, textarea')) return
+					if (r?.inputKind === 'live_audio' && r?.slot != null) window.dispatchEvent(new CustomEvent('live-audio-input-select', { detail: { slot: r.slot } }))
+				})
+
+				const btnWrap = row.querySelector('.audio-mixer__live-route-buttons')
+				if (btnWrap && Array.isArray(programChannels)) {
+					for (const programCh of programChannels) {
+						const ch = Number(programCh)
+						if (!Number.isFinite(ch) || ch < 1) continue
+						const active = enabledChannels.has(ch)
+						const btn = document.createElement('button')
+						btn.type = 'button'
+						btn.className = `audio-mixer__live-route-btn${active ? ' audio-mixer__live-route-btn--active' : ''}`
+						btn.dataset.channel = String(ch)
+						btn.textContent = `Ch${ch}`
+						btn.disabled = !device
+						btn.onclick = async (e) => {
+							e.stopPropagation()
+							if (!device) {
+								showScenesToast(`No capture device selected for live input slot ${slot}.`, 'error')
+								return
+							}
+							const busy = btn.dataset.busy === '1'
+							if (busy) return
+							btn.dataset.busy = '1'
+							btn.disabled = true
+							const curTargets = getMultiPlayTargets(slot)
+							const curEnabled = curTargets.some((t) => Number(t.channel) === ch && Number(t.layer) === destLayer)
+							try {
+								if (!curEnabled) {
+									setMultiPlayTargets(slot, [...curTargets, { channel: ch, layer: destLayer }])
+									await enableLiveAudioPgmRoute(slot, ch, cm, liveUi)
+									btn.classList.add('audio-mixer__live-route-btn--active')
+								} else {
+									await disableLiveAudioPgmRoute(ch, destLayer)
+									const next = curTargets.filter((t) => !(Number(t.channel) === ch && Number(t.layer) === destLayer))
+									setMultiPlayTargets(slot, next)
+									btn.classList.remove('audio-mixer__live-route-btn--active')
+								}
+							} catch (err) {
+								showScenesToast(err?.message || String(err), 'error')
+							} finally {
+								btn.dataset.busy = '0'
+								btn.disabled = !device
+							}
+						}
+						btnWrap.appendChild(btn)
+					}
+				}
+
 				inputsEl.appendChild(row)
 				meterFills.set(r.key, row.querySelector('.audio-mixer__meter-fill'))
+				meterLayerMeta.set(r.key, { paused: false, muted: isMuted })
+
+				const muteBtn = row.querySelector('.audio-mixer__mute-btn')
+				if (muteBtn) {
+					muteBtn.onclick = async (e) => {
+						e.stopPropagation()
+						const nextMuted = !muteBtn.classList.contains('audio-mixer__mute-btn--active')
+						audioMixerState.setMuted(r.key, nextMuted)
+						syncMuteUI(r.key, nextMuted)
+						const meta = meterLayerMeta.get(r.key)
+						if (meta) meta.muted = nextMuted
+						const faderEl = row.querySelector('.audio-mixer__fader-horizontal')
+						const currentVol = faderEl ? faderPercentToLinearGain(faderEl.value) : r.v
+						try {
+							await postAudioVolume({
+								channel: r.ch,
+								layer: r.layer,
+								linearGain: nextMuted ? 0 : currentVol,
+							})
+						} catch (e) {
+							console.warn('MUTE playout update failed:', e?.message || e)
+						}
+					}
+				}
+
+				const fader = row.querySelector('.audio-mixer__fader-horizontal')
+				const valEl = row.querySelector('.audio-mixer__fader-val')
+				if (fader && valEl) {
+					const postLayerVolume = debounceAsync(async () => {
+						try {
+							await postAudioVolume({
+								channel: r.ch,
+								layer: r.layer,
+								linearGain: faderPercentToLinearGain(fader.value),
+							})
+						} catch (e) {
+							console.warn('VOLUME failed:', e?.message || e)
+						}
+					})
+					fader.addEventListener('input', () => {
+						const x = faderPercentToLinearGain(fader.value)
+						valEl.textContent = formatVolumeDb(x)
+						audioMixerState.setMasterVolume(r.key, x)
+						syncFaderUI(r.key, fader.value)
+						postLayerVolume()
+					})
+					fader.addEventListener('change', async () => {
+						try {
+							await postAudioVolume({
+								channel: r.ch,
+								layer: r.layer,
+								linearGain: faderPercentToLinearGain(fader.value),
+							})
+						} catch (e) {
+							console.warn('VOLUME failed:', e?.message || e)
+						}
+					})
+					bindFaderResetGestures(fader, () => {
+						fader.value = String(linearGainToFaderPercent(UNITY_LINEAR_GAIN))
+						audioMixerState.setMasterVolume(r.key, UNITY_LINEAR_GAIN)
+						fader.dispatchEvent(new Event('input', { bubbles: true }))
+						fader.dispatchEvent(new Event('change', { bubbles: true }))
+					})
+				}
 			}
 		}
 
@@ -208,6 +346,15 @@ export function initAudioMixerPanel(stateStore, mountEl) {
 						<span class="audio-mixer__fader-val">${formatVolumeDb(r.v)}</span>
 					</div>
 				`
+				// Click the strip (not solo/mute/select/button) to inspect/remove the underlying live audio slot.
+				if (r?.liveAudioSlot != null) {
+					row.title = 'Click to inspect / remove'
+					row.addEventListener('click', (e) => {
+						const t = /** @type {HTMLElement} */ (e.target)
+						if (t?.closest?.('button, input, select, textarea')) return
+						window.dispatchEvent(new CustomEvent('live-audio-input-select', { detail: { slot: r.liveAudioSlot } }))
+					})
+				}
 				inputsEl.appendChild(row)
 
 				meterFills.set(r.key, row.querySelector('.audio-mixer__meter-fill'))
