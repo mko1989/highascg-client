@@ -271,7 +271,16 @@ export function drawComposePrvPgmCellEdgeBar(ctx, W, H, opts = {}) {
  * Letterbox full program W×H into one PRV/PGM cell (same math as dual split).
  * @param {(ctx: CanvasRenderingContext2D) => void} drawFullCompose — draw in full program coordinates
  */
-export function drawDualComposeCellPreview(ctx, fullW, fullH, cellW, cellH, drawFullCompose) {
+export function drawDualComposeCellPreview(ctx, fullW, fullH, cellW, cellH, zoom, drawFullCompose) {
+	let actualZoom = 1.0
+	let actualDraw = drawFullCompose
+	if (typeof zoom === 'function') {
+		actualDraw = zoom
+		actualZoom = 1.0
+	} else if (typeof zoom === 'number') {
+		actualZoom = zoom
+	}
+
 	ctx.fillStyle = COMPOSE_DUAL_PREVIEW_BG
 	ctx.fillRect(0, 0, cellW, cellH)
 	ctx.save()
@@ -280,12 +289,39 @@ export function drawDualComposeCellPreview(ctx, fullW, fullH, cellW, cellH, draw
 	ctx.clip()
 	ctx.fillStyle = COMPOSE_DUAL_PREVIEW_BG
 	ctx.fillRect(0, 0, cellW, cellH)
-	const s = Math.min(cellW / fullW, cellH / fullH)
+	
+	const s = Math.min(cellW / fullW, cellH / fullH) * actualZoom
 	const ox = (cellW - fullW * s) / 2
 	const oy = (cellH - fullH * s) / 2
+	
+	// Draw checkerboard inside the canvas bounding box in screen coordinates
+	ctx.save()
+	ctx.beginPath()
+	ctx.rect(ox, oy, fullW * s, fullH * s)
+	ctx.clip()
+	ctx.fillStyle = '#334155' // darker gray square
+	ctx.fillRect(ox, oy, fullW * s, fullH * s)
+	ctx.fillStyle = '#475569' // lighter gray square
+	const size = 24 // Render bigger boxes (fixed size in screen/pixel space)
+	const cols = Math.ceil((fullW * s) / size)
+	const rows = Math.ceil((fullH * s) / size)
+	for (let r = 0; r < rows; r++) {
+		for (let c = 0; c < cols; c++) {
+			if ((r + c) % 2 === 0) {
+				const rx = ox + c * size
+				const ry = oy + r * size
+				const rw = Math.min(size, ox + fullW * s - rx)
+				const rh = Math.min(size, oy + fullH * s - ry)
+				ctx.fillRect(rx, ry, rw, rh)
+			}
+		}
+	}
+	ctx.restore()
+
 	ctx.translate(ox, oy)
 	ctx.scale(s, s)
-	drawFullCompose(ctx)
+
+	actualDraw(ctx)
 	ctx.restore()
 }
 

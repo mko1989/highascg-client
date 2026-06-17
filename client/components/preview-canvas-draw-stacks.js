@@ -350,7 +350,8 @@ export function drawTimelineStack(ctx, W, H, opts) {
 		}
 		const cellIdx = screenIdx ?? 0
 		const res = getResolutionForScreen(cellIdx, sceneState, stateStore)
-		drawDualComposeCellPreview(ctx, res.w, res.h, cellW, cellH, (c) => {
+		const cellZoom = opts.composeCellZoom || 1.0
+		drawDualComposeCellPreview(ctx, res.w, res.h, cellW, cellH, cellZoom, (c) => {
 			drawTimelineStack(c, res.w, res.h, {
 				...opts,
 				composeDualStreamPreview: false,

@@ -26,6 +26,27 @@ function folderPathCollapsed(collapsed, path) {
 	return false
 }
 
+/** @returns {string[]} media ids being dragged onto a folder */
+function mediaIdsFromDragPayload(data) {
+	if (!data) return []
+	if (data.type === 'multi' && Array.isArray(data.items)) {
+		return data.items.filter((it) => it?.type === 'media' && it.value).map((it) => String(it.value))
+	}
+	if (data.type === 'media' && data.value) return [String(data.value)]
+	return []
+}
+
+function readMediaDragPayload(fallbackRaw) {
+	const g = globalThis.__highascgMediaDragPayload
+	if (g) return g
+	if (!fallbackRaw) return null
+	try {
+		return JSON.parse(fallbackRaw)
+	} catch {
+		return null
+	}
+}
+
 /** Media browser: Detailed compact view with thumbnails and rich metadata. */
 export function renderMediaBrowser(container, media, filter, onMediaDeleted, options = {}) {
 	const collapsed = options.collapsedFolders || new Set()
@@ -74,6 +95,8 @@ export function renderMediaBrowser(container, media, filter, onMediaDeleted, opt
 	})
 
 	// 2. Recursive render
+	/** @type {string[]} */
+	const visibleFileIds = []
 	function walk(node, depth, isVisible) {
 		const folderNames = Object.keys(node.folders).sort()
 		folderNames.forEach((name) => {
@@ -110,29 +133,37 @@ export function renderMediaBrowser(container, media, filter, onMediaDeleted, opt
 			
 			// Folder drop target for moving files
 			el.addEventListener('dragover', (e) => {
-				const raw = e.dataTransfer.getData('application/json')
-				if (!raw) return
-				try {
-					const data = JSON.parse(raw)
-					if (data.type === 'media' && data.value && !String(data.value).startsWith(folder.path + '/')) {
-						e.preventDefault()
-						el.classList.add('source-item--drop-target')
-					}
-				} catch {}
+				const data = readMediaDragPayload(e.dataTransfer.getData('application/json'))
+				const values = mediaIdsFromDragPayload(data)
+				const canDrop = values.some(
+					(v) => v && !String(v).startsWith(folder.path + '/') && String(v) !== folder.path,
+				)
+				if (canDrop) {
+					e.preventDefault()
+					el.classList.add('source-item--drop-target')
+					e.dataTransfer.dropEffect = e.altKey ? 'copy' : 'move'
+				}
 			})
 			el.addEventListener('dragleave', () => el.classList.remove('source-item--drop-target'))
 			el.addEventListener('drop', (e) => {
 				el.classList.remove('source-item--drop-target')
-				const raw = e.dataTransfer.getData('application/json')
-				if (!raw) return
-				try {
-					const data = JSON.parse(raw)
-					if (data.type === 'media' && data.value) {
-						e.preventDefault()
-						e.stopPropagation()
-						onMove?.(data.value, folder.path)
-					}
-				} catch {}
+				const data = readMediaDragPayload(e.dataTransfer.getData('application/json'))
+				if (!data) return
+				const copy = !!e.altKey
+				const ids = mediaIdsFromDragPayload(data)
+				if (ids.length) {
+					e.preventDefault()
+					e.stopPropagation()
+					if (copy) options.onCopyItems?.(ids, folder.path)
+					else options.onMoveItems?.(ids, folder.path)
+					return
+				}
+				if (data.type === 'media' && data.value) {
+					e.preventDefault()
+					e.stopPropagation()
+					if (copy) options.onCopyItem?.(data.value, folder.path)
+					else onMove?.(data.value, folder.path)
+				}
 			})
 
 			container.appendChild(el)
@@ -142,6 +173,7 @@ export function renderMediaBrowser(container, media, filter, onMediaDeleted, opt
 		const files = node.files.sort((a, b) => (a.label || a.id).localeCompare(b.label || b.id))
 		files.forEach((item) => {
 			const id = item.id ?? item
+			visibleFileIds.push(String(id))
 			const label = item.label ?? String(id)
 			const shortLabel = label.split('/').pop()
 			const ext = getExtension(shortLabel)
@@ -182,6 +214,7 @@ export function renderMediaBrowser(container, media, filter, onMediaDeleted, opt
 
 			el.innerHTML = `
 				${'<span class="source-item__nest-indent"></span>'.repeat(depth)}
+				<span class="source-item__select-mark" title="Click to select · Shift+click range · ⌘/Ctrl+click multi">${isSelected ? '☑' : '☐'}</span>
 				${thumbHtml}
 				<div class="source-item__media-col">
 					<div class="source-item__media-line1">
@@ -192,12 +225,41 @@ export function renderMediaBrowser(container, media, filter, onMediaDeleted, opt
 				</div>
 			`
 			
-			// Click on thumbnail to select
+			// Row click toggles selection (modifiers handled in panel)
+			el.addEventListener('click', (e) => {
+				if (e.target.closest('.source-item__delete-folder')) return
+				if (e.ctrlKey || e.metaKey) return // download / delete modifiers
+				e.preventDefault()
+				e.stopPropagation()
+				options.onToggleSelect?.(id, {
+					shiftKey: e.shiftKey,
+					ctrlKey: e.ctrlKey,
+					metaKey: e.metaKey,
+				})
+			})
+
+			const markEl = el.querySelector('.source-item__select-mark')
+			if (markEl) {
+				markEl.onclick = (e) => {
+					e.stopPropagation()
+					options.onToggleSelect?.(id, {
+						shiftKey: e.shiftKey,
+						ctrlKey: e.ctrlKey || e.metaKey,
+						metaKey: e.metaKey,
+					})
+				}
+			}
+
 			const thumbEl = el.querySelector('.source-item__thumbnail')
 			if (thumbEl) {
 				thumbEl.onclick = (e) => {
+					if (e.ctrlKey || e.metaKey) return
 					e.stopPropagation()
-					options.onToggleSelect?.(id, e.shiftKey)
+					options.onToggleSelect?.(id, {
+						shiftKey: e.shiftKey,
+						ctrlKey: e.ctrlKey,
+						metaKey: e.metaKey,
+					})
 				}
 			}
 
@@ -212,4 +274,5 @@ export function renderMediaBrowser(container, media, filter, onMediaDeleted, opt
 	}
 
 	walk(root, 0, true)
+	options.onVisibleFileOrder?.(visibleFileIds)
 }

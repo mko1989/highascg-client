@@ -25,8 +25,8 @@ export function initGutterResizing(gutter, pair, { collapsed, layout, onSplitCha
 		if (e.button !== 0 || collapsed()) return; e.preventDefault()
 		const onMove = (ev) => {
 			const r = pair.getBoundingClientRect()
-			let next = (layout() === 'lr') ? (ev.clientX - r.left) / r.width : (r.bottom - ev.clientY) / r.height
-			next = Math.max(0.15, Math.min(0.85, next)); onSplitChange(next)
+			let next = (layout() === 'lr') ? (ev.clientX - r.left) / r.width : (ev.clientY - r.top) / r.height
+			next = Math.max(0.05, Math.min(0.95, next)); onSplitChange(next)
 		}
 		const onUp = () => {
 			document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp)

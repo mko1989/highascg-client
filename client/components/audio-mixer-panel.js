@@ -8,7 +8,7 @@ import { debounceAsync, postAudioVolume } from '../lib/audio-mixer-volume-api.js
 import { audioOutputRoutesForLayout } from '../lib/audio-routes.js'
 import { sceneState } from '../lib/scene-state.js'
 import { showScenesToast } from './scenes-editor-support.js'
-import { collectProgramAudioRows, collectLiveInputMeterRows } from '../lib/audio-mixer-rows.js'
+import { collectProgramAudioRows, collectLiveInputMeterRows, meterMetaForInputRow } from '../lib/audio-mixer-rows.js'
 import { createAudioMeterLoop } from '../lib/audio-mixer-meter-loop.js'
 import { escapeHtml, escapeAttr } from '../lib/audio-mixer-ui.js'
 import {
@@ -226,7 +226,7 @@ export function initAudioMixerPanel(stateStore, mountEl) {
 
 				inputsEl.appendChild(row)
 				meterFills.set(r.key, row.querySelector('.audio-mixer__meter-fill'))
-				meterLayerMeta.set(r.key, { paused: false, muted: isMuted })
+				meterLayerMeta.set(r.key, meterMetaForInputRow(r))
 
 				const muteBtn = row.querySelector('.audio-mixer__mute-btn')
 				if (muteBtn) {
@@ -358,7 +358,7 @@ export function initAudioMixerPanel(stateStore, mountEl) {
 				inputsEl.appendChild(row)
 
 				meterFills.set(r.key, row.querySelector('.audio-mixer__meter-fill'))
-				meterLayerMeta.set(r.key, { paused: false, muted: isMuted })
+				meterLayerMeta.set(r.key, meterMetaForInputRow(r))
 
 				const soloBtn = row.querySelector('.audio-mixer__solo-btn')
 				if (soloBtn) {

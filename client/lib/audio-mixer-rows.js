@@ -4,7 +4,7 @@ import { sceneState } from './scene-state.js'
 import { shortenMediaName } from './audio-mixer-ui.js'
 import { settingsState } from './settings-state.js'
 import { enumerateLiveAudioMixerSlots, readLiveAudioCasparSettings } from './live-audio-inputs.js'
-import { listInputChannels, LIVE_AUDIO_INPUT_LAYER } from './input-channels.js'
+import { listInputChannels, LIVE_AUDIO_INPUT_LAYER, liveAudioInputForSlot } from './input-channels.js'
 
 /** Layers that expose a per-strip fader in the program mixer. */
 export function layerHasMixerAudio(layer) {
@@ -12,6 +12,25 @@ export function layerHasMixerAudio(layer) {
 	if (!src) return false
 	if (isMediaOrFileSource(src)) return true
 	return String(src.type || '').toLowerCase() === 'live_audio' && !!src.value
+}
+
+/** @param {object} row */
+export function meterMetaForInputRow(row) {
+	const sourceType = row?.liveAudioSlot != null || row?.isLiveInput ? 'live_audio' : 'media'
+	const hostChannel =
+		row?.hostChannel != null
+			? row.hostChannel
+			: row?.isLiveInput
+				? row.ch
+				: null
+	return {
+		muted: !!row?.muted,
+		layer: row?.layer,
+		ch: row?.ch,
+		hostChannel,
+		expectAudio: true,
+		sourceType,
+	}
 }
 
 /**
@@ -62,6 +81,8 @@ export function collectProgramAudioRows(stateStore, { masterLabel, labelMax = 22
 					fullName = src?.label || `Live audio ${src?.value || ''}`
 					shortName = shortenMediaName(fullName, { max: labelMax, tailChars: labelTailChars })
 				}
+				const liveSlot = ty === 'live_audio' ? parseInt(String(src?.value || ''), 10) : NaN
+				const hostEntry = Number.isFinite(liveSlot) ? liveAudioInputForSlot(cm, liveSlot) : null
 				const lKey = `pgm:${ch}:layer:${ln}`
 				rows.push({
 					key: lKey,
@@ -74,6 +95,9 @@ export function collectProgramAudioRows(stateStore, { masterLabel, labelMax = 22
 					isMaster: false,
 					audioRoute: layer.audioRoute || '1+2',
 					sceneId: liveSceneData.sceneId,
+					...(Number.isFinite(liveSlot)
+						? { liveAudioSlot: liveSlot, hostChannel: hostEntry?.channel ?? null }
+						: {}),
 				})
 			})
 		}
@@ -101,6 +125,7 @@ export function collectProgramAudioRows(stateStore, { masterLabel, labelMax = 22
 			audioRoute: '1+2',
 			sceneId: null,
 			liveAudioSlot: s,
+			hostChannel: channel,
 		})
 	}
 
@@ -134,6 +159,7 @@ export function collectLiveInputMeterRows(channelMap) {
 				isLiveInput: true,
 				inputKind: entry.kind,
 				slot: entry.slot,
+				hostChannel: entry.channel,
 			}
 		})
 }

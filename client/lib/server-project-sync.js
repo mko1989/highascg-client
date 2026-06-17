@@ -102,6 +102,7 @@ export async function bootstrapFromServer(deps) {
 				timelineState,
 				multiviewState,
 				programOutputState,
+				stateStore,
 				source: deps.source || 'server-bootstrap',
 			})
 			markServerProjectSynced()

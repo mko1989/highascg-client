@@ -195,6 +195,119 @@
 	width: auto;
 }
 
+.sources-media-selection-bar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px 8px;
+	padding: 6px 8px;
+	margin-bottom: 4px;
+	background: rgba(88, 166, 255, 0.08);
+	border: 1px solid rgba(88, 166, 255, 0.25);
+	border-radius: var(--radius);
+	font-size: 0.78rem;
+}
+
+.sources-media-selection-bar__count {
+	font-weight: 600;
+	margin-right: 4px;
+	white-space: nowrap;
+}
+
+.sources-media-action-btn {
+	border: 1px solid var(--border);
+	background: var(--bg-elevated);
+	color: var(--text);
+	border-radius: 4px;
+	padding: 4px 10px;
+	font-size: 0.78rem;
+	cursor: pointer;
+}
+
+.sources-media-action-btn:hover {
+	border-color: var(--accent);
+	background: rgba(88, 166, 255, 0.1);
+}
+
+.sources-media-action-btn--danger {
+	border-color: rgba(218, 54, 55, 0.55);
+	color: #ffb4b4;
+}
+
+.sources-media-action-btn--danger:hover {
+	background: rgba(218, 54, 55, 0.15);
+}
+
+.sources-media-action-btn--ghost {
+	background: transparent;
+	opacity: 0.85;
+}
+
+.source-item__select-mark {
+	flex-shrink: 0;
+	width: 1.1rem;
+	text-align: center;
+	font-size: 0.72rem;
+	opacity: 0.65;
+	cursor: pointer;
+	user-select: none;
+}
+
+.source-item--selected .source-item__select-mark {
+	opacity: 1;
+}
+
+.media-folder-picker {
+	max-width: 420px;
+	width: 92vw;
+}
+
+.media-folder-picker__hint {
+	margin: 0 0 8px;
+	font-size: 0.85rem;
+	color: var(--text-muted);
+}
+
+.media-folder-picker__list {
+	max-height: 240px;
+	overflow: auto;
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+	margin-bottom: 12px;
+}
+
+.media-folder-picker__row {
+	display: block;
+	width: 100%;
+	text-align: left;
+	border: none;
+	background: transparent;
+	color: var(--text);
+	padding: 8px 12px;
+	font-size: 0.85rem;
+	cursor: pointer;
+}
+
+.media-folder-picker__row:hover {
+	background: rgba(88, 166, 255, 0.08);
+}
+
+.media-folder-picker__row--active {
+	background: rgba(88, 166, 255, 0.18);
+	font-weight: 600;
+}
+
+.media-folder-picker__new {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	font-size: 0.8rem;
+}
+
+.media-folder-picker__new input {
+	width: 100%;
+}
+
 .sources-usb-hint {
 	margin: 0;
 	font-size: 0.72rem;

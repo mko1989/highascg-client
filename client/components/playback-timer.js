@@ -148,7 +148,7 @@ export function mountPlaybackTimer(container, opts) {
  * @param {object} [channelState] - `oscClient.channels[ch]`
  * @returns {{ layerNum: number | null, layerState: object | null }}
  */
-function fileHasPlaybackHints(f) {
+export function fileHasPlaybackHints(f) {
 	if (!f || typeof f !== 'object') return false
 	if (Number.isFinite(f.duration) && f.duration > 0) return true
 	if (Number.isFinite(f.elapsed) && f.elapsed >= 0) return true

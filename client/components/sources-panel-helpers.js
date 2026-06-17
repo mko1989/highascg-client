@@ -144,9 +144,15 @@ export function makeDraggable(el, sourceType, sourceValue, label, extra = {}) {
 		}
 		
 		el.target?.classList.add('dragging') || el.classList.add('dragging')
+		if (sourceType === 'media') {
+			globalThis.__highascgMediaDragPayload = isSelected
+				? { type: 'multi', items: payload }
+				: { type: 'media', value: sourceValue, label: label || sourceValue }
+		}
 	})
 	el.addEventListener('dragend', (e) => {
 		el.target?.classList.remove('dragging') || el.classList.remove('dragging')
+		if (sourceType === 'media') delete globalThis.__highascgMediaDragPayload
 	})
 	// Store extra for multi-drag reconstruction
 	el.dataset.extra = JSON.stringify(extra)

@@ -181,16 +181,7 @@
 	width: 100%;
 	max-width: none;
 }
-/* PGM on top, gutter, PRV on bottom (DOM: PRV, gutter, PGM) */
-.preview-panel__compose-pair--tb .preview-panel__compose-cell--pgm {
-	order: -1;
-}
-.preview-panel__compose-pair--tb .preview-panel__compose-gutter {
-	order: 0;
-}
-.preview-panel__compose-pair--tb .preview-panel__compose-cell--prv {
-	order: 1;
-}
+/* Visual flow matches DOM order directly. */
 
 .preview-panel__compose-gutter {
 	flex-shrink: 0;

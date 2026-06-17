@@ -3,6 +3,7 @@
  */
 import * as Actions from './device-view-actions.js'
 import { setStatus } from './device-view-ui-utils.js'
+import { applyStreamingChannelActionResponse } from '../lib/streaming-channel-state.js'
 
 function savedStreamOutput(currentSettings, conn) {
 	const rows = Array.isArray(currentSettings?.streamOutputs) ? currentSettings.streamOutputs : []
@@ -141,7 +142,7 @@ export function renderStreamOutControls(h, conn, { currentSettings, streamingSta
 			if (!(sc.enabled === true || sc.enabled === 'true')) {
 				await Actions.saveSettingsPatch({ streamingChannel: { ...sc, enabled: true } })
 			}
-			await Actions.startStreamingChannelRtmp({
+			const res = await Actions.startStreamingChannelRtmp({
 				outputId: String(conn.id),
 				rtmpServerUrl,
 				streamKey,
@@ -152,6 +153,7 @@ export function renderStreamOutControls(h, conn, { currentSettings, streamingSta
 				audioCodec,
 				audioBitrateKbps,
 			})
+			applyStreamingChannelActionResponse(res)
 			setStatus(statusEl, 'Streaming started', true)
 			document.dispatchEvent(new CustomEvent('highascg-streaming-changed'))
 			await load()
@@ -160,7 +162,8 @@ export function renderStreamOutControls(h, conn, { currentSettings, streamingSta
 	}
 	stopBtn.onclick = async () => {
 		try {
-			await Actions.stopStreamingChannelRtmp()
+			const res = await Actions.stopStreamingChannelRtmp()
+			applyStreamingChannelActionResponse(res)
 			setStatus(statusEl, 'Streaming stopped', true)
 			document.dispatchEvent(new CustomEvent('highascg-streaming-changed'))
 			await load()

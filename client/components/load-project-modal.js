@@ -27,11 +27,12 @@ const MODAL_ID = 'load-project-modal'
  * @param {(msg: string, type?: string) => void} [opts.showToast]
  * @param {() => void} [opts.onLoaded]
  * @param {(name: string) => void} [opts.onNameSync]
+ * @param {import('../lib/state-store.js').StateStore} [opts.stateStore]
  */
 export function showLoadProjectModal(opts = {}) {
 	if (document.getElementById(MODAL_ID)) return
 
-	const { showToast, onLoaded, onNameSync } = opts
+	const { showToast, onLoaded, onNameSync, stateStore } = opts
 
 	const modal = document.createElement('div')
 	modal.id = MODAL_ID
@@ -244,6 +245,7 @@ export function showLoadProjectModal(opts = {}) {
 			timelineState,
 			multiviewState,
 			programOutputState,
+			stateStore,
 			showToast,
 			onNameSync,
 			onApplyServerProject:

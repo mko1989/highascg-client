@@ -8,6 +8,13 @@ import {
 	ingestArtnetGlobalBorderSync,
 	ingestArtnetGlobalBordersArray,
 } from './global-border-artnet-ws.js'
+import {
+	bootstrapStreamingChannelStatus,
+	clearStreamingChannelStatus,
+	ingestStreamingChannelChange,
+	ingestStreamingChannelWsEvent,
+	setStreamingChannelStatus,
+} from './streaming-channel-state.js'
 
 /**
  * @param {unknown} data
@@ -41,6 +48,8 @@ export function attachWsHandlers(ws, { stateStore, sceneState, timelineState, mu
 	ws.on('state', (data) => {
 		stateStore.setState(data)
 		applyWsStateSideEffects(data, { sceneState, programOutputState, appLogic })
+		if (data?.streamingChannel != null) setStreamingChannelStatus(data.streamingChannel)
+		if (data?.['streaming-channel'] != null) setStreamingChannelStatus(data['streaming-channel'])
 		if (data?.catalogDeferred) {
 			void loadDeferredCatalogOverWs(ws, stateStore, (full) =>
 				applyWsStateSideEffects(full, { sceneState, programOutputState, appLogic }),
@@ -53,6 +62,7 @@ export function attachWsHandlers(ws, { stateStore, sceneState, timelineState, mu
 	ws.on('change', (data) => {
 		if (!data || data.path == null) return
 		stateStore.applyChange(data.path, data.value)
+		ingestStreamingChannelChange(data.path, data.value)
 		if (data.path === 'scene.live' && data.value) sceneState.applyServerLiveChannels(data.value, stateStore.getState()?.channelMap)
 		if (data.path === 'scene.globalBorders' && Array.isArray(data.value)) {
 			ingestArtnetGlobalBordersArray(sceneState, data.value)
@@ -75,6 +85,8 @@ export function attachWsHandlers(ws, { stateStore, sceneState, timelineState, mu
 
 	ws.on('timeline.tick', (data) => stateStore.applyChange('timeline.tick', data))
 	ws.on('timeline.playback', (pb) => stateStore.applyChange('timeline.playback', pb))
+
+	ws.on('streaming_channel', (data) => ingestStreamingChannelWsEvent(data))
 
 	ws.on('global_border_sync', (data) => {
 		ingestArtnetGlobalBorderSync(sceneState, data)
@@ -118,8 +130,12 @@ export function attachWsHandlers(ws, { stateStore, sceneState, timelineState, mu
 		appLogic.updateStatus(true, null); appLogic.refreshEye()
 		appLogic.scheduleMultiviewRefresh()
 		appLogic.onConnect()
+		void bootstrapStreamingChannelStatus()
 	})
 
-	ws.on('disconnect', async () => appLogic.handleWsDisconnect('Disconnected'))
+	ws.on('disconnect', async () => {
+		clearStreamingChannelStatus()
+		return appLogic.handleWsDisconnect('Disconnected')
+	})
 	ws.on('error', async () => appLogic.handleWsDisconnect('WebSocket error'))
 }

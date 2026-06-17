@@ -12,10 +12,10 @@ const G = 6; const BORDER_FADE = 400
 
 export function initPreviewPanel(host, options) {
 	const { title = 'Output preview', storageKeyPrefix = 'casparcg_preview', getOutputResolution, draw, stateStore, streamName, getStreamName = null, getDualStreamNames = null, getComposeCellDefs: getComposeCellDefsOverride = null, composePrvPgmLayoutToggle = false, fillParentHeight = false, hideInnerResize = false, onCollapsedChange = null, showDestinationVisualOverlay = false } = options
-	const kC = `${storageKeyPrefix}_collapsed`; const kH = `${storageKeyPrefix}_height`; const kL = `${storageKeyPrefix}_compose_prv_pgm_layout`; const kS = `${storageKeyPrefix}_compose_prv_pgm_split`
+	const kC = `${storageKeyPrefix}_collapsed`; const kH = `${storageKeyPrefix}_height`; const kL = `${storageKeyPrefix}_compose_prv_pgm_layout`; const kS = `${storageKeyPrefix}_compose_prv_pgm_split`; const kW = `${storageKeyPrefix}_compose_cell_weights`
 
 	let layout = (localStorage.getItem(kL) === 'tb' || localStorage.getItem(kL) === 'lr') ? localStorage.getItem(kL) : 'lr'
-	let prvPct = parseFloat(localStorage.getItem(kS) || '0.5'); if (isNaN(prvPct) || prvPct < 0.15 || prvPct > 0.85) prvPct = 0.5
+	let prvPct = parseFloat(localStorage.getItem(kS) || '0.5'); if (isNaN(prvPct) || prvPct < 0.05 || prvPct > 0.95) prvPct = 0.5
 	let collapsed = localStorage.getItem(kC) === '1'
 	if (localStorage.getItem(kC) === null && options.defaultCollapsed != null) collapsed = !!options.defaultCollapsed
 	let bodyH = parseInt(localStorage.getItem(kH) || '200', 10) || 200
@@ -34,44 +34,136 @@ export function initPreviewPanel(host, options) {
 	let composeCells = []
 	let composeCellsKey = ''
 	const getComposeCellDefs = () => {
+		let cells = []
 		if (typeof getComposeCellDefsOverride === 'function') {
 			const custom = getComposeCellDefsOverride()
-			if (Array.isArray(custom) && custom.length > 0) return custom
-		}
-		if (!composePrvPgmLayoutToggle) return [
-			{ id: 'prv_1', role: 'prv', mainIndex: 0, label: 'PRV 1' },
-			{ id: 'pgm_1', role: 'pgm', mainIndex: 0, label: 'PGM 1' },
-		]
+			if (Array.isArray(custom) && custom.length > 0) cells = custom
+		} else if (!composePrvPgmLayoutToggle) {
+			cells = [
+				{ id: 'prv_1', role: 'prv', mainIndex: 0, label: 'PRV 1' },
+				{ id: 'pgm_1', role: 'pgm', mainIndex: 0, label: 'PGM 1' },
+			]
+		} else {
+			const cm = stateStore?.getState?.()?.channelMap || {}
+			const screenCount = Math.max(1, cm.screenCount || 1)
+			const rows = []
 
-		const cm = stateStore?.getState?.()?.channelMap || {}
-		const screenCount = Math.max(1, cm.screenCount || 1)
-		const rows = []
+			for (let i = 0; i < screenCount; i++) {
+				const pgmCh = cm.programChannels?.[i] ?? null
+				const prvCh = cm.previewChannels?.[i] ?? null
+				const hasPreview = cm.previewEnabledByMain?.[i] !== false && prvCh != null
+				const labelBase = cm.virtualMainChannels?.[i]?.name || `Screen ${i + 1}`
 
-		for (let i = 0; i < screenCount; i++) {
-			const pgmCh = cm.programChannels?.[i] ?? null
-			const prvCh = cm.previewChannels?.[i] ?? null
-			const hasPreview = cm.previewEnabledByMain?.[i] !== false && prvCh != null
-			const labelBase = cm.virtualMainChannels?.[i]?.name || `Screen ${i + 1}`
-
-			rows.push({
-				id: `pgm_${i + 1}`,
-				role: 'pgm',
-				mainIndex: i,
-				label: `PGM · ${labelBase}${pgmCh != null ? ` (ch ${pgmCh})` : ''}`,
-			})
-			if (hasPreview) {
 				rows.push({
-					id: `prv_${i + 1}`,
-					role: 'prv',
+					id: `pgm_${i + 1}`,
+					role: 'pgm',
 					mainIndex: i,
-					label: `PRV · ${labelBase}${prvCh != null ? ` (ch ${prvCh})` : ''}`,
+					label: `PGM · ${labelBase}${pgmCh != null ? ` (ch ${pgmCh})` : ''}`,
 				})
+				if (hasPreview) {
+					rows.push({
+						id: `prv_${i + 1}`,
+						role: 'prv',
+						mainIndex: i,
+						label: `PRV · ${labelBase}${prvCh != null ? ` (ch ${prvCh})` : ''}`,
+					})
+				}
+			}
+			cells = rows
+		}
+
+		// Sort cells based on layout
+		return cells.sort((a, b) => {
+			if (a.mainIndex !== b.mainIndex) {
+				return a.mainIndex - b.mainIndex
+			}
+			if (layout === 'tb') {
+				// PGM on top, so PGM first
+				return a.role === 'pgm' ? -1 : 1
+			} else {
+				// PRV on left, so PRV first
+				return a.role === 'prv' ? -1 : 1
+			}
+		})
+	}
+
+	const getWeights = () => {
+		const defs = getComposeCellDefs()
+		const n = defs.length
+		if (n === 0) return []
+
+		let saved = {}
+		try {
+			saved = JSON.parse(localStorage.getItem(kW) || '{}')
+		} catch (e) {}
+
+		// Fallback/Legacy support:
+		if (n === 2 && localStorage.getItem(kS) !== null) {
+			const legacyPct = parseFloat(localStorage.getItem(kS))
+			if (!isNaN(legacyPct) && legacyPct >= 0.05 && legacyPct <= 0.95) {
+				const prvIdx = defs.findIndex(d => d.role === 'prv')
+				const pgmIdx = defs.findIndex(d => d.role === 'pgm')
+				if (prvIdx !== -1 && pgmIdx !== -1) {
+					saved[defs[prvIdx].id] = prvIdx === 0 ? legacyPct : (1 - legacyPct)
+					saved[defs[pgmIdx].id] = pgmIdx === 0 ? legacyPct : (1 - legacyPct)
+				}
 			}
 		}
 
-		// Sort PRV first for side-by-side (LR), but we'll handle TB with flex-reverse.
-		return rows.sort((a, b) => a.mainIndex - b.mainIndex || (a.role === 'prv' ? -1 : 1))
+		let weights = defs.map(d => {
+			const w = parseFloat(saved[d.id])
+			return (isNaN(w) || w <= 0) ? 1.0 : w
+		})
+
+		const sum = weights.reduce((a, b) => a + b, 0)
+		return weights.map(w => w / sum)
 	}
+
+	const saveWeights = (newWeights) => {
+		const defs = getComposeCellDefs()
+		let saved = {}
+		try {
+			saved = JSON.parse(localStorage.getItem(kW) || '{}')
+		} catch (e) {}
+		defs.forEach((d, idx) => {
+			saved[d.id] = newWeights[idx]
+		})
+		localStorage.setItem(kW, JSON.stringify(saved))
+	}
+
+	const updateCellSplit = (i, s) => {
+		const defs = getComposeCellDefs()
+		const n = defs.length
+		if (n <= 1 || i < 0 || i >= n - 1) return
+
+		const weights = getWeights()
+		const cumWeights = []
+		let sum = 0
+		for (let j = 0; j < n; j++) {
+			sum += weights[j]
+			cumWeights.push(sum)
+		}
+
+		const prevCum = i > 0 ? cumWeights[i - 1] : 0.0
+		const nextCum = cumWeights[i + 1]
+
+		const minLimit = prevCum + 0.05
+		const maxLimit = nextCum - 0.05
+		const clampedS = Math.max(minLimit, Math.min(maxLimit, s))
+
+		weights[i] = clampedS - prevCum
+		weights[i + 1] = nextCum - clampedS
+
+		saveWeights(weights)
+		
+		if (n === 2) {
+			prvPct = weights[0]
+			localStorage.setItem(kS, String(prvPct))
+		}
+
+		scheduleDraw()
+	}
+
 	const rebuildComposeCellsIfNeeded = () => {
 		if (!composePrvPgmLayoutToggle || !cPairEl) return
 		const defs = getComposeCellDefs()
@@ -95,6 +187,13 @@ export function initPreviewPanel(host, options) {
 				const g = document.createElement('div')
 				g.className = 'preview-panel__compose-gutter'
 				cPairEl.appendChild(g)
+				ResizeH.initGutterResizing(g, cPairEl, {
+					collapsed: () => collapsed,
+					layout: () => layout,
+					onSplitChange: (s) => {
+						updateCellSplit(idx - 1, s)
+					}
+				})
 			}
 			cPairEl.appendChild(cell)
 			const badge = document.createElement('div')
@@ -138,7 +237,35 @@ export function initPreviewPanel(host, options) {
 			
 			cell.style.position = 'relative'
 			cell.appendChild(badge)
-			composeCells.push({
+
+			const zoomContainer = document.createElement('div')
+			zoomContainer.className = 'preview-panel__zoom-wrap'
+			zoomContainer.style.cssText = 'position:absolute;right:4px;bottom:4px;display:flex;align-items:center;gap:4px;padding:2px 6px;border-radius:999px;font-size:9px;color:rgba(230,237,243,0.85);background:rgba(0,0,0,0.65);border:1px solid rgba(255,255,255,0.15);z-index:10;pointer-events:auto;'
+			
+			const zoomLabel = document.createElement('span')
+			zoomLabel.textContent = '1.0x'
+			
+			const zoomMinus = document.createElement('button')
+			zoomMinus.type = 'button'
+			zoomMinus.textContent = '-'
+			zoomMinus.style.cssText = 'background:transparent;border:none;color:inherit;font-size:11px;font-weight:bold;cursor:pointer;padding:0 4px;display:inline-flex;align-items:center;justify-content:center;user-select:none;line-height:1;'
+			
+			const zoomPlus = document.createElement('button')
+			zoomPlus.type = 'button'
+			zoomPlus.textContent = '+'
+			zoomPlus.style.cssText = 'background:transparent;border:none;color:inherit;font-size:11px;font-weight:bold;cursor:pointer;padding:0 4px;display:inline-flex;align-items:center;justify-content:center;user-select:none;line-height:1;'
+			
+			const zoomSlider = document.createElement('input')
+			zoomSlider.type = 'range'
+			zoomSlider.min = '0.5'
+			zoomSlider.max = '3'
+			zoomSlider.step = '0.05'
+			zoomSlider.value = '1'
+			zoomSlider.setAttribute('value', '1')
+			zoomSlider.defaultValue = '1'
+			zoomSlider.style.cssText = 'width:50px;height:4px;margin:0;cursor:pointer;opacity:0.8;accent-color:#58a6ff;'
+			
+			const cellObj = {
 				id: d.id,
 				role: d.role,
 				mainIndex: d.mainIndex,
@@ -146,7 +273,35 @@ export function initPreviewPanel(host, options) {
 				cellEl: cell,
 				canvas: c,
 				ctx: c.getContext('2d'),
+				zoom: 1.0,
+			}
+			
+			const updateZoom = (val) => {
+				const clamped = Math.max(0.5, Math.min(3.0, val))
+				cellObj.zoom = clamped
+				zoomSlider.value = String(clamped)
+				zoomLabel.textContent = `${clamped.toFixed(1)}x`
+				scheduleDraw()
+			}
+			
+			zoomSlider.addEventListener('input', () => {
+				updateZoom(parseFloat(zoomSlider.value) || 1.0)
 			})
+			
+			zoomMinus.addEventListener('click', (e) => {
+				e.stopPropagation()
+				updateZoom(cellObj.zoom - 0.1)
+			})
+			
+			zoomPlus.addEventListener('click', (e) => {
+				e.stopPropagation()
+				updateZoom(cellObj.zoom + 0.1)
+			})
+			
+			zoomContainer.append(zoomMinus, zoomSlider, zoomPlus, zoomLabel)
+			cell.appendChild(zoomContainer)
+
+			composeCells.push(cellObj)
 		})
 	}
 
@@ -361,28 +516,23 @@ export function initPreviewPanel(host, options) {
 			cPairEl.style.position = ''
 			const availableW = fitW - (G * Math.max(0, n - 1))
 			const availableH = fitH - (G * Math.max(0, n - 1))
-			const cellW = layout === 'lr' ? Math.max(32, Math.floor(availableW / n)) : fitW
-			const cellH = layout === 'tb' ? Math.max(24, Math.floor(availableH / n)) : fitH
 			
+			const weights = getWeights()
+
 			composeCells.forEach((item, idx) => {
-				let cw = cellW
-				let ch = cellH
-				if (n === 2) {
-					// Use prvPct for dual split
-					if (layout === 'lr') {
-						cw = Math.round(availableW * (idx === 0 ? prvPct : (1 - prvPct)))
-					} else {
-						// PGM is on top (order: -1), PRV is on bottom (order: 1). 
-						// Array order is PRV, PGM. So idx=0 is PRV (bottom), idx=1 is PGM (top).
-						// But the user expect PGM to be top.
-						const isPgm = item.role === 'pgm'
-						ch = Math.round(availableH * (isPgm ? prvPct : (1 - prvPct)))
-					}
+				const wPct = weights[idx] ?? (1 / n)
+				let cw, ch
+				if (layout === 'lr') {
+					cw = Math.round(availableW * wPct)
+					ch = fitH
+					item.cellEl.style.cssText = `flex:0 0 ${cw}px;width:${cw}px;height:100%`
+				} else {
+					cw = fitW
+					ch = Math.round(availableH * wPct)
+					item.cellEl.style.cssText = `flex:0 0 ${ch}px;height:${ch}px;width:100%`
 				}
-				if (layout === 'tb') item.cellEl.style.cssText = `flex:0 0 ${ch}px;height:${ch}px;width:100%`
-				else item.cellEl.style.cssText = `flex:0 0 ${cw}px;width:${cw}px;height:100%`
 			})
-			if (layout === 'tb') cPairEl.style.flexDirection = 'column-reverse'
+			if (layout === 'tb') cPairEl.style.flexDirection = 'column'
 			else cPairEl.style.flexDirection = 'row'
 		}
 		for (const item of composeCells) {
@@ -400,6 +550,7 @@ export function initPreviewPanel(host, options) {
 				composeDualStreamPreview: true,
 				composeCellViewport: { w: wCell, h: hCell },
 				composeScreenIdx: item.mainIndex,
+				composeCellZoom: item.zoom || 1.0,
 			})
 		}
 		renderDestinationLayoutOverlay()
@@ -428,8 +579,17 @@ export function initPreviewPanel(host, options) {
 	if (composePrvPgmLayoutToggle) {
 		cLayoutBtn.hidden = false; const syncB = () => { cLayoutBtn.textContent = layout === 'tb' ? 'Stack' : 'Side'; cPairEl.classList.remove('preview-panel__compose-pair--lr', 'preview-panel__compose-pair--tb'); cPairEl.classList.add(layout === 'tb' ? 'preview-panel__compose-pair--tb' : 'preview-panel__compose-pair--lr') }
 		syncB(); cLayoutBtn.onclick = () => { layout = layout === 'tb' ? 'lr' : 'tb'; localStorage.setItem(kL, layout); syncB(); scheduleDraw() }
-		ResizeH.initGutterResizing(cGutter, cPairEl, { collapsed: () => collapsed, layout: () => layout, onSplitChange: (s) => { prvPct = s; localStorage.setItem(kS, String(s)); scheduleDraw() } })
-		document.addEventListener('previs:set-prv-pct', (ev) => { prvPct = ev.detail.value ?? parseFloat(localStorage.getItem(kS) || '0.5'); scheduleDraw() })
+		// initGutterResizing is bound dynamically to rebuilt gutters in rebuildComposeCellsIfNeeded
+		document.addEventListener('previs:set-prv-pct', (ev) => {
+			const val = ev.detail.value ?? parseFloat(localStorage.getItem(kS) || '0.5')
+			prvPct = val
+			const defs = getComposeCellDefs()
+			if (defs.length === 2) {
+				const weights = [val, 1 - val]
+				saveWeights(weights)
+			}
+			scheduleDraw()
+		})
 	}
 	if (!hideInnerResize) ResizeH.initPanelResizing(resizeH, body, { collapsed: () => collapsed, onHeightChange: scheduleDraw, maxPanelBodyPx: () => Math.min(1200, window.innerHeight * 0.9) })
 	if (typeof ResizeObserver !== 'undefined') { const ro = new ResizeObserver(scheduleDraw); ro.observe(wrap) }

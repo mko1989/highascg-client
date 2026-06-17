@@ -18,6 +18,7 @@ import {
 import { renderSceneLayerInspector, renderMultiviewInspector, renderSceneInspector, renderGlobalBorderInspector } from './inspector-panel-views.js'
 import { renderLayerPresetsMode, renderLookPresetsMode } from './inspector-panel-presets-modes.js'
 import { renderLiveAudioInputInspector } from './inspector-live-audio-input.js'
+import { renderPreservingFocus } from './device-view-ui-utils.js'
 
 /** @deprecated import from ../lib/mixer-fill.js */
 export { calcMixerFill, getContentResolution }
@@ -199,21 +200,23 @@ export function initInspectorPanel(root, stateStore) {
 	}
 
 	function redrawInspectorContent() {
-		syncInspectorModeTabs()
-		if (panelMode === 'layerPresets') {
-			renderLayerPresetsMode(root, {
-				getSelection: () => selection,
-				onSceneRefresh: () => redrawInspectorContent(),
-			})
-			scheduleSelectionSync(stateStore, selection)
-			return
-		}
-		if (panelMode === 'lookPresets') {
-			renderLookPresetsMode(root, { onSceneRefresh: () => redrawInspectorContent() })
-			scheduleSelectionSync(stateStore, selection)
-			return
-		}
-		renderSelectionInspector()
+		renderPreservingFocus(root, () => {
+			syncInspectorModeTabs()
+			if (panelMode === 'layerPresets') {
+				renderLayerPresetsMode(root, {
+					getSelection: () => selection,
+					onSceneRefresh: () => redrawInspectorContent(),
+				})
+				scheduleSelectionSync(stateStore, selection)
+				return
+			}
+			if (panelMode === 'lookPresets') {
+				renderLookPresetsMode(root, { onSceneRefresh: () => redrawInspectorContent() })
+				scheduleSelectionSync(stateStore, selection)
+				return
+			}
+			renderSelectionInspector()
+		})
 	}
 
 	function update(data) {

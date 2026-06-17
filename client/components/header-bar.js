@@ -140,6 +140,7 @@ export function initHeaderBar(headerEl, statusEl, stateStore) {
 						timelineState,
 						multiviewState,
 						programOutputState,
+						stateStore,
 						showToast: showHeaderToast,
 						onNameSync: (name) => {
 							nameInp.value = name
@@ -168,6 +169,7 @@ export function initHeaderBar(headerEl, statusEl, stateStore) {
 		else {
 			showLoadProjectModal({
 				showToast: showHeaderToast,
+				stateStore,
 				onNameSync: (name) => {
 					nameInp.value = name
 				},

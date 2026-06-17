@@ -3,6 +3,7 @@
  */
 import * as Actions from './device-view-actions.js'
 import { setStatus } from './device-view-ui-utils.js'
+import { applyStreamingChannelActionResponse } from '../lib/streaming-channel-state.js'
 
 function savedRecordOutput(currentSettings, conn) {
 	const rows = Array.isArray(currentSettings?.recordOutputs) ? currentSettings.recordOutputs : []
@@ -78,7 +79,7 @@ export function renderRecordOutControls(h, conn, { currentSettings, statusEl, lo
 	startBtn.onclick = async () => {
 		try {
 			const crf = Math.min(51, Math.max(18, parseInt(String(crfIn.value || '26'), 10) || 26))
-			await Actions.startPgmRecord({
+			const res = await Actions.startPgmRecord({
 				outputId: String(conn.id),
 				crf,
 				videoCodec: String(vCodecSel.value || 'h264').toLowerCase(),
@@ -87,6 +88,7 @@ export function renderRecordOutControls(h, conn, { currentSettings, statusEl, lo
 				audioCodec: String(aCodecSel.value || 'aac').toLowerCase(),
 				audioBitrateKbps: Math.max(32, parseInt(String(aBitrateIn.value || '128'), 10) || 128),
 			})
+			applyStreamingChannelActionResponse(res)
 			setStatus(statusEl, `Recording started (${conn.id})`, true)
 			document.dispatchEvent(new CustomEvent('highascg-streaming-changed'))
 			await load()
@@ -94,7 +96,8 @@ export function renderRecordOutControls(h, conn, { currentSettings, statusEl, lo
 	}
 	stopBtn.onclick = async () => {
 		try {
-			await Actions.stopPgmRecord({ outputId: String(conn.id) })
+			const res = await Actions.stopPgmRecord({ outputId: String(conn.id) })
+			applyStreamingChannelActionResponse(res)
 			setStatus(statusEl, `Recording stopped (${conn.id})`, true)
 			document.dispatchEvent(new CustomEvent('highascg-streaming-changed'))
 			await load()

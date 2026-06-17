@@ -4,7 +4,7 @@ import { debounceAsync, postAudioVolume } from '../lib/audio-mixer-volume-api.js
 import { audioOutputRoutesForLayout } from '../lib/audio-routes.js'
 import { sceneState } from '../lib/scene-state.js'
 import { showScenesToast } from './scenes-editor-support.js'
-import { collectProgramAudioRows, collectLiveInputMeterRows } from '../lib/audio-mixer-rows.js'
+import { collectProgramAudioRows, collectLiveInputMeterRows, meterMetaForInputRow } from '../lib/audio-mixer-rows.js'
 import { createAudioMeterLoop } from '../lib/audio-mixer-meter-loop.js'
 import { escapeHtml, escapeAttr } from '../lib/audio-mixer-ui.js'
 import {
@@ -152,7 +152,7 @@ export function mountAudioMixerViewConsole(stateStore, { root, tabPaneEl, inputs
 
 				stripsEl.appendChild(strip)
 				meterFills.set(r.key, strip.querySelector('.audio-mixer-view__meter-fill'))
-				meterLayerMeta.set(r.key, { paused: false, muted: isMuted })
+				meterLayerMeta.set(r.key, meterMetaForInputRow(r))
 
 				const fader = strip.querySelector('.audio-mixer-view__fader')
 				const valEl = strip.querySelector('.audio-mixer-view__fader-val')
@@ -290,7 +290,7 @@ export function mountAudioMixerViewConsole(stateStore, { root, tabPaneEl, inputs
 				stripsEl.appendChild(strip)
 
 				meterFills.set(r.key, strip.querySelector('.audio-mixer-view__meter-fill'))
-				meterLayerMeta.set(r.key, { paused: false, muted: isMuted })
+				meterLayerMeta.set(r.key, meterMetaForInputRow(r))
 
 				const fader = strip.querySelector('.audio-mixer-view__fader')
 				const valEl = strip.querySelector('.audio-mixer-view__fader-val')

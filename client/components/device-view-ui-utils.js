@@ -100,3 +100,93 @@ export function connectorIdFromEvent(ev) {
 	}
 	return ''
 }
+
+export function renderPreservingFocus(container, renderFn) {
+	let activeDesc = null
+	if (document.activeElement && container.contains(document.activeElement)) {
+		const active = document.activeElement
+		const inputs = Array.from(container.querySelectorAll('input, select, textarea, button'))
+		const idx = inputs.indexOf(active)
+		
+		let selectionStart = null
+		let selectionEnd = null
+		
+		const originalType = active.tagName.toLowerCase() === 'input' ? active.type : null
+		const needsTypeHack = originalType && (originalType === 'number' || originalType === 'email')
+		
+		try {
+			if (needsTypeHack) {
+				active.type = 'text'
+			}
+			if (typeof active.selectionStart === 'number') {
+				selectionStart = active.selectionStart
+				selectionEnd = active.selectionEnd
+			}
+		} catch (e) {
+		} finally {
+			if (needsTypeHack) {
+				active.type = originalType
+			}
+		}
+
+		activeDesc = {
+			tagName: active.tagName.toLowerCase(),
+			placeholder: active.getAttribute('placeholder'),
+			type: originalType,
+			value: active.value,
+			index: idx,
+			selectionStart,
+			selectionEnd,
+		}
+	}
+
+	renderFn()
+
+	if (activeDesc) {
+		const newInputs = Array.from(container.querySelectorAll('input, select, textarea, button'))
+		let matched = null
+		if (activeDesc.index >= 0 && activeDesc.index < newInputs.length) {
+			const candidate = newInputs[activeDesc.index]
+			if (candidate.tagName.toLowerCase() === activeDesc.tagName) {
+				matched = candidate
+			}
+		}
+		if (!matched && activeDesc.placeholder) {
+			matched = newInputs.find(el => 
+				el.tagName.toLowerCase() === activeDesc.tagName && 
+				el.getAttribute('placeholder') === activeDesc.placeholder
+			)
+		}
+		if (!matched) {
+			matched = newInputs.find((el, idx) => el.tagName.toLowerCase() === activeDesc.tagName && idx === activeDesc.index)
+		}
+		if (matched) {
+			if (activeDesc.value !== undefined && activeDesc.value !== null && matched.value !== activeDesc.value) {
+				matched.value = activeDesc.value
+			}
+			matched.focus()
+			if (activeDesc.selectionStart !== null) {
+				const originalType = matched.tagName.toLowerCase() === 'input' ? matched.type : null
+				const needsTypeHack = originalType && (originalType === 'number' || originalType === 'email')
+				
+				const isFullSelection = activeDesc.selectionStart === 0 && activeDesc.selectionEnd >= activeDesc.value.length
+				
+				setTimeout(() => {
+					if (isFullSelection) {
+						try {
+							matched.select()
+						} catch (e) {}
+					} else if (!needsTypeHack) {
+						try {
+							if (typeof matched.setSelectionRange === 'function') {
+								const start = Math.min(activeDesc.selectionStart, matched.value.length)
+								const end = Math.min(activeDesc.selectionEnd, matched.value.length)
+								matched.setSelectionRange(start, end)
+							}
+						} catch (e) {}
+					}
+				}, 0)
+			}
+		}
+	}
+}

@@ -1,3 +1,18 @@
+import { isLayerStripOnAir } from './audio-mixer-meter-eligibility.js'
+
+/** @param {import('./state-store.js').StateStore} stateStore */
+function isSoleLiveSceneMediaLayer(stateStore, chNum, layerNum) {
+	const live = stateStore?.getState?.()?.scene?.live?.[chNum] ?? stateStore?.getState?.()?.scene?.live?.[String(chNum)]
+	const layers = Array.isArray(live?.scene?.layers) ? live.scene.layers : []
+	const mediaLayers = layers.filter((l) => {
+		const src = l?.source
+		if (!src?.value) return false
+		const ty = String(src.type || '').toLowerCase()
+		return ty === 'media' || ty === 'file'
+	})
+	return mediaLayers.length === 1 && Number(mediaLayers[0]?.layerNumber) === layerNum
+}
+
 /** @param {unknown[]} [levels] */
 export function peakDbfsFromLevels(levels) {
 	if (!Array.isArray(levels) || levels.length === 0) return NaN
@@ -42,20 +57,33 @@ export function readBusPeakDbfs(chNum, vars, oscClient, stateStore) {
 }
 
 /**
- * Layer strip dBFS from OSC (per-layer meters when present, else program bus).
- * Do not scale by UI fader — that made input meters move without PGM and tied them to master fader.
- * @param {import('./state-store.js').StateStore} stateStore
- * @param {{ paused?: boolean, muted?: boolean }} [layerMeta]
+ * Layer strip dBFS: per-layer OSC when available; channel bus when this layer is on-air.
+ * @param {import('./variable-state.js').VariableStore | null} [vars]
  */
-export function readLayerPeakDbfs(chNum, layerNum, oscClient, stateStore, layerMeta) {
-	if (layerMeta?.paused || layerMeta?.muted) return -99
+export function readLayerPeakDbfs(chNum, layerNum, oscClient, stateStore, layerMeta, vars) {
+	if (layerMeta?.muted) return -99
+
+	const busLevel = readBusPeakDbfs(chNum, vars, oscClient, stateStore)
+	const onAir = isLayerStripOnAir(chNum, layerNum, oscClient, stateStore, layerMeta)
+	const soleLiveMedia = isSoleLiveSceneMediaLayer(stateStore, chNum, layerNum)
+	if (!onAir && !(soleLiveMedia && busLevel > -90)) return -99
+
 	const key = String(chNum)
 	const chState = oscClient?.channels?.[key] ?? oscClient?.channels?.[chNum]
-	const lnKey = String(layerNum)
-	const oscLayer = chState?.layers?.[layerNum] ?? chState?.layers?.[lnKey]
-	const lt = String(oscLayer?.type || '')
-	if (lt === 'empty' || oscLayer?.paused === true) return -99
+	const oscLayer = chState?.layers?.[layerNum] ?? chState?.layers?.[String(layerNum)]
 	const layerPeak = peakDbfsFromLevels(oscLayer?.audio?.levels)
 	if (Number.isFinite(layerPeak)) return layerPeak
-	return readBusPeakDbfs(chNum, null, oscClient, stateStore)
+	return busLevel
+}
+
+/**
+ * Live audio strip — always meter the dedicated host channel bus (e.g. ch 5 alsa capture),
+ * not the PGM route layer that carries route:// into program.
+ * @param {import('./variable-state.js').VariableStore | null} vars
+ */
+export function readLiveInputHostChannelPeakDbfs(hostCh, oscClient, stateStore, layerMeta, vars) {
+	if (layerMeta?.muted) return -99
+	const chNum = parseInt(String(hostCh), 10)
+	if (!Number.isFinite(chNum) || chNum < 1) return -99
+	return readBusPeakDbfs(chNum, vars, oscClient, stateStore)
 }

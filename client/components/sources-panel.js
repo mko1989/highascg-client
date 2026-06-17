@@ -16,6 +16,8 @@ import { showPlaceholderModal } from './placeholder-modal.js'
 import { refreshLiveAudioConfigured } from '../lib/live-audio-state.js'
 import { markCasparRestartDirty } from '../lib/caspar-restart-hint.js'
 import { decklinkInputForSlot, decklinkSlotFromConnector } from '../lib/input-channels.js'
+import { copyMediaFiles, deleteMediaFiles, formatMediaOpResult, moveMediaFiles } from '../lib/media-file-ops.js'
+import { showMediaFolderPicker, listMediaFolders } from './media-folder-picker-modal.js'
 
 export function initSourcesPanel(root, stateStore, opts = {}) {
 	const wsClient = opts.wsClient; let previewFeedback = null; let currentTab = 'media'; let filter = ''; let mediaWithProbe = null; let extraLiveSources = []
@@ -28,10 +30,13 @@ export function initSourcesPanel(root, stateStore, opts = {}) {
 		return liveAudioConfiguredCache
 	}
 	const selectedMedia = new Set()
+	let lastSelectedMediaId = null
+	/** @type {string[]} */
+	let visibleMediaOrder = []
 	const sendToPrv = async (s) => { const ch = (stateStore.getState()?.channelMap?.previewChannels?.[0] ?? 2); try { await api.post('/api/play', { channel: ch, layer: 1, clip: s.value }); const el = root.querySelector(`[data-source-value="${CSS.escape(s.value)}"]`); if (el) { el.classList.add('source-item--previewing'); clearTimeout(previewFeedback); previewFeedback = setTimeout(() => el.classList.remove('source-item--previewing'), 1200) } } catch {} }
 
-	root.innerHTML = `<div class="sources-tabs"><button class="sources-tab active" data-src-tab="media">Media</button><button class="sources-tab" data-src-tab="templates">Templates</button><button class="sources-tab" data-src-tab="placeholders" style="display:none">Placeholders</button><button class="sources-tab" data-src-tab="effects">Effects</button><button class="sources-tab" data-src-tab="live">Live</button><button class="sources-tab" data-src-tab="timelines">Timelines</button></div><div class="sources-search" style="display:none"><input type="text" placeholder="Filter…" id="sources-filter" /></div><div class="sources-list" id="sources-list"></div><div class="sources-live-footer" style="display:none"><button type="button" class="sources-live-add-btn" id="sources-live-add-btn">+</button></div><div class="sources-media-footer" style="display:none"><div class="sources-media-footer__row"><button type="button" class="sources-refresh-btn" id="sources-refresh-media">↻ Refresh</button><button type="button" id="sources-delete-selected" style="display:none; background: #da3637; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 11px; cursor: pointer; margin-left: 4px;">🗑 Delete (0)</button><div class="ingest-plus-wrap"><button type="button" class="ingest-plus-btn" id="ingest-plus-btn">+</button><div class="ingest-dropup-menu" style="display:none"><button class="ingest-menu-item" id="ingest-menu-file">Select File(s)</button><button class="ingest-menu-item" id="ingest-menu-mkdir">New Folder…</button><button class="ingest-menu-item ingest-menu-item--usb" id="ingest-menu-usb">Import USB…<span class="ingest-usb-badge" style="display:none"></span></button><button class="ingest-menu-item ingest-menu-item--placeholder" id="ingest-menu-placeholder" style="display:none">Add Placeholder…</button><div class="ingest-url-row"><input type="text" id="ingest-url" class="ingest-url-input" placeholder="Paste URL…" /><button type="button" id="ingest-url-btn" class="ingest-url-btn">⬇</button></div></div></div></div><div class="ingest-status-col"><div class="ingest-status" id="ingest-status"></div><div class="ingest-upload-progress" style="display:none"><div class="ingest-upload-progress__track"><div class="ingest-upload-progress__bar" style="width:0%"></div></div><span class="ingest-upload-progress__pct">0%</span></div></div></div><div id="sources-drag-overlay" class="sources-drag-overlay" style="display:none"><div class="sources-drag-overlay__content"><span>Drop to ingest</span></div></div>`
-	const tabs = root.querySelectorAll('.sources-tab'); const filterInput = root.querySelector('#sources-filter'); const listEl = root.querySelector('#sources-list'); const mediaFooter = root.querySelector('.sources-media-footer'); const refreshBtn = root.querySelector('#sources-refresh-media'); const deleteBtn = root.querySelector('#sources-delete-selected'); const plusBtn = root.querySelector('#ingest-plus-btn'); const dropMenu = root.querySelector('.ingest-dropup-menu'); const fileBtn = root.querySelector('#ingest-menu-file'); const mkdirBtn = root.querySelector('#ingest-menu-mkdir'); const usbBtn = root.querySelector('#ingest-menu-usb'); const placeholderBtn = root.querySelector('#ingest-menu-placeholder'); const usbBadge = root.querySelector('.ingest-usb-badge'); const urlIn = root.querySelector('#ingest-url'); const urlBtn = root.querySelector('#ingest-url-btn'); const iStatus = root.querySelector('#ingest-status'); const iProgWrap = root.querySelector('.ingest-upload-progress'); const iBar = root.querySelector('.ingest-upload-progress__bar'); const iPct = root.querySelector('.ingest-upload-progress__pct'); const liveFooter = root.querySelector('.sources-live-footer'); const dragOverlay = root.querySelector('#sources-drag-overlay')
+	root.innerHTML = `<div class="sources-tabs"><button class="sources-tab active" data-src-tab="media">Media</button><button class="sources-tab" data-src-tab="templates">Templates</button><button class="sources-tab" data-src-tab="placeholders" style="display:none">Placeholders</button><button class="sources-tab" data-src-tab="effects">Effects</button><button class="sources-tab" data-src-tab="live">Live</button><button class="sources-tab" data-src-tab="timelines">Timelines</button></div><div class="sources-search" style="display:none"><input type="text" placeholder="Filter…" id="sources-filter" /></div><div class="sources-list" id="sources-list"></div><div class="sources-live-footer" style="display:none"><button type="button" class="sources-live-add-btn" id="sources-live-add-btn">+</button></div><div class="sources-media-footer" style="display:none"><div class="sources-media-selection-bar" id="sources-media-selection-bar" style="display:none"><span class="sources-media-selection-bar__count" id="sources-selection-count">0 selected</span><button type="button" class="sources-media-action-btn" id="sources-copy-selected">Copy to…</button><button type="button" class="sources-media-action-btn" id="sources-move-selected">Move to…</button><button type="button" class="sources-media-action-btn sources-media-action-btn--danger" id="sources-delete-selected">Delete</button><button type="button" class="sources-media-action-btn sources-media-action-btn--ghost" id="sources-clear-selected">Clear</button></div><div class="sources-media-footer__row"><button type="button" class="sources-refresh-btn" id="sources-refresh-media">↻ Refresh</button><div class="ingest-plus-wrap"><button type="button" class="ingest-plus-btn" id="ingest-plus-btn">+</button><div class="ingest-dropup-menu" style="display:none"><button class="ingest-menu-item" id="ingest-menu-file">Select File(s)</button><button class="ingest-menu-item" id="ingest-menu-mkdir">New Folder…</button><button class="ingest-menu-item ingest-menu-item--usb" id="ingest-menu-usb">Import USB…<span class="ingest-usb-badge" style="display:none"></span></button><button class="ingest-menu-item ingest-menu-item--placeholder" id="ingest-menu-placeholder" style="display:none">Add Placeholder…</button><div class="ingest-url-row"><input type="text" id="ingest-url" class="ingest-url-input" placeholder="Paste URL…" /><button type="button" id="ingest-url-btn" class="ingest-url-btn">⬇</button></div></div></div></div><div class="ingest-status-col"><div class="ingest-status" id="ingest-status"></div><div class="ingest-upload-progress" style="display:none"><div class="ingest-upload-progress__track"><div class="ingest-upload-progress__bar" style="width:0%"></div></div><span class="ingest-upload-progress__pct">0%</span></div></div></div><div id="sources-drag-overlay" class="sources-drag-overlay" style="display:none"><div class="sources-drag-overlay__content"><span>Drop to ingest</span></div></div>`
+	const tabs = root.querySelectorAll('.sources-tab'); const filterInput = root.querySelector('#sources-filter'); const listEl = root.querySelector('#sources-list'); const mediaFooter = root.querySelector('.sources-media-footer'); const selectionBar = root.querySelector('#sources-media-selection-bar'); const selectionCountEl = root.querySelector('#sources-selection-count'); const refreshBtn = root.querySelector('#sources-refresh-media'); const copyBtn = root.querySelector('#sources-copy-selected'); const moveBtn = root.querySelector('#sources-move-selected'); const deleteBtn = root.querySelector('#sources-delete-selected'); const clearSelBtn = root.querySelector('#sources-clear-selected'); const plusBtn = root.querySelector('#ingest-plus-btn'); const dropMenu = root.querySelector('.ingest-dropup-menu'); const fileBtn = root.querySelector('#ingest-menu-file'); const mkdirBtn = root.querySelector('#ingest-menu-mkdir'); const usbBtn = root.querySelector('#ingest-menu-usb'); const placeholderBtn = root.querySelector('#ingest-menu-placeholder'); const usbBadge = root.querySelector('.ingest-usb-badge'); const urlIn = root.querySelector('#ingest-url'); const urlBtn = root.querySelector('#ingest-url-btn'); const iStatus = root.querySelector('#ingest-status'); const iProgWrap = root.querySelector('.ingest-upload-progress'); const iBar = root.querySelector('.ingest-upload-progress__bar'); const iPct = root.querySelector('.ingest-upload-progress__pct'); const liveFooter = root.querySelector('.sources-live-footer'); const dragOverlay = root.querySelector('#sources-drag-overlay')
 	root.querySelector('#sources-live-add-btn')?.addEventListener('click', () => showLiveInputModal(stateStore))
 
 	const applyMediaList = (list) => {
@@ -121,31 +126,114 @@ export function initSourcesPanel(root, stateStore, opts = {}) {
 	listEl.addEventListener('dragleave', () => { listEl.style.outline = '' })
 	listEl.addEventListener('drop', async (ev) => { listEl.style.outline = ''; const parsed = parseDecklinkDrop(ev); if (!parsed) return; ev.preventDefault(); ev.stopPropagation(); await mapDecklinkToLiveInput(parsed.connectorId) })
 
+	function toggleMediaSelection(id, modifiers = {}) {
+		const multi = modifiers.ctrlKey || modifiers.metaKey
+		if (modifiers.shiftKey && lastSelectedMediaId) {
+			const a = visibleMediaOrder.indexOf(lastSelectedMediaId)
+			const b = visibleMediaOrder.indexOf(id)
+			if (a >= 0 && b >= 0) {
+				const lo = Math.min(a, b)
+				const hi = Math.max(a, b)
+				if (!multi) selectedMedia.clear()
+				for (let i = lo; i <= hi; i++) selectedMedia.add(visibleMediaOrder[i])
+			} else if (!multi) {
+				selectedMedia.clear()
+				selectedMedia.add(id)
+			}
+		} else if (multi) {
+			if (selectedMedia.has(id)) selectedMedia.delete(id)
+			else selectedMedia.add(id)
+		} else if (selectedMedia.size === 1 && selectedMedia.has(id)) {
+			selectedMedia.clear()
+		} else {
+			selectedMedia.clear()
+			selectedMedia.add(id)
+		}
+		lastSelectedMediaId = id
+		render()
+	}
+
+	function updateSelectionBar() {
+		const count = selectedMedia.size
+		if (selectionBar) selectionBar.style.display = count > 0 ? 'flex' : 'none'
+		if (selectionCountEl) {
+			selectionCountEl.textContent = `${count} selected`
+		}
+	}
+
+	async function runMediaTransfer(op, ids) {
+		const list = ids?.length ? ids : Array.from(selectedMedia)
+		if (list.length === 0) return
+		const s = stateStore.getState()
+		const mediaList = mergeMediaProbeOverlay(s.media || [], mediaWithProbe)
+		const title = op === 'copy' ? `Copy ${list.length} file${list.length === 1 ? '' : 's'} to` : `Move ${list.length} file${list.length === 1 ? '' : 's'} to`
+		const dest = await showMediaFolderPicker({ title, mediaList })
+		if (dest == null) return
+		const folders = new Set(listMediaFolders(mediaList))
+		if (dest && !folders.has(dest)) {
+			await api.post('/api/media/mkdir', { path: dest }).catch(() => {})
+		}
+		setStatus(`${op === 'copy' ? 'Copying' : 'Moving'} ${list.length}…`, 'info')
+		const result = op === 'copy' ? await copyMediaFiles(list, dest) : await moveMediaFiles(list, dest)
+		setStatus(formatMediaOpResult(result, op === 'copy' ? 'Copied' : 'Moved'), result.failed ? 'error' : 'ok')
+		if (result.failed && result.errors[0]) console.warn('[media]', result.errors[0])
+		if (op === 'move') selectedMedia.clear()
+		refreshMedia()
+	}
+
+	async function runMediaDelete(ids) {
+		const list = ids?.length ? ids : Array.from(selectedMedia)
+		if (list.length === 0) return
+		if (!confirm(`Delete ${list.length} selected file${list.length === 1 ? '' : 's'}?\n\nThis cannot be undone.`)) return
+		setStatus(`Deleting ${list.length}…`, 'info')
+		const result = await deleteMediaFiles(list)
+		setStatus(formatMediaOpResult(result, 'Deleted'), result.failed ? 'error' : 'ok')
+		selectedMedia.clear()
+		refreshMedia()
+	}
+
 	function render() {
 		const s = stateStore.getState(); listEl.classList.remove('sources-media-list'); if (liveFooter) liveFooter.style.display = currentTab === 'live' ? 'flex' : 'none'
-		if (deleteBtn) deleteBtn.style.display = 'none'
+		if (selectionBar) selectionBar.style.display = 'none'
 		if (currentTab === 'media') {
 			listEl.classList.add('sources-media-list')
+			listEl.tabIndex = 0
 			renderMediaBrowser(listEl, mergeMediaProbeOverlay(s.media || [], mediaWithProbe), filter, refreshMedia, {
 				collapsedFolders,
 				selected: selectedMedia,
-				onToggleFolder: (path) => { if (collapsedFolders.has(path)) collapsedFolders.delete(path); else collapsedFolders.add(path); render() },
-				onToggleSelect: (id, isShift) => {
-					if (selectedMedia.has(id)) {
-						selectedMedia.delete(id)
-					} else {
-						selectedMedia.add(id)
-					}
-					render()
+				onVisibleFileOrder: (ids) => {
+					visibleMediaOrder = ids
 				},
-				onMoveItem: async (sourceId, targetId) => { try { setStatus(`Moving to ${targetId}…`, 'info'); await api.post('/api/media/move', { sourceId, targetId }); setStatus('Moved successfully', 'ok'); refreshMedia() } catch (e) { setStatus(e.message, 'error') } }
+				onToggleFolder: (path) => { if (collapsedFolders.has(path)) collapsedFolders.delete(path); else collapsedFolders.add(path); render() },
+				onToggleSelect: (id, modifiers) => toggleMediaSelection(id, modifiers),
+				onMoveItem: async (sourceId, targetId) => {
+					setStatus(`Moving…`, 'info')
+					const result = await moveMediaFiles([sourceId], targetId)
+					setStatus(formatMediaOpResult(result, 'Moved'), result.failed ? 'error' : 'ok')
+					refreshMedia()
+				},
+				onMoveItems: async (sourceIds, targetId) => {
+					setStatus(`Moving ${sourceIds.length}…`, 'info')
+					const result = await moveMediaFiles(sourceIds, targetId)
+					setStatus(formatMediaOpResult(result, 'Moved'), result.failed ? 'error' : 'ok')
+					selectedMedia.clear()
+					refreshMedia()
+				},
+				onCopyItem: async (sourceId, targetId) => {
+					setStatus(`Copying…`, 'info')
+					const result = await copyMediaFiles([sourceId], targetId)
+					setStatus(formatMediaOpResult(result, 'Copied'), result.failed ? 'error' : 'ok')
+					refreshMedia()
+				},
+				onCopyItems: async (sourceIds, targetId) => {
+					setStatus(`Copying ${sourceIds.length}…`, 'info')
+					const result = await copyMediaFiles(sourceIds, targetId)
+					setStatus(formatMediaOpResult(result, 'Copied'), result.failed ? 'error' : 'ok')
+					refreshMedia()
+				},
 			})
 			mediaFooter.style.display = 'flex'; watchUsbBadge()
-			if (deleteBtn) {
-				const count = selectedMedia.size
-				deleteBtn.textContent = `🗑 Delete (${count})`
-				deleteBtn.style.display = count > 0 ? 'inline-block' : 'none'
-			}
+			updateSelectionBar()
 		}
 		else if (currentTab === 'templates') { renderTemplatesBrowser(listEl, s.templates || [], filter); mediaFooter.style.display = 'flex'; watchUsbBadge() }
 		else if (currentTab === 'placeholders') { renderPlaceholdersBrowser(listEl, window.placeholderState?.getAll() || [], filter); mediaFooter.style.display = 'flex'; unwatchUsbBadge() }
@@ -180,26 +268,24 @@ export function initSourcesPanel(root, stateStore, opts = {}) {
 	tabs.forEach(t => t.onclick = () => activateTab(t.dataset.srcTab))
 	filterInput?.addEventListener('input', () => { filter = filterInput.value.trim(); render() })
 	if (refreshBtn) refreshBtn.onclick = refreshMedia
-	if (deleteBtn) {
-		deleteBtn.onclick = async () => {
-			const ids = Array.from(selectedMedia)
-			if (ids.length === 0) return
-			if (!confirm(`Delete ${ids.length} selected files?\n\nThis cannot be undone.`)) return
-			setStatus(`Deleting ${ids.length} files…`, 'info')
-			let success = 0
-			for (const id of ids) {
-				try {
-					await api.post('/api/media/delete', { id })
-					success++
-				} catch (e) {
-					console.error(`Failed to delete ${id}:`, e)
-				}
-			}
-			setStatus(`Deleted ${success} of ${ids.length} files`, success === ids.length ? 'ok' : 'error')
+	if (copyBtn) copyBtn.onclick = () => void runMediaTransfer('copy')
+	if (moveBtn) moveBtn.onclick = () => void runMediaTransfer('move')
+	if (deleteBtn) deleteBtn.onclick = () => void runMediaDelete()
+	if (clearSelBtn) {
+		clearSelBtn.onclick = () => {
 			selectedMedia.clear()
-			refreshMedia()
+			lastSelectedMediaId = null
+			render()
 		}
 	}
+	root.addEventListener('keydown', (e) => {
+		if (currentTab !== 'media' || selectedMedia.size === 0) return
+		if (e.key !== 'Delete' && e.key !== 'Backspace') return
+		const tag = String(e.target?.tagName || '').toLowerCase()
+		if (tag === 'input' || tag === 'textarea' || e.target?.isContentEditable) return
+		e.preventDefault()
+		void runMediaDelete()
+	})
 	const refreshUsb = async () => {
 		try {
 			const r = await api.get('/api/usb/drives')

@@ -3,6 +3,34 @@
  */
 import { destinationRectLabel } from './device-view-ui-utils.js'
 import { edgeOutputLayer } from './device-view-destinations-inspector.js'
+import { friendlyConnectorLabel } from './device-view-helpers.js'
+
+function getDestinationConnectionLabel(edge, lastPayload, connectorById) {
+	const id = String(edge?.sinkId || '').trim()
+	if (!id) return 'OUT'
+	const conn = connectorById.get(id) || null
+	const label = friendlyConnectorLabel(lastPayload, id)
+	
+	if (conn?.kind === 'gpu_out') {
+		const cleanPort = label.replace(/^gpu_/i, '').replace(/^p(\d+)/i, 'p$1')
+		const displayPort = cleanPort.startsWith('p') ? 'p' + cleanPort.slice(1) : cleanPort
+		return `Gpu ${displayPort}`
+	}
+	if (conn?.kind === 'stream_out') {
+		return `Stream ${label}`
+	}
+	if (conn?.kind === 'record_out') {
+		return `Record ${label}`
+	}
+	if (conn?.kind === 'decklink_io' || conn?.kind === 'decklink_out' || conn?.kind === 'decklink_in') {
+		const num = label.match(/(\d+)/)?.[1] || ''
+		return `DeckLink ${num || label}`
+	}
+	if (conn?.kind === 'audio_out') {
+		return `Audio ${label}`
+	}
+	return label || id
+}
 
 export function renderDestinations(ctx) {
 	const {
@@ -164,18 +192,8 @@ export function renderDestinations(ctx) {
 			const basePorts = b.querySelector('.device-view__destination-ports')
 			if (basePorts) basePorts.remove()
 
-			const pgmEdges = mappedOutputEdges.filter(e => edgeOutputLayer(e) === 1)
-			const prvEdges = mappedOutputEdges.filter(e => edgeOutputLayer(e) === 2)
-			const pgmLabel = pgmEdges.map(e => {
-				const c = connectorById.get(String(e?.sinkId || '')) || null
-				return String(c?.label || e?.sinkId || 'OUT')
-			}).join(', ')
-			const prvLabel = prvEdges.map(e => {
-				const c = connectorById.get(String(e?.sinkId || '')) || null
-				return String(c?.label || e?.sinkId || 'OUT')
-			}).join(', ')
-			const pgmText = pgmLabel ? `PGM · ${pgmLabel}` : 'PGM'
-			const prvText = prvLabel ? `PRV · ${prvLabel}` : 'PRV'
+			const pgmText = 'PGM'
+			const prvText = 'PRV'
 
 			const pair = document.createElement('div')
 			pair.className = 'device-view__destination-pair'
@@ -213,16 +231,20 @@ export function renderDestinations(ctx) {
 			}
 		}
 		
-		if (mappedOutputEdges.length && mode !== 'pgm_prv') {
+		if (mappedOutputEdges.length) {
 			const sublist = document.createElement('ul')
 			sublist.className = 'device-view__destination-connection-list'
 			sublist.style.cssText = 'margin: 4px 0 8px 12px; padding: 0 0 0 12px; list-style-type: disc; font-size: 11px; opacity: 0.85; line-height: 1.4;'
-			for (const edge of mappedOutputEdges) {
-				const c = connectorById.get(String(edge?.sinkId || '')) || null
+			
+			const sortedEdges = [...mappedOutputEdges].sort((a, b) => edgeOutputLayer(a) - edgeOutputLayer(b))
+			for (const edge of sortedEdges) {
 				const li = document.createElement('li')
 				li.className = 'device-view__destination-connection-item'
 				li.style.cssText = 'margin-bottom: 2px; color: #94a3b8;'
-				li.textContent = `${String(c?.label || edge?.sinkId || 'OUT')} (Layer ${edgeOutputLayer(edge)})`
+				
+				const layer = edgeOutputLayer(edge)
+				const prefix = mode === 'pgm_prv' ? (layer === 1 ? 'PGM: ' : 'PRV: ') : ''
+				li.textContent = `${prefix}${getDestinationConnectionLabel(edge, lastPayload, connectorById)}`
 				sublist.appendChild(li)
 			}
 			destCardWrap.appendChild(sublist)
