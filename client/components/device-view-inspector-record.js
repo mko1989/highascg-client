@@ -88,7 +88,7 @@ export function renderRecordOutControls(h, conn, { currentSettings, statusEl, lo
 				audioCodec: String(aCodecSel.value || 'aac').toLowerCase(),
 				audioBitrateKbps: Math.max(32, parseInt(String(aBitrateIn.value || '128'), 10) || 128),
 			})
-			applyStreamingChannelActionResponse(res)
+			applyStreamingChannelActionResponse(res, { action: 'start_record', outputId: String(conn.id) })
 			setStatus(statusEl, `Recording started (${conn.id})`, true)
 			document.dispatchEvent(new CustomEvent('highascg-streaming-changed'))
 			await load()
@@ -97,7 +97,7 @@ export function renderRecordOutControls(h, conn, { currentSettings, statusEl, lo
 	stopBtn.onclick = async () => {
 		try {
 			const res = await Actions.stopPgmRecord({ outputId: String(conn.id) })
-			applyStreamingChannelActionResponse(res)
+			applyStreamingChannelActionResponse(res, { action: 'stop_record', outputId: String(conn.id) })
 			setStatus(statusEl, `Recording stopped (${conn.id})`, true)
 			document.dispatchEvent(new CustomEvent('highascg-streaming-changed'))
 			await load()

@@ -1,5 +1,5 @@
 import { DECKLINK_REAR_ORDER_KEY } from '../lib/device-view-decklink-order.js'
-import { GPU_CUSTOM_LAYOUT_KEY } from '../lib/device-view-gpu-port-list.js'
+import { GPU_CUSTOM_LAYOUT_KEY, gpuPhysicalPortCableId } from '../lib/device-view-gpu-port-list.js'
 import { gpuLayoutLog, isGpuLayoutDebugEnabled } from '../lib/device-view-gpu-layout-debug.js'
 import { casparRearKindTitle, casparRearKindToIcon } from './device-view-caspar-render-helpers.js'
 
@@ -47,7 +47,8 @@ export function buildCasparRearMarkerLayoutItems(slots, casparConnectors) {
 					currentY = n > 1 ? yBase + (visualRow / (n - 1)) * yRange : 40
 				}
 
-				const isDisconnectedGpu = slot.title === 'GPU' && !it.connected
+				const isDisconnectedGpu =
+					slot.title === 'GPU' && !it.topologySlot && !it.livePresent && !it.connected
 				
 				markerItems.push({
 					connectorId: it.id,
@@ -62,6 +63,8 @@ export function buildCasparRearMarkerLayoutItems(slots, casparConnectors) {
 					icon: it.icon,
 					isVirtual: it.isVirtual,
 					connected: it.connected,
+					livePresent: it.livePresent,
+					topologySlot: it.topologySlot,
 					pairs: it.pairs,
 					hidden: it.hidden,
 					container: isDisconnectedGpu ? slot.disconnectedContainer : slot.container,
@@ -152,8 +155,14 @@ export function appendCasparRearPanelMarkers({
 			<span class="device-view__panel-marker-label ${labelDirClass}">${it.labelHtml || it.label}</span>
 		`
 
+		const cableId = it.connectorId
+			? it.kind === 'gpu_out'
+				? gpuPhysicalPortCableId(it.layoutSlotId || it.connectorId)
+				: it.connectorId
+			: ''
+
 		if (it.connectorId) {
-			marker.setAttribute('data-connector-id', it.connectorId)
+			marker.setAttribute('data-connector-id', cableId)
 			if (it.kind === 'gpu_out' && it.layoutSlotId) {
 				marker.setAttribute('data-layout-slot-id', it.layoutSlotId)
 			}
@@ -275,22 +284,22 @@ export function appendCasparRearPanelMarkers({
 			}
 			const connectorCtx = {
 				type: kind,
-				connector: { id: it.connectorId, kind, label: it.label, layoutSlotId: it.layoutSlotId, isVirtual: it.isVirtual, pairs: it.pairs },
+				connector: { id: cableId, kind, label: it.label, layoutSlotId: it.layoutSlotId, isVirtual: it.isVirtual, pairs: it.pairs },
 			}
 			marker.addEventListener('click', () => {
-				onPortClick(`caspar_overlay:${it.connectorId}:`, it.connectorId, connectorCtx)
+				onPortClick(`caspar_overlay:${cableId}:`, cableId, connectorCtx)
 			})
 			const dot = document.createElement('span')
 			dot.className = 'device-view__connector-dot device-view__connector-dot--left'
 			dot.title = 'Start or complete cable at this connector'
-			dot.setAttribute('data-connector-id', it.connectorId)
+			dot.setAttribute('data-connector-id', cableId)
 			if (it.pairs) {
 				dot.setAttribute('data-real-ids', it.pairs.join(','))
 			}
 			dot.addEventListener('click', (ev) => {
 				ev.preventDefault()
 				ev.stopPropagation()
-				const targetId = it.connectorId
+				const targetId = cableId
 				if (onPortStartCable) onPortStartCable(`caspar_overlay:${targetId}:`, targetId, connectorCtx)
 				else onPortClick(`caspar_overlay:${targetId}:`, targetId, connectorCtx)
 			})
@@ -300,8 +309,8 @@ export function appendCasparRearPanelMarkers({
 			marker.classList.add('device-view__panel-marker--disabled')
 		}
 
-		if (selectedConnectorId && it.connectorId === selectedConnectorId) marker.classList.add('device-view__panel-marker--selected')
-		if (cableSourceId && it.connectorId === cableSourceId) marker.classList.add('device-view__panel-marker--armed')
+		if (cableId && selectedConnectorId === cableId) marker.classList.add('device-view__panel-marker--selected')
+		if (cableId && cableSourceId === cableId) marker.classList.add('device-view__panel-marker--armed')
 		if (it.container) {
 			if (!clearedContainers.has(it.container)) {
 				it.container.replaceChildren()

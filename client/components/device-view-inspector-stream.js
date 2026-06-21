@@ -153,7 +153,7 @@ export function renderStreamOutControls(h, conn, { currentSettings, streamingSta
 				audioCodec,
 				audioBitrateKbps,
 			})
-			applyStreamingChannelActionResponse(res)
+			applyStreamingChannelActionResponse(res, { action: 'start_stream', outputId: String(conn.id) })
 			setStatus(statusEl, 'Streaming started', true)
 			document.dispatchEvent(new CustomEvent('highascg-streaming-changed'))
 			await load()
@@ -163,7 +163,7 @@ export function renderStreamOutControls(h, conn, { currentSettings, streamingSta
 	stopBtn.onclick = async () => {
 		try {
 			const res = await Actions.stopStreamingChannelRtmp()
-			applyStreamingChannelActionResponse(res)
+			applyStreamingChannelActionResponse(res, { action: 'stop_stream' })
 			setStatus(statusEl, 'Streaming stopped', true)
 			document.dispatchEvent(new CustomEvent('highascg-streaming-changed'))
 			await load()

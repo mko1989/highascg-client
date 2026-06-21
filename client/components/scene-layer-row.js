@@ -61,7 +61,7 @@ export function appendSceneLayerStripRows(layerStrip, opts) {
 						<button type="button" class="scenes-btn scenes-btn--sm scenes-btn--icon" data-copy-style="${realIdx}" title="Copy position, scale, opacity, keyer, transition" aria-label="Copy layer settings">→📋</button>
 						<button type="button" class="scenes-btn scenes-btn--sm scenes-btn--icon" data-paste-style="${realIdx}" title="Paste copied settings" aria-label="Paste layer settings" ${canPaste ? '' : 'disabled'}>📋→</button>
 						<button type="button" class="scenes-btn scenes-btn--sm scenes-btn--icon" data-save-preset="${realIdx}" title="Save as layer style preset" aria-label="Save as layer style preset">💾</button>
-						<button type="button" class="scenes-btn scenes-btn--sm scenes-btn--icon" data-add-layer-route="${realIdx}" title="Add this layer as a Live route (↗ default = edit bus; Shift+↗ = PGM; Ctrl+↗ = PRV)" aria-label="Add layer route to Live sources" ${canAddLayerRoute ? '' : 'disabled'}>↗</button>
+						<button type="button" class="scenes-btn scenes-btn--sm scenes-btn--icon" data-add-layer-route="${realIdx}" title="Add this layer as a Live route (↗ default = PGM; Shift+↗ = edit bus; Ctrl+↗ = PRV)" aria-label="Add layer route to Live sources" ${canAddLayerRoute ? '' : 'disabled'}>↗</button>
 						<button type="button" class="scenes-btn scenes-btn--sm scenes-btn--icon scenes-btn--danger" data-remove="${realIdx}" title="Remove layer" aria-label="Remove layer">🗑</button>
 					</div>
 				</div>
@@ -241,8 +241,8 @@ export function appendSceneLayerStripRows(layerStrip, opts) {
 			row.querySelector('[data-add-layer-route]')?.addEventListener('click', async (e) => {
 				e.stopPropagation()
 				if (typeof buildLayerRouteLiveSourceItem !== 'function') return
-				let forceBus = 'edit'
-				if (e.shiftKey) forceBus = 'pgm'
+				let forceBus = 'pgm'
+				if (e.shiftKey) forceBus = 'edit'
 				else if (e.ctrlKey || e.metaKey) forceBus = 'prv'
 				const built = buildLayerRouteLiveSourceItem(scene, l.layerNumber, { forceBus })
 				if ('error' in built && built.error) {

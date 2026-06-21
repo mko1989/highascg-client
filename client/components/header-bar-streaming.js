@@ -1,12 +1,14 @@
 /**
  * Header bar streaming and recording status badges (right of FTB).
- * Event-driven — server pushes start/stop over WebSocket; no status polling.
+ * All configured outputs show — gray when idle, red when on-air.
  */
 
 import { settingsState } from '../lib/settings-state.js'
 import {
-	bootstrapStreamingChannelStatus,
 	getStreamingChannelStatus,
+	isRecordOutputLive,
+	isStreamOutputLive,
+	refreshStreamingChannelStatus,
 	subscribeStreamingChannelStatus,
 } from '../lib/streaming-channel-state.js'
 
@@ -24,16 +26,16 @@ export function initStreamingBadge(container) {
 		}, 50)
 	}
 
-	function hasStreamOrRecordOutputs() {
+	function hasConfiguredOutputs() {
 		const settings = settingsState.getSettings() || {}
 		const streamOut = Array.isArray(settings?.streamOutputs) ? settings.streamOutputs : []
 		const recordOut = Array.isArray(settings?.recordOutputs) ? settings.recordOutputs : []
-		const active = (row) => row && row.enabled !== false && String(row?.id || '').trim()
-		return streamOut.some(active) || recordOut.some(active)
+		const row = (r) => r && r.enabled !== false && String(r?.id || '').trim()
+		return streamOut.some(row) || recordOut.some(row)
 	}
 
 	function renderBadges(st) {
-		if (!hasStreamOrRecordOutputs()) {
+		if (!hasConfiguredOutputs()) {
 			streamStateWrap.innerHTML = ''
 			streamStateWrap.hidden = true
 			return
@@ -47,14 +49,13 @@ export function initStreamingBadge(container) {
 			if (s?.enabled === false) continue
 			const id = String(s?.id || '').trim()
 			if (!id) continue
+			const isOn = isStreamOutputLive(st, id)
 			const idx = id.match(/(\d+)/)?.[1] || ''
 			const fallback = `Str${idx || ''}`.trim() || 'Str'
 			const name = String(s?.name || s?.label || fallback).trim() || fallback
-			const isOn = !!st?.rtmp?.active && String(st?.rtmp?.outputId || '') === id
 			const b = document.createElement('button')
 			b.type = 'button'
-			b.className = 'header-stream-indicator'
-			if (isOn) b.classList.add('active')
+			b.className = `header-stream-indicator${isOn ? ' active' : ''}`
 			const firstChar = name.trim().charAt(0).toUpperCase() || 'S'
 			const labelText =
 				name.toLowerCase().startsWith('str') || name.toLowerCase().startsWith('stream')
@@ -70,14 +71,13 @@ export function initStreamingBadge(container) {
 			if (r?.enabled === false) continue
 			const id = String(r?.id || '').trim()
 			if (!id) continue
+			const isOn = isRecordOutputLive(st, id)
 			const idx = id.match(/(\d+)/)?.[1] || ''
 			const fallback = `Rec${idx || ''}`.trim() || 'Rec'
 			const name = String(r?.name || r?.label || fallback).trim() || fallback
-			const isOn = !!st?.record?.active && String(st?.record?.outputId || '') === id
 			const b = document.createElement('button')
 			b.type = 'button'
-			b.className = 'header-stream-indicator'
-			if (isOn) b.classList.add('active')
+			b.className = `header-stream-indicator${isOn ? ' active' : ''}`
 			const firstChar = name.trim().charAt(0).toUpperCase() || 'R'
 			const labelText =
 				name.toLowerCase().startsWith('rec') || name.toLowerCase().startsWith('record')
@@ -96,21 +96,17 @@ export function initStreamingBadge(container) {
 
 	const unsubStatus = subscribeStreamingChannelStatus((st) => renderBadges(st))
 
-	function scheduleRefresh() {
-		if (!hasStreamOrRecordOutputs()) {
-			streamStateWrap.innerHTML = ''
-			streamStateWrap.hidden = true
-			return
-		}
-		renderBadges(getStreamingChannelStatus())
-	}
+	document.addEventListener('highascg-streaming-changed', () => {
+		void refreshStreamingChannelStatus()
+	})
 
-	scheduleRefresh()
-	void bootstrapStreamingChannelStatus()
+	document.addEventListener('visibilitychange', () => {
+		if (document.visibilityState === 'visible') void refreshStreamingChannelStatus()
+	})
 
-	document.addEventListener('highascg-streaming-changed', () => scheduleRefresh())
+	const unsubSettings = settingsState.subscribe(() => renderBadges(getStreamingChannelStatus()))
 
-	const unsubSettings = settingsState.subscribe(() => scheduleRefresh())
+	void refreshStreamingChannelStatus()
 
 	return {
 		destroy: () => {

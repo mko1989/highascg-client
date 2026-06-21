@@ -41,7 +41,10 @@ function copyClientStaticTreesPlugin() {
 			for (const { src, urlPath } of trees) {
 				if (!fs.existsSync(src)) continue
 				server.middlewares.use(urlPath, (req, res, next) => {
-					const rel = decodeURIComponent((req.url || '').split('?')[0] || '')
+					const urlParts = (req.url || '').split('?')
+					const query = urlParts[1] || ''
+					if (query.includes('raw') || query.includes('import')) return next()
+					const rel = decodeURIComponent(urlParts[0] || '')
 					if (!rel || rel.includes('..') || skipOptionalModuleBundleCopy(rel)) return next()
 					const file = path.join(src, rel)
 					if (!file.startsWith(src)) return next()

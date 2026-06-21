@@ -2,10 +2,21 @@
  * Device View inspector for pixel mapping nodes (WO-41 overhaul).
  */
 import * as MappingNode from '../lib/mapping-node-service.js'
+import { resolveCableSourceResolution } from '../lib/device-view-gpu-source-inherit.js'
 import { STANDARD_VIDEO_MODES } from './device-view-destinations-inspector.js'
 
 function findMappingNode(graph, deviceId) {
 	return (graph?.devices || []).find((d) => d.id === deviceId && d.role === 'pixel_mapping') || null
+}
+
+function resolveMappingInputResolution(graph, nodeId, lastPayload) {
+	const inConn = (graph?.connectors || []).find((c) => c.deviceId === nodeId && c.kind === 'pixel_map_in')
+	if (!inConn) return null
+	const edge = (graph?.edges || []).find((e) => e.sinkId === inConn.id)
+	if (!edge?.sourceId) return null
+	const source = resolveCableSourceResolution(lastPayload, edge.sourceId)
+	if (!source) return null
+	return { width: source.width, height: source.height, fps: source.fps, label: source.label }
 }
 
 export function renderMappingNodeInspector(host, deviceId, live, { lastPayload, statusEl, load, setCasparRestartDirty }) {
@@ -52,29 +63,48 @@ export function renderMappingNodeInspector(host, deviceId, live, { lastPayload, 
 	row('Node Label', nameInp)
 
 	// Input Resolution
-	const inConn = (graph?.connectors || []).find(c => c.deviceId === node.id && c.kind === 'pixel_map_in')
-	let resText = 'Unknown'
-	if (inConn) {
-		const edge = (graph?.edges || []).find(e => e.sinkId === inConn.id)
-		if (edge) {
-			const srcId = String(edge.sourceId)
-			const source = (graph?.sources || []).find(s => s.id === srcId)
-			if (source) {
-				resText = `${source.width || 1920}×${source.height || 1080}`
-			} else {
-				const srcConn = (graph?.connectors || []).find(c => c.id === edge.sourceId)
-				if (srcConn && srcConn.deviceId === 'caspar' && srcConn.kind === 'gpu_out') {
-					const dests = Array.isArray(lastPayload?.screenDestinations?.destinations) ? lastPayload.screenDestinations.destinations : []
-					const d = dests.find(x => String(x.id) === String(srcConn.externalRef))
-					if (d) resText = `${d.width || 1920}×${d.height || 1080}`
-				}
-			}
-		}
+	const inputRes = resolveMappingInputResolution(graph, node.id, lastPayload)
+	let resText = 'Unknown (cable a destination to the mapping input)'
+	if (inputRes) {
+		resText = `${inputRes.width}×${inputRes.height}${Number.isFinite(inputRes.fps) ? ` @ ${inputRes.fps} Hz` : ''}`
+		if (inputRes.label) resText += ` — ${inputRes.label}`
 	}
 	const resDisp = Object.assign(document.createElement('div'), { className: 'device-view__inspector-input', textContent: resText })
 	resDisp.style.opacity = '0.7'
 	resDisp.style.pointerEvents = 'none'
 	row('Input Resolution', resDisp)
+
+	const proposeBtn = document.createElement('button')
+	proposeBtn.type = 'button'
+	proposeBtn.className = 'header-btn'
+	proposeBtn.style.cssText = 'width:100%;margin-bottom:12px;padding:8px'
+	proposeBtn.textContent = 'Propose outputs from input'
+	proposeBtn.title = 'Split input resolution evenly across outputs (horizontal slices + custom modes)'
+	proposeBtn.onclick = async () => {
+		const input = resolveMappingInputResolution(graph, node.id, lastPayload)
+		if (!input) {
+			if (statusEl) statusEl.textContent = 'Cable a destination to the mapping input first.'
+			return
+		}
+		const r = await MappingNode.proposeMappingOutputsFromInput(node.id, input)
+		if (!r.ok) {
+			if (statusEl) statusEl.textContent = r.error || 'Could not propose outputs'
+			return
+		}
+		setCasparRestartDirty(true)
+		if (r.graph) {
+			window.dispatchEvent(new CustomEvent('highascg-device-view-update-payload', { detail: { graph: r.graph } }))
+		}
+		window.dispatchEvent(new CustomEvent('highascg-mapping-inspector-updated', { detail: { nodeId: node.id } }))
+		if (statusEl) {
+			const summary = (r.proposed || [])
+				.map((p, i) => `Out ${i + 1}: ${p.width}×${p.height} @ x=${p.rect.x}`)
+				.join(' · ')
+			statusEl.textContent = summary ? `Proposed ${summary}` : 'Outputs updated from input'
+		}
+		load()
+	}
+	host.appendChild(proposeBtn)
 
 	// Outputs
 	section('Outputs')
@@ -133,33 +163,44 @@ export function renderMappingNodeInspector(host, deviceId, live, { lastPayload, 
 		inpRow('Label', oLabel)
 
 		// Video Mode
-		const isCustomMode = !STANDARD_VIDEO_MODES.includes(out.mode)
+		const outRes = MappingNode.resolveMappingOutputResolution(out)
+		const isCustomMode = outRes.isCustom || !STANDARD_VIDEO_MODES.includes(out.mode)
 		const vMode = document.createElement('select'); vMode.className = 'device-view__inspector-input'
 		vMode.appendChild(Object.assign(document.createElement('option'), { value: 'custom', textContent: 'Custom', selected: isCustomMode }))
 		for (const m of STANDARD_VIDEO_MODES) {
-			vMode.appendChild(Object.assign(document.createElement('option'), { value: m, textContent: m, selected: out.mode === m }))
+			vMode.appendChild(Object.assign(document.createElement('option'), { value: m, textContent: m, selected: !isCustomMode && out.mode === m }))
 		}
 		
 		const customBox = document.createElement('div')
 		customBox.style.cssText = 'display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin-bottom:8px'
-		const cW = Object.assign(document.createElement('input'), { type: 'number', placeholder: 'W', className: 'device-view__inspector-input', value: out.width || 1920 })
-		const cH = Object.assign(document.createElement('input'), { type: 'number', placeholder: 'H', className: 'device-view__inspector-input', value: out.height || 1080 })
-		const cF = Object.assign(document.createElement('input'), { type: 'number', placeholder: 'FPS', className: 'device-view__inspector-input', value: out.fps || 50 })
+		const cW = Object.assign(document.createElement('input'), { type: 'number', placeholder: 'W', className: 'device-view__inspector-input', value: outRes.width })
+		const cH = Object.assign(document.createElement('input'), { type: 'number', placeholder: 'H', className: 'device-view__inspector-input', value: outRes.height })
+		const cF = Object.assign(document.createElement('input'), { type: 'number', placeholder: 'FPS', step: '0.01', className: 'device-view__inspector-input', value: outRes.fps })
 		customBox.append(cW, cH, cF)
 		customBox.style.display = isCustomMode ? 'grid' : 'none'
 
 		const saveCustom = async () => {
-			const r = await MappingNode.updateMappingOutputFields(node.id, out.id, { 
-				mode: vMode.value === 'custom' ? `${cW.value}x${cH.value}p${cF.value}` : vMode.value,
-				width: parseInt(cW.value, 10), height: parseInt(cH.value, 10), fps: parseFloat(cF.value)
-			})
+			const width = Math.max(1, parseInt(cW.value, 10) || 1)
+			const height = Math.max(1, parseInt(cH.value, 10) || 1)
+			const fps = Math.max(1, parseFloat(cF.value) || 50)
+			const mode =
+				vMode.value === 'custom'
+					? MappingNode.formatCustomVideoMode(width, height, fps)
+					: vMode.value
+			const r = await MappingNode.updateMappingOutputFields(node.id, out.id, { mode, width, height, fps })
 			if (r.ok) {
 				setCasparRestartDirty(true)
+				if (r.graph) {
+					window.dispatchEvent(new CustomEvent('highascg-device-view-update-payload', { detail: { graph: r.graph } }))
+				}
 				window.dispatchEvent(new CustomEvent('highascg-mapping-inspector-updated', { detail: { nodeId: node.id } }))
 				load()
 			}
 		}
-		vMode.onchange = () => { customBox.style.display = vMode.value === 'custom' ? 'grid' : 'none'; saveCustom() }
+		vMode.onchange = () => {
+			customBox.style.display = vMode.value === 'custom' ? 'grid' : 'none'
+			if (vMode.value !== 'custom') saveCustom()
+		}
 		cW.onchange = cH.onchange = cF.onchange = saveCustom
 
 		inpRow('Mode', vMode)
@@ -167,7 +208,7 @@ export function renderMappingNodeInspector(host, deviceId, live, { lastPayload, 
 
 		// Position on canvas (Mapping) — full rect: x, y, w, h
 		const slice = mappings.find(m => String(m.outputId) === String(out.id)) || null
-		const outRes = MappingNode.videoModeToResolution(out.mode || '1080p5000')
+		const sliceRes = MappingNode.videoModeToResolution(out.mode || '1080p5000')
 		const posBox = document.createElement('div')
 		posBox.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px'
 		
@@ -186,8 +227,8 @@ export function renderMappingNodeInspector(host, deviceId, live, { lastPayload, 
 
 		const { f: fX, inp: pX } = createPosField('Src X', slice?.rect?.x ?? 0, (v) => saveRect(v, pY.value, pW.value, pH.value))
 		const { f: fY, inp: pY } = createPosField('Src Y', slice?.rect?.y ?? 0, (v) => saveRect(pX.value, v, pW.value, pH.value))
-		const { f: fW, inp: pW } = createPosField('Width', slice?.rect?.w ?? outRes.w, (v) => saveRect(pX.value, pY.value, v, pH.value))
-		const { f: fH, inp: pH } = createPosField('Height', slice?.rect?.h ?? outRes.h, (v) => saveRect(pX.value, pY.value, pW.value, v))
+		const { f: fW, inp: pW } = createPosField('Width', slice?.rect?.w ?? sliceRes.w, (v) => saveRect(pX.value, pY.value, v, pH.value))
+		const { f: fH, inp: pH } = createPosField('Height', slice?.rect?.h ?? sliceRes.h, (v) => saveRect(pX.value, pY.value, pW.value, v))
 
 		pX.dataset.sliceOutputId = out.id; pX.dataset.field = 'x';
 		pY.dataset.sliceOutputId = out.id; pY.dataset.field = 'y';
@@ -201,8 +242,8 @@ export function renderMappingNodeInspector(host, deviceId, live, { lastPayload, 
 			const ms = Array.isArray(n.settings?.mappings) ? n.settings.mappings : []
 			let s = ms.find(m => String(m.outputId) === String(out.id))
 			if (!s) {
-				const res = MappingNode.videoModeToResolution(out.mode)
-				s = { id: 'map_' + Date.now().toString(36), type: 'video_slice', label: out.label, rect: { x: 0, y: 0, w: res.w, h: res.h }, rotation: 0, outputId: out.id }
+				const res = MappingNode.resolveMappingOutputResolution(out)
+				s = { id: 'map_' + Date.now().toString(36), type: 'video_slice', label: out.label, rect: { x: 0, y: 0, w: res.width, h: res.height }, rotation: 0, outputId: out.id }
 				ms.push(s)
 			}
 			s.rect.x = parseInt(x, 10) || 0

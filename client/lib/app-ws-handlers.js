@@ -13,7 +13,6 @@ import {
 	clearStreamingChannelStatus,
 	ingestStreamingChannelChange,
 	ingestStreamingChannelWsEvent,
-	setStreamingChannelStatus,
 } from './streaming-channel-state.js'
 
 /**
@@ -48,8 +47,6 @@ export function attachWsHandlers(ws, { stateStore, sceneState, timelineState, mu
 	ws.on('state', (data) => {
 		stateStore.setState(data)
 		applyWsStateSideEffects(data, { sceneState, programOutputState, appLogic })
-		if (data?.streamingChannel != null) setStreamingChannelStatus(data.streamingChannel)
-		if (data?.['streaming-channel'] != null) setStreamingChannelStatus(data['streaming-channel'])
 		if (data?.catalogDeferred) {
 			void loadDeferredCatalogOverWs(ws, stateStore, (full) =>
 				applyWsStateSideEffects(full, { sceneState, programOutputState, appLogic }),

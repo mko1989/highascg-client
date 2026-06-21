@@ -24,12 +24,16 @@ function onGpuLayoutChanged(e) {
 	}
 	item.hidden = !!hidden
 
+	const slotId = String(item.id || '').replace(/__.*$/i, '')
+	const canonicalId =
+		/^gpu_p\d+$/i.test(slotId)
+			? slotId
+			: resolveCanonicalGpuConnectorId(item.pairs, gpuPhysicalPorts, gpuOuts) || item.id
 	const connectedDisplays = ctx.live?.gpu?.displays || []
 	const connected = item.pairs.some((pName) =>
 		connectedDisplays.some((d) => d.connected && normRandrCaspar(d.name) === normRandrCaspar(pName)),
 	)
 	item.connected = connected
-	const canonicalId = resolveCanonicalGpuConnectorId(item.pairs, gpuPhysicalPorts, gpuOuts) || item.id
 
 	const element = casparOverlay?.querySelector?.(`[data-layout-slot-id="${item.id}"]`)
 	if (!element) return

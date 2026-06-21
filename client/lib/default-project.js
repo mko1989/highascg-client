@@ -2,6 +2,7 @@
  * Default empty project — shared by New project, factory reset, and server bootstrap fallbacks.
  */
 import { api } from './api-client.js'
+import { fetchProjectFromServer } from './project-load.js'
 import { defaultTransition } from './scene-state-helpers.js'
 import { projectState } from './project-state.js'
 import { sceneState } from './scene-state.js'
@@ -10,7 +11,7 @@ import { multiviewState } from './multiview-state.js'
 import { programOutputState } from './program-output-state.js'
 import { projectFileIdFromName } from './project-files.js'
 import { markLocalProjectSaved } from './project-remote-sync.js'
-import { markServerProjectSynced } from './server-project-sync.js'
+import { markServerProjectSynced, resetServerProjectSync } from './server-project-sync.js'
 import { getAppWs } from './app-runtime.js'
 import { flushSceneDeckSync } from './app-scene-deck.js'
 
@@ -78,17 +79,59 @@ export function applyDefaultUntitledProjectLocally(opts = {}) {
 	if (emitLoaded) window.dispatchEvent(new Event('project-loaded'))
 }
 
+/** @param {string} message */
+function isProjectSaveConflictError(message) {
+	return /409|payload is older|save rejected/i.test(String(message || ''))
+}
+
+/** @param {unknown} project */
+function isEmptyStoredProject(project) {
+	if (!project || typeof project !== 'object') return false
+	const scenes = /** @type {{ scenes?: unknown[] }} */ (project).scenes
+	const list = Array.isArray(scenes) ? scenes : scenes && typeof scenes === 'object' ? scenes.scenes : null
+	return Array.isArray(list) && list.length === 0
+}
+
+/**
+ * POST /api/project/save — optional force bypasses server savedAt conflict checks (factory reset).
+ * @param {object} project
+ * @param {string} id
+ * @param {{ force?: boolean }} [opts]
+ */
+async function postProjectSave(project, id, opts = {}) {
+	project.savedAt = new Date().toISOString()
+	const body = { project, id }
+	if (opts.force) body.force = true
+	try {
+		await api.post('/api/project/save', body)
+		return
+	} catch (e) {
+		if (!isProjectSaveConflictError(e?.message)) throw e
+		if (opts.force) {
+			try {
+				const serverProject = await fetchProjectFromServer()
+				if (isEmptyStoredProject(serverProject)) return
+			} catch {
+				/* fall through to forced save */
+			}
+		}
+		project.savedAt = new Date().toISOString()
+		await api.post('/api/project/save', { project, id, force: true })
+	}
+}
+
 /**
  * Persist empty Untitled project to the playout server and sync deck metadata.
+ * @param {{ silent?: boolean, force?: boolean }} [opts]
  * @returns {Promise<object>} saved project payload
  */
 export async function saveDefaultUntitledProjectToServer(opts = {}) {
-	const { silent = true } = opts
+	const { silent = true, force = false } = opts
 	applyDefaultUntitledProjectLocally({ silent, emitLoaded: false })
 	const project = projectState.exportProject(sceneState, timelineState, multiviewState, programOutputState)
 	project.name = DEFAULT_PROJECT_NAME
 	const id = projectFileIdFromName(project.name)
-	await api.post('/api/project/save', { project, id })
+	await postProjectSave(project, id, { force })
 	markLocalProjectSaved()
 	markServerProjectSynced()
 	const appWs = getAppWs()
@@ -101,6 +144,7 @@ export async function saveDefaultUntitledProjectToServer(opts = {}) {
  * Factory reset: server config wipe + empty Untitled project (clears all looks).
  */
 export async function performFactoryReset() {
+	resetServerProjectSync()
 	await api.post('/api/config/reset', { reset: true })
-	await saveDefaultUntitledProjectToServer()
+	await saveDefaultUntitledProjectToServer({ force: true })
 }

@@ -1,4 +1,4 @@
-import { hasDrmGpuPhysicalMap } from '../lib/device-view-gpu-port-list.js'
+import { hasDrmGpuPhysicalMap, readGpuLayoutPrefs, resolveEffectiveGpuTopology } from '../lib/device-view-gpu-port-list.js'
 import { normRandrCaspar } from './device-view-caspar-render-helpers.js'
 
 export const CASPAR_HOST = 'caspar_host'
@@ -40,16 +40,30 @@ export function connectorById(payload, id) {
 			}
 		}
 		const p = ports.find((x) => String(x?.physicalPortId || '').trim() === sid) || null
+		const topo = resolveEffectiveGpuTopology(
+			payload?.gpuPhysicalTopology || payload?.settings?.gpuPhysicalTopology,
+			readGpuLayoutPrefs(),
+		)
+		const topoRow = topo.find((t) => String(t?.physicalPortId || '').trim() === sid) || null
 		const pairName = String(p?.pair?.name || '').trim()
 		const active = String(p?.runtime?.activePort || '').trim()
-		const fallbackLabel = pairName ? `DP(${pairName.replace(/DP-/gi, '').replace('/', '/')})` : sid
+		const topoPairs = topoRow ? [topoRow.dpA, topoRow.dpB].filter(Boolean) : []
+		const topoLabel = topoPairs.length ? topoPairs.join('/') : ''
+		const fallbackLabel = pairName || topoLabel || sid
 		return {
 			id: sid,
 			deviceId: CASPAR_HOST,
 			kind: 'gpu_out',
 			label: fallbackLabel,
-			externalRef: active || pairName || sid,
-			gpuPhysical: p?.pair ? { pair: p.pair, slotOrder: p.slotOrder } : undefined,
+			externalRef: active || pairName || topoPairs[0] || sid,
+			gpuPhysical: p?.pair
+				? { pair: p.pair, slotOrder: p.slotOrder }
+				: topoRow
+					? {
+							pair: { name: topoLabel, dpA: topoRow.dpA, dpB: topoRow.dpB },
+							slotOrder: topoRow.slotOrder,
+						}
+					: undefined,
 			isSynthetic: true,
 		}
 	}
@@ -209,6 +223,13 @@ export function isConnectorVisible(lastPayload, id) {
 	if (hasDrmGpuPhysicalMap(lastPayload?.live)) {
 		const ports = lastPayload?.live?.gpu?.physicalMap?.ports || []
 		if (ports.some((p) => String(p?.physicalPortId || '').trim() === sid)) return true
+		if (/^gpu_p\d+$/i.test(sid)) {
+			const topo = resolveEffectiveGpuTopology(
+				lastPayload?.gpuPhysicalTopology || lastPayload?.settings?.gpuPhysicalTopology,
+				readGpuLayoutPrefs(),
+			)
+			if (topo.some((t) => String(t?.physicalPortId || '').trim() === sid)) return true
+		}
 		if (/^gpu_p\d+__/i.test(sid)) {
 			const parent = sid.replace(/__.*$/, '')
 			if (ports.some((p) => String(p?.physicalPortId || '').trim() === parent)) return true

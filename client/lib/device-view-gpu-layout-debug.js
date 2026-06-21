@@ -281,10 +281,132 @@ export function traceGpuLayoutRearPanelRender(ctx) {
  * @param {object} [lastPayload] full /api/device-view body; uses `.live` when omitted
  */
 export function dumpGpuLayoutServerPayload(lastPayload) {
+	const report = buildGpuLayoutDiagnosticReport(lastPayload)
+	console.info('[gpu-layout] server payload dump', report)
+	console.info(
+		'[gpu-layout] rear jacks: server map has %s port(s); expected up to gpu_p%s',
+		report.server.physicalPortCount,
+		Math.max(0, report.server.expectedRearJackCount - 1),
+	)
+	if (report.issues.length) {
+		console.warn('[gpu-layout] issues (likely fault attribution hints):', report.issues)
+	}
+	return report
+}
+
+/**
+ * Compact report: raw server GPU slices + mismatch hints (no client build — avoids circular import).
+ * @param {object} [lastPayload] full GET /api/device-view body
+ */
+export function buildGpuLayoutDiagnosticReport(lastPayload) {
 	const live = lastPayload?.live ?? lastPayload
 	const gpu = live?.gpu || {}
 	const suggested = (lastPayload?.suggested?.connectors || []).filter((c) => c?.kind === 'gpu_out')
-	const physicalPorts = gpu.physicalMap?.ports || []
+	const graphGpu = (lastPayload?.graph?.connectors || []).filter(
+		(c) => c?.kind === 'gpu_out' || c?.kind === 'gpu_output',
+	)
+	const physicalPorts = Array.isArray(gpu.physicalMap?.ports) ? gpu.physicalMap.ports : []
+	const displays = Array.isArray(gpu.displays) ? gpu.displays : []
+	const connectors = Array.isArray(gpu.connectors) ? gpu.connectors : []
+	const issues = []
+
+	if (Array.isArray(live?.warnings) && live.warnings.length) {
+		for (const w of live.warnings) issues.push({ who: 'server', code: 'live_warning', detail: String(w) })
+	}
+	if (!physicalPorts.length && !suggested.length) {
+		issues.push({
+			who: 'server',
+			code: 'no_gpu_ports',
+			detail: 'physicalMap.ports and suggested gpu_out are both empty — rear panel cannot be built',
+		})
+	}
+	if (!displays.length) {
+		issues.push({
+			who: 'server',
+			code: 'no_displays',
+			detail: 'live.gpu.displays empty — xrandr probe failed or no X session (check DISPLAY=:0)',
+		})
+	}
+	const connectedDisplays = displays.filter((d) => d?.connected)
+	const mappedNames = new Set()
+	for (const p of physicalPorts) {
+		const rt = p?.runtime || {}
+		if (rt.activePort) mappedNames.add(String(rt.activePort).toUpperCase())
+		for (const key of ['connectorA', 'connectorB']) {
+			const sn = p?.probe?.[key]?.shortName
+			if (sn) mappedNames.add(String(sn).toUpperCase())
+		}
+		const pair = p?.pair || {}
+		if (pair.dpA) mappedNames.add(String(pair.dpA).toUpperCase())
+		if (pair.dpB) mappedNames.add(String(pair.dpB).toUpperCase())
+	}
+	for (const d of connectedDisplays) {
+		const name = String(d?.name || '').trim().toUpperCase()
+		if (!name) continue
+		if (mappedNames.has(name)) continue
+		const inUnmappedPort = physicalPorts.some(
+			(p) =>
+				String(p?.runtime?.activePort || '').toUpperCase() === name ||
+				String(p?.pair?.dpA || '').toUpperCase() === name ||
+				String(p?.pair?.dpB || '').toUpperCase() === name,
+		)
+		if (!inUnmappedPort) {
+			issues.push({
+				who: 'server',
+				code: 'display_not_in_topology',
+				detail: `xrandr output ${d.name} is connected but not mapped to gpu_pN (wrong gpuPhysicalTopology?)`,
+			})
+		}
+	}
+	const unmappedPorts = physicalPorts.filter((p) => p?.unmapped || String(p?.physicalPortId || '').startsWith('gpu_unmapped'))
+	if (unmappedPorts.length) {
+		issues.push({
+			who: 'server',
+			code: 'unmapped_ports',
+			detail: `${unmappedPorts.length} display(s) placed in gpu_unmapped_* — topology does not match xrandr names`,
+			ports: unmappedPorts.map((p) => ({
+				id: p.physicalPortId,
+				activePort: p?.runtime?.activePort,
+				resolution: p?.runtime?.resolution,
+			})),
+		})
+	}
+	const topo = String(gpu.physicalMap?.topologySource || '').trim()
+	if (gpu.physicalMap?.topologyReconciled) {
+		issues.push({
+			who: 'server',
+			code: 'topology_live_reconciled',
+			detail:
+				'Saved gpuPhysicalTopology did not match live xrandr (e.g. DP-4 was gpu_unmapped). Server applied RTX 20/30 map from connected outputs — Save GPU layout to persist.',
+		})
+	}
+	if (topo === 'default') {
+		issues.push({
+			who: 'server',
+			code: 'default_topology',
+			detail: 'Using built-in default map (RTX 20/30): gpu_p0 DP 0/1, gpu_p1 HDMI, gpu_p2 DP 2/3, gpu_p3 DP 4/5',
+		})
+	}
+	const staleGraph = graphGpu.filter((c) => {
+		const id = String(c?.id || '')
+		return id && !/^gpu_p\d+(__.*)?$/i.test(id) && !id.startsWith('gpu_unmapped')
+	})
+	if (staleGraph.length) {
+		issues.push({
+			who: 'client_or_config',
+			code: 'legacy_graph_gpu_ids',
+			detail: 'graph has gpu_out ids that are not gpu_pN — may not appear on rear panel',
+			ids: staleGraph.map((c) => c.id),
+		})
+	}
+	if (suggested.length && physicalPorts.length && suggested.length !== physicalPorts.filter((p) => !p?.unmapped).length) {
+		issues.push({
+			who: 'server',
+			code: 'suggested_vs_physical_mismatch',
+			detail: `suggested gpu_out count (${suggested.length}) differs from physicalMap canonical ports (${physicalPorts.filter((p) => !String(p?.physicalPortId || '').startsWith('gpu_unmapped')).length})`,
+		})
+	}
+
 	let maxP = -1
 	for (const p of physicalPorts) {
 		const m = /^gpu_p(\d+)$/i.exec(String(p?.physicalPortId || ''))
@@ -294,25 +416,29 @@ export function dumpGpuLayoutServerPayload(lastPayload) {
 		const m = /^gpu_p(\d+)$/i.exec(String(c?.id || ''))
 		if (m) maxP = Math.max(maxP, parseInt(m[1], 10))
 	}
-	const expectedPorts = Math.max(physicalPorts.length, maxP + 1)
-	const out = {
-		model: gpu.model,
-		topologySource: gpu.physicalMap?.topologySource,
-		physicalPortCount: physicalPorts.length,
-		expectedRearJackCount: expectedPorts,
-		displayCount: gpu.displays?.length ?? 0,
-		suggestedGpuOutCount: suggested.length,
-		physicalMap: gpu.physicalMap,
-		displays: gpu.displays,
-		suggestedGpuOuts: suggested,
+
+	return {
+		collectedAt: live?.host?.collectedAt || null,
+		hostname: live?.host?.hostname || null,
+		warnings: live?.warnings || [],
+		server: {
+			model: gpu.model || null,
+			topologySource: gpu.physicalMap?.topologySource || null,
+			physicalPortCount: physicalPorts.length,
+			expectedRearJackCount: Math.max(physicalPorts.length, maxP + 1),
+			displayCount: displays.length,
+			connectedDisplayCount: connectedDisplays.length,
+			connectorInventoryCount: connectors.length,
+			suggestedGpuOutCount: suggested.length,
+			graphGpuOutCount: graphGpu.length,
+			physicalMap: gpu.physicalMap,
+			displays,
+			connectors,
+			suggestedGpuOuts: suggested,
+			graphGpuOuts: graphGpu,
+		},
+		issues,
 	}
-	console.info('[gpu-layout] server payload dump', out)
-	console.info(
-		'[gpu-layout] rear jacks: server map has %s port(s); UI builds gpu_p0..gpu_p%s from map + suggested only',
-		out.physicalPortCount,
-		Math.max(0, expectedPorts - 1),
-	)
-	return out
 }
 
 if (typeof globalThis !== 'undefined') {
@@ -333,5 +459,20 @@ if (typeof globalThis !== 'undefined') {
 			}
 		},
 		dumpServer: dumpGpuLayoutServerPayload,
+		report: buildGpuLayoutDiagnosticReport,
+		copyReport: async (lastPayload) => {
+			const payload =
+				lastPayload ||
+				(await (await import('../components/device-view-actions.js')).loadDeviceView())
+			const report = buildGpuLayoutDiagnosticReport(payload)
+			const text = JSON.stringify(report, null, 2)
+			try {
+				await navigator.clipboard.writeText(text)
+				console.info('[gpu-layout] diagnostic report copied to clipboard')
+			} catch {
+				console.info('[gpu-layout] diagnostic report', report)
+			}
+			return report
+		},
 	}
 }

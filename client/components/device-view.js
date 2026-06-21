@@ -22,6 +22,8 @@ import { getStreamingChannelStatus } from '../lib/streaming-channel-state.js'
 import { renderConnectorInspector, renderCasparSettingsInspector } from './device-view-inspectors.js'
 import { showLogsModal } from './logs-modal.js'
 import { describeCableRejection, cableReasonFromError } from '../lib/device-view-cable-messages.js'
+import { isUnknownCableConnectorError, resolveCableEdgeIds, findGpuSinkCableConflict } from '../lib/device-view-cable-resolve.js'
+import { gpuPhysicalPortCableId } from '../lib/device-view-gpu-port-list.js'
 import { showCasparConfigModal } from './caspar-config-modal.js'
 import { renderDestinationInspector } from './device-view-destinations-inspector.js'
 import { openSaveDeviceSnapshotModal, openLoadDeviceSnapshotModal } from './device-view-snapshot-modals.js'
@@ -30,6 +32,12 @@ import {
 	screenConsumerDefaultsSettingsPatch,
 	shouldSeedScreenConsumerDefaults,
 } from '../lib/screen-consumer-defaults.js'
+import {
+	gpuOutputBindingFromCableSource,
+	gpuScreenInheritedSettingsPatch,
+	mergeSettingsPatches,
+	resolveCableSourceResolution,
+} from '../lib/device-view-gpu-source-inherit.js'
 
 let mounted = false; export function initDeviceView(root) {
 	if (!root || mounted) return; mounted = true; root.innerHTML = ''
@@ -252,11 +260,78 @@ let mounted = false; export function initDeviceView(root) {
 			updateUI()
 			return
 		}
+		const resolved = resolveCableEdgeIds(lastPayload, o.sourceId, o.sinkId)
+		const sinkConflict = findGpuSinkCableConflict(lastPayload, resolved.sinkId)
+		if (sinkConflict) {
+			const sinkLabel = friendlyConnectorLabel(lastPayload, resolved.sinkId)
+			const srcLabel = friendlyConnectorLabel(lastPayload, sinkConflict.sourceId)
+			const clickedPort = gpuPhysicalPortCableId(id)
+			const bracketNote =
+				clickedPort &&
+				resolved.sinkId &&
+				clickedPort === resolved.sinkId &&
+				/__/.test(String(id))
+					? ' (DP A/B names on the same physical socket share one cable slot)'
+					: ''
+			setStatus(
+				statusEl,
+				`${sinkLabel} already has a cable from ${srcLabel}. Remove that cable first.${bracketNote}`,
+				false,
+			)
+			cableSourceId = null
+			cablePointer = null
+			focusConnectorById(id)
+			updateUI()
+			return
+		}
 		try {
 			pushUndo()
-			const res = await Actions.addCable(o.sourceId, o.sinkId)
+			const preflight = await Actions.ensureCableConnectorsInSavedGraph(
+				lastPayload,
+				currentSettings,
+				resolved.sourceId,
+				resolved.sinkId,
+			)
+			if (preflight?.graph) lastPayload.graph = preflight.graph
+			if (preflight?.fresh) {
+				lastPayload = {
+					...preflight.fresh,
+					gpuPhysicalTopology: lastPayload.gpuPhysicalTopology,
+				}
+			}
+			let res
+			try {
+				res = await Actions.addCable(resolved.sourceId, resolved.sinkId)
+			} catch (firstErr) {
+				if (!isUnknownCableConnectorError(firstErr?.message || firstErr)) throw firstErr
+				const recovered = await Actions.recoverDeviceGraphForCable(
+					lastPayload,
+					currentSettings,
+					resolved.sourceId,
+					resolved.sinkId,
+				)
+				if (recovered.topology) {
+					lastPayload = { ...lastPayload, gpuPhysicalTopology: recovered.topology }
+					if (currentSettings) {
+						currentSettings = { ...currentSettings, gpuPhysicalTopology: recovered.topology }
+					}
+				}
+				if (recovered.fresh) {
+					lastPayload = {
+						...recovered.fresh,
+						gpuPhysicalTopology: recovered.topology || lastPayload.gpuPhysicalTopology,
+					}
+				} else if (recovered.graph) {
+					lastPayload.graph = recovered.graph
+				}
+				res = await Actions.addCable(resolved.sourceId, resolved.sinkId)
+			}
 			if (res?.error) {
-				setStatus(statusEl, describeCableRejection(res.error), false)
+				setStatus(
+					statusEl,
+					`${describeCableRejection(res.error)} (${resolved.sourceId} → ${resolved.sinkId})`,
+					false,
+				)
 				cableSourceId = null
 				cablePointer = null
 				focusConnectorById(id)
@@ -264,15 +339,29 @@ let mounted = false; export function initDeviceView(root) {
 				return
 			}
 			if (res?.graph) lastPayload.graph = res.graph
-			const sinkConn = connectorById(lastPayload, o.sinkId)
+			const sinkConn = connectorById(lastPayload, resolved.sinkId)
 			if (sinkConn?.kind === 'gpu_out' && currentSettings) {
 				const cs =
 					currentSettings.casparServer && typeof currentSettings.casparServer === 'object'
 						? currentSettings.casparServer
 						: {}
 				const screenN = resolveGpuScreenNumber(sinkConn, lastPayload)
+				const source = resolveCableSourceResolution(lastPayload, resolved.sourceId)
+				const settingsPatches = []
 				if (shouldSeedScreenConsumerDefaults(cs, screenN)) {
-					await Actions.saveSettingsPatch(screenConsumerDefaultsSettingsPatch(screenN))
+					settingsPatches.push(screenConsumerDefaultsSettingsPatch(screenN))
+				}
+				if (source) {
+					settingsPatches.push(gpuScreenInheritedSettingsPatch(screenN, source))
+				}
+				if (settingsPatches.length) {
+					await Actions.saveSettingsPatch(mergeSettingsPatches(...settingsPatches))
+				}
+				if (source) {
+					const connectorPatch = { caspar: { mode: source.videoMode } }
+					const outputBinding = gpuOutputBindingFromCableSource(lastPayload, resolved.sourceId)
+					if (outputBinding) connectorPatch.caspar.outputBinding = outputBinding
+					await Actions.updateConnector(resolved.sinkId, connectorPatch)
 				}
 			}
 			cableSourceId = null
@@ -389,7 +478,7 @@ let mounted = false; export function initDeviceView(root) {
 					? Promise.resolve(cachedStream)
 					: Actions.getStreamingChannelStatus().catch(() => null),
 			])
-			lastPayload = payload; currentSettings = settings; streamingStatus = stream
+			lastPayload = { ...payload, gpuPhysicalTopology: settings?.gpuPhysicalTopology || null }; currentSettings = settings; streamingStatus = stream
 			renderDestinations({ destBody, lastPayload, highlightDestinationIntent: () => {}, clearChipHighlights: () => {}, renderIntoInspector: rIntoInsp, selectDestinationById, patchDestination: (id, p) => Actions.patchDestination(id, p).then(() => { setCasparRestartDirty(true); return load() }), removeDestination: (id) => Actions.removeDestination(id).then(() => { selectedDestinationId = null; setCasparRestartDirty(true); return load() }), applyPlan: () => Actions.applyDeviceViewPlan({ applyCaspar: true }).then(() => { setCasparRestartDirty(false); return load() }), resolveDestinationSinkConnectorId: (d) => resolveDestinationSinkConnectorId(lastPayload, d), cableSourceId, onDestinationPortClick: (connectorId) => beginOrCompleteCable('dest:' + connectorId, connectorId, {}), onDecklinkDropToDestinationOutput: (connectorId, d, intent) => setDecklinkAsDestinationOutput(connectorId, d, intent), updateDestinationOutputLayer, persistDestinationLayout, resetDestinationLayout, requestCableOverlayRender: () => renderCableOverlay(getCOCtx()) })
 			renderBands(mappingPanel, rearPanel, { live: lastPayload.live, lastPayload, resolveConnectorId: (t, d) => resolveConnectorId(lastPayload, t, d), isConnectorVisible: (id) => isConnectorVisible(lastPayload, id), selectedKey, cableSourceId, onPortClick: selectKey, onPortStartCable: beginOrCompleteCable, selectDevice, selectedConnectorId }, { currentSettings, statusEl, load, setCasparRestartDirty }); rearPanel.append(edgesHost)
 			edgesHost.innerHTML = ''; const edges = lastPayload?.graph?.edges || []; if (edges.length) { const b = Object.assign(document.createElement('div'), { className: 'device-view__band' }); b.append(Object.assign(document.createElement('h3'), { textContent: 'Cables' })); const ul = Object.assign(document.createElement('ul'), { className: 'device-view__edge-list' }); edges.forEach(e => { const li = Object.assign(document.createElement('li'), { className: `device-view__edge-item ${selectedEdgeId === e.id ? 'device-view__edge-item--selected' : ''}` }); li.onmouseenter = () => { hoveredEdgeId = e.id; renderCableOverlay(getCOCtx()) }; li.onmouseleave = () => { hoveredEdgeId = null; renderCableOverlay(getCOCtx()) }; li.onclick = () => selectEdgeById(e.id); li.append(Object.assign(document.createElement('span'), { textContent: `${friendlyConnectorLabel(lastPayload, e.sourceId)} → ${friendlyConnectorLabel(lastPayload, e.sinkId)} ` })); ul.append(li) }); b.append(ul); edgesHost.append(b) }

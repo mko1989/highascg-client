@@ -129,6 +129,9 @@ function liveOsKeyMap(ctx) {
 		displays.forEach((d, i) => {
 			const n = d?.screenIndex ?? d?.screen ?? i + 1
 			if (d?.mode != null) out[`screen_${n}_os_mode`] = d.mode
+			if (d?.refreshHz != null && out[`screen_${n}_os_rate`] == null) {
+				out[`screen_${n}_os_rate`] = d.refreshHz
+			}
 			if (d?.x != null) out[`screen_${n}_os_x`] = d.x
 			if (d?.y != null) out[`screen_${n}_os_y`] = d.y
 		})
@@ -231,6 +234,23 @@ function diffScreenDestinations(savedDest, liveDest) {
 /** OS keys where unset / false / empty are equivalent (server often omits defaults). */
 const OS_BOOLEAN_KEYS = new Set(['x11_horizontal_swap'])
 
+/** Live settings often omit these; treat as defaults when comparing. */
+function defaultOsValueForKey(key) {
+	if (/_os_backend$/.test(key)) return 'xrandr'
+	if (/_os_timing_source$/.test(key)) return 'cvt'
+	return null
+}
+
+/** @param {unknown} rate */
+function osRatesEquivalent(a, b) {
+	const fa = parseFloat(String(a))
+	const fb = parseFloat(String(b))
+	if (!Number.isFinite(fa) || !Number.isFinite(fb)) {
+		return normalizeOsScalar(a) === normalizeOsScalar(b)
+	}
+	return Math.abs(fa - fb) < 0.15
+}
+
 /**
  * @param {unknown} value
  */
@@ -259,6 +279,19 @@ function osDisplayValuesEqual(key, a, b) {
 	if (OS_BOOLEAN_KEYS.has(key) || /_override$/.test(key)) {
 		return toOsBool(a) === toOsBool(b)
 	}
+	if (/_os_rate$/.test(key)) {
+		return osRatesEquivalent(a, b)
+	}
+	if (/_os_backend$/.test(key)) {
+		const na = normalizeOsScalar(a) || 'xrandr'
+		const nb = normalizeOsScalar(b) || 'xrandr'
+		return na === nb
+	}
+	if (/_os_timing_source$/.test(key)) {
+		const na = (normalizeOsScalar(a) || 'cvt').toLowerCase().replace(/-/g, '_')
+		const nb = (normalizeOsScalar(b) || 'cvt').toLowerCase().replace(/-/g, '_')
+		return na === nb
+	}
 	const na = normalizeOsScalar(a)
 	const nb = normalizeOsScalar(b)
 	if (na === null && nb === null) return true
@@ -272,18 +305,20 @@ function osDisplayValuesEqual(key, a, b) {
  */
 function diffOsLayout(savedOs, liveOs) {
 	const items = []
-	const keys = new Set([...Object.keys(savedOs), ...Object.keys(liveOs)])
-	for (const k of keys) {
+	for (const k of Object.keys(savedOs)) {
 		if (!OS_DISPLAY_KEY_RE.test(k)) continue
 		const a = savedOs[k]
-		const b = liveOs[k]
+		const liveRaw = liveOs[k]
+		const liveNorm = normalizeOsScalar(liveRaw)
+		// Server often omits OS keys for heads with no live xrandr output — not a conflict.
+		if (liveNorm === null && defaultOsValueForKey(k) === null) continue
+		const b = liveNorm === null ? defaultOsValueForKey(k) : liveRaw
 		if (osDisplayValuesEqual(k, a, b)) continue
-		const modeKey = /_os_(mode|x|y)$/.test(k)
 		const fmt = (v) => (v === undefined || v === null || v === '' ? '—' : String(v))
 		items.push({
 			section: 'OS display layout',
-			message: `${k}: project “${fmt(a)}” vs live “${fmt(b)}”.`,
-			severity: modeKey ? 'soft' : 'hard',
+			message: `${k}: project “${fmt(a)}” vs live “${fmt(liveNorm === null ? b : liveRaw)}”.`,
+			severity: 'soft',
 		})
 	}
 	return items

@@ -48,7 +48,7 @@ export function renderLiveTab(listEl, {
 	if (sources.some((s) => s.routeType === 'live_audio')) {
 		hintParts.push('Live audio: configure in Settings → live audio, then drag onto looks.')
 	}
-	if (sources.some(s => s.routeType === 'layer')) hintParts.push('Layer routes: Looks row ↗ (Shift+↗ = PGM bus, Ctrl+↗ = PRV). Drag onto another layer.')
+	if (sources.some(s => s.routeType === 'layer')) hintParts.push('Layer routes: Looks row ↗ (default = PGM; Shift+↗ = edit bus, Ctrl+↗ = PRV). Drag onto another layer.')
 	if (hintParts.length) listEl.innerHTML = `<p class="sources-live-hint">${hintParts.join(' ')}</p>`
 	sources.forEach(s => {
 		const el = document.createElement('div')

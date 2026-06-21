@@ -6,6 +6,7 @@ import {
 	clearGpuLayoutPrefs,
 	collectGpuPortNameOptions,
 	GPU_CUSTOM_LAYOUT_KEY,
+	gpuLayoutItemsToPhysicalTopology,
 	layoutItemsFromGpuEntries,
 } from '../lib/device-view-gpu-port-list.js'
 import { setStatus } from './device-view-ui-utils.js'
@@ -27,12 +28,17 @@ export function appendGpuLayoutEditorIfEditMode(wrapCtl, { load, lastPayload, st
 		(c) => c && c.deviceId === CASPAR_HOST && c.kind === 'gpu_out',
 	)
 	let customGpuItems = layoutItemsFromGpuEntries(
-		buildGpuSelectablePortEntries({ live, suggestedGpuOuts: gpuOuts, hideDisconnectedByDefault: false }),
+		buildGpuSelectablePortEntries({
+			live,
+			suggestedGpuOuts: gpuOuts,
+			savedTopology: lastPayload?.gpuPhysicalTopology || null,
+			hideDisconnectedByDefault: false,
+		}),
 	)
 	const portNameOptions = collectGpuPortNameOptions(live)
 
 	editGroup.innerHTML =
-		'<div style="font-weight:bold; margin-bottom: 6px; font-size: 11px; color: #aaa;">GPU layout (from detected outputs — drag to reorder, use Show all if ports are missing)</div>'
+		'<div style="font-weight:bold; margin-bottom: 6px; font-size: 11px; color: #aaa;">GPU layout — one row per <em>physical</em> socket. Port A/B are RandR alternates on the same jack (only one cable per slot).</div>'
 
 	const listContainer = Object.assign(document.createElement('div'), { style: 'display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px;' })
 
@@ -60,7 +66,13 @@ export function appendGpuLayoutEditorIfEditMode(wrapCtl, { load, lastPayload, st
 
 	const saveAndRefresh = async () => {
 		saveGpuLayoutToStorage(customGpuItems)
-		if (statusEl) setStatus(statusEl, 'GPU layout saved', true)
+		try {
+			const topo = gpuLayoutItemsToPhysicalTopology(customGpuItems)
+			if (topo.length) await Actions.saveGpuPhysicalTopology(topo)
+		} catch (e) {
+			console.warn('[device-view] gpuPhysicalTopology save failed', e)
+		}
+		if (statusEl) setStatus(statusEl, 'GPU layout saved (topology persisted)', true)
 		if (load) await load()
 	}
 
@@ -95,7 +107,7 @@ export function appendGpuLayoutEditorIfEditMode(wrapCtl, { load, lastPayload, st
 			})
 
 			const header = Object.assign(document.createElement('div'), { style: 'display:flex; justify-content:space-between; font-size:10px; opacity:0.8;' })
-			header.innerHTML = `<span><strong>Slot ${index + 1}</strong> (${item.label})</span><span>≡</span>`
+			header.innerHTML = `<span><strong>Socket ${index + 1}</strong> (${item.label})</span><span>≡</span>`
 
 			row.addEventListener('dragstart', (ev) => {
 				ev.dataTransfer.setData('application/x-highascg-inspector-gpu-slot', String(index))
@@ -233,6 +245,12 @@ export function appendGpuLayoutEditorIfEditMode(wrapCtl, { load, lastPayload, st
 			}
 			customGpuItems = mergeLoadedGpuLayout(parsed)
 			localStorage.setItem(GPU_CUSTOM_LAYOUT_KEY, JSON.stringify(customGpuItems))
+			try {
+				const topo = gpuLayoutItemsToPhysicalTopology(customGpuItems)
+				if (topo.length) await Actions.saveGpuPhysicalTopology(topo)
+			} catch (e) {
+				console.warn('[device-view] gpuPhysicalTopology save failed', e)
+			}
 			alert('GPU layout loaded from file.')
 			if (load) await load()
 		} catch (e) {

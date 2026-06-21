@@ -80,6 +80,7 @@ export function renderCasparBand(ctx) {
 		live,
 		suggestedGpuOuts: gpuOuts,
 		graphGpuOuts,
+		savedTopology: ctx.currentSettings?.gpuPhysicalTopology || lastPayload?.gpuPhysicalTopology || null,
 		hideDisconnectedByDefault: false,
 	})
 	const gpuLayoutItems = layoutItemsFromGpuEntries(gpuListEntries)
@@ -94,7 +95,9 @@ export function renderCasparBand(ctx) {
 		getGpuEditMode: () => gpuEditMode,
 	})
 
-	const items = gpuListEntries.map((entry) => entryToRearPanelGpuItem(entry, connectedDisplays))
+	const items = gpuListEntries.map((entry) =>
+		entryToRearPanelGpuItem(entry, connectedDisplays, gpuInventory),
+	)
 
 	slots.push({ title: 'GPU', items })
 	let decklinkRearOrderIds = []

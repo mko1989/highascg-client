@@ -3,7 +3,7 @@
  */
 import * as Actions from './device-view-actions.js'
 import { setStatus } from './device-view-ui-utils.js'
-import { resolveGpuScreenNumber } from './device-view-inspector-gpu-resolve.js'
+import { resolveGpuPhysicalScreenIndex, resolveGpuScreenNumber } from './device-view-inspector-gpu-resolve.js'
 import { appendGpuLayoutEditorIfEditMode } from './device-view-inspector-gpu-layout-editor.js'
 import { populateGpuVideoModelineSection } from './device-view-inspector-gpu-video-modeline.js'
 import {
@@ -15,7 +15,10 @@ import {
 
 export function renderGpuOutControls(h, conn, { currentSettings, lastPayload, statusEl, load, setCasparRestartDirty, connectorCtx }) {
 	const cs = currentSettings?.casparServer && typeof currentSettings.casparServer === 'object' ? currentSettings.casparServer : {}
+	// Caspar consumer keys follow graph binding (mainIndex / cable destination), not rear jack order.
 	const screenN = resolveGpuScreenNumber(conn, lastPayload)
+	const physicalScreenN = resolveGpuPhysicalScreenIndex(conn, lastPayload)
+	const osScreenN = physicalScreenN
 	const keyWindowed = `screen_${screenN}_windowed`
 	const keyVsync = `screen_${screenN}_vsync`
 	const keyBorderless = `screen_${screenN}_borderless`
@@ -33,7 +36,6 @@ export function renderGpuOutControls(h, conn, { currentSettings, lastPayload, st
 	const keyAspectRatio = `screen_${screenN}_aspect_ratio`
 	const keyPosX = `screen_${screenN}_x`
 	const keyPosY = `screen_${screenN}_y`
-	const keyForceOsRes = `screen_${screenN}_force_os_resolution`
 	const seedConsumerDefaults = shouldSeedScreenConsumerDefaults(cs, screenN)
 	if (seedConsumerDefaults) {
 		void Actions.saveSettingsPatch(screenConsumerDefaultsSettingsPatch(screenN)).then(() => load?.())
@@ -59,6 +61,7 @@ export function renderGpuOutControls(h, conn, { currentSettings, lastPayload, st
 	const wrapCtl = Object.assign(document.createElement('div'), { style: 'display:flex; flex-direction:column; gap:4px; margin-top:8px' })
 
 	const saveRef = {}
+	const osSaveRef = {}
 	const runSave = () => void saveRef.invoke?.()
 
 	appendGpuLayoutEditorIfEditMode(wrapCtl, { load, lastPayload, statusEl })
@@ -118,24 +121,28 @@ export function renderGpuOutControls(h, conn, { currentSettings, lastPayload, st
 
 	const gpuUi = populateGpuVideoModelineSection(wrapCtl, {
 		saveRef,
+		osSaveRef,
 		conn,
 		lastPayload,
 		cs,
 		currentSettings,
 		screenN,
+		osScreenN,
 		statusEl,
 		load,
 	})
 
 	const {
 		inherited,
+		cableFeedNote,
+		casparScreenNote,
 		modeSel,
 		customWidthIn,
 		customHeightIn,
 		customFpsIn,
 		overrideResIn,
 		timingSel,
-		buildOsOutputPatchForApply,
+		buildGlobalOsSettingsPatchForSave,
 		keyMode,
 		keyCustomWidth,
 		keyCustomHeight,
@@ -146,12 +153,10 @@ export function renderGpuOutControls(h, conn, { currentSettings, lastPayload, st
 		keyOsRate,
 		keyOsTimingSource,
 		timingRow,
-		displayModeSelect,
-		autoFromEdidBtn,
+		systemResolutionBlock,
 		osBackendSel,
 		scheduleModelinePreview,
 		detectedDisplay,
-		overrideResRow,
 	} = gpuUi
 
 	const buildAdvancedPatch = () => ({
@@ -171,30 +176,31 @@ export function renderGpuOutControls(h, conn, { currentSettings, lastPayload, st
 	})
 
 	async function saveCasparSettings() {
-		const vOverride = !!overrideResIn.checked
-		const ts = timingSel.value === 'gtf' ? 'gtf' : timingSel.value === 'cvt_r' ? 'cvt_r' : 'cvt'
-		const patch = {
+		const selectedMode = String(modeSel.value || '1080p5000').trim()
+		const isCustom = selectedMode === 'custom'
+		await Actions.saveSettingsPatch({
 			casparServer: {
 				[keyWindowed]: !!windowedIn.checked,
 				[keyVsync]: !!vsyncIn.checked,
 				[keyBorderless]: !borderIn.checked,
-				[keyMode]: inherited ? inherited.mode : String(modeSel.value || '1080p5000').trim(),
-				[keyCustomWidth]: inherited ? inherited.width : Math.max(64, parseInt(String(customWidthIn.value || 1920), 10) || 1920),
-				[keyCustomHeight]: inherited ? inherited.height : Math.max(64, parseInt(String(customHeightIn.value || 1080), 10) || 1080),
-				[keyCustomFps]: inherited ? inherited.fps : Math.max(1, parseFloat(String(customFpsIn.value || 50)) || 50),
-				[keyForceOsRes]: vOverride,
-				[keyOsTimingSource]: ts,
+				[keyMode]: isCustom ? 'custom' : selectedMode,
+				[keyCustomWidth]: Math.max(64, parseInt(String(customWidthIn.value || 1920), 10) || 1920),
+				[keyCustomHeight]: Math.max(64, parseInt(String(customHeightIn.value || 1080), 10) || 1080),
+				[keyCustomFps]: Math.max(1, parseFloat(String(customFpsIn.value || 50)) || 50),
 				...buildAdvancedPatch(),
 			},
-			[keyForceOsRes]: vOverride,
-			[keyOsTimingSource]: ts,
-			...(vOverride ? buildOsOutputPatchForApply() : {}),
-		}
-		await Actions.saveSettingsPatch(patch)
+		})
 		setCasparRestartDirty(true)
-		setStatus(statusEl, `Settings for Screen ${screenN} saved`, true)
+		setStatus(statusEl, `Caspar screen ${screenN} saved`, true)
 	}
+
+	async function saveGlobalOsSettings() {
+		await Actions.saveSettingsPatch(buildGlobalOsSettingsPatchForSave())
+		setCasparRestartDirty(true)
+	}
+
 	saveRef.invoke = saveCasparSettings
+	osSaveRef.invoke = saveGlobalOsSettings
 
 	fullscreenIn.addEventListener('change', () => {
 		windowedIn.checked = !fullscreenIn.checked
@@ -213,46 +219,7 @@ export function renderGpuOutControls(h, conn, { currentSettings, lastPayload, st
 		placeholder: 'EDID override (optional)',
 		value: edidOverride,
 	})
-	const saveGpuBtn = Object.assign(document.createElement('button'), { className: 'header-btn', textContent: `Apply resolution to the screen (Screen ${screenN})` })
-	saveGpuBtn.onclick = async () => {
-		const edidText = String(edidIn.value || '').trim()
-		const selectedMode = inherited ? inherited.mode : String(modeSel.value || '1080p5000').trim()
-		const isCustom = selectedMode === 'custom'
-		const customWidth = inherited ? inherited.width : Math.max(64, parseInt(String(customWidthIn.value || 1920), 10) || 1920)
-		const customHeight = inherited ? inherited.height : Math.max(64, parseInt(String(customHeightIn.value || 1080), 10) || 1080)
-		const customFps = inherited ? inherited.fps : Math.max(1, parseFloat(String(customFpsIn.value || 50)) || 50)
-		const modeText = isCustom ? 'custom' : selectedMode
-		const ts = timingSel.value === 'gtf' ? 'gtf' : timingSel.value === 'cvt_r' ? 'cvt_r' : 'cvt'
-		const outputPatch = {
-			...buildOsOutputPatchForApply(),
-			[keyOsTimingSource]: ts,
-			[keyForceOsRes]: !!overrideResIn.checked,
-		}
-		const casparSlice = {
-			[keyWindowed]: !!windowedIn.checked,
-			[keyVsync]: !!vsyncIn.checked,
-			[keyBorderless]: !borderIn.checked,
-			[keyEdid]: edidText,
-			[keyMode]: modeText,
-			[keyCustomWidth]: customWidth,
-			[keyCustomHeight]: customHeight,
-			[keyCustomFps]: customFps,
-			[keyForceOsRes]: !!overrideResIn.checked,
-			[keyOsTimingSource]: ts,
-			...buildAdvancedPatch(),
-		}
-		const patch = {
-			casparServer: casparSlice,
-			[keyForceOsRes]: !!overrideResIn.checked,
-			...outputPatch,
-		}
-		await Actions.saveSettingsPatch(patch)
-		await Actions.applyOsSettings({ ...outputPatch, casparServer: casparSlice })
-		await Actions.updateConnector(conn.id, { caspar: { edidOverride: edidText, mode: modeText } })
-		setCasparRestartDirty(true)
-		setStatus(statusEl, `Applied resolution to the screen (Screen ${screenN})`, true)
-		await load()
-	}
+	edidIn.addEventListener('change', saveCasparSettings)
 
 	const resetBtn = Object.assign(document.createElement('button'), {
 		className: 'header-btn device-view__destinations-reset',
@@ -274,7 +241,6 @@ export function renderGpuOutControls(h, conn, { currentSettings, lastPayload, st
 				[keySbsKey]: null, [keyColourSpace]: null, [keyForceLinear]: null, [keyMipmaps]: null,
 				[keyHighBitdepth]: null,
 				[keyName]: null, [keyAspectRatio]: null, [keyPosX]: null, [keyPosY]: null,
-				[keyForceOsRes]: null,
 			},
 		}
 		await Actions.saveSettingsPatch(patch)
@@ -298,17 +264,25 @@ export function renderGpuOutControls(h, conn, { currentSettings, lastPayload, st
 		mkSmallCk(interactiveCk), mkSmallCk(sbsKeyCk), mkSmallCk(forceLinearCk), mkSmallCk(mipmapsCk), mkSmallCk(highBitdepthCk),
 	)
 
+	const videoModeHdr = Object.assign(document.createElement('div'), {
+		className: 'device-view__inspector-label',
+		textContent: 'Video Mode',
+		style: 'font-size:10px; opacity:0.7; margin-top:8px',
+	})
+
 	wrapCtl.append(
 		minimalToggleRow,
-		Object.assign(document.createElement('div'), { className: 'device-view__inspector-label', textContent: 'Video Mode', style: 'font-size:10px; opacity:0.7; margin-top:8px' }),
+		videoModeHdr,
+		...(casparScreenNote ? [casparScreenNote] : []),
+		...(cableFeedNote ? [cableFeedNote] : []),
 		modeSel,
 		(() => {
 			const d = Object.assign(document.createElement('div'), { style: 'display:flex; gap:4px; margin-top:4px' })
 			d.append(customWidthIn, customHeightIn, customFpsIn)
 			return d
 		})(),
+		systemResolutionBlock,
 		timingRow,
-		saveGpuBtn,
 	)
 
 	// Advanced settings hidden by default
@@ -326,11 +300,8 @@ export function renderGpuOutControls(h, conn, { currentSettings, lastPayload, st
 	advancedToggles.append(
 		Object.assign(document.createElement('hr'), { className: 'device-view__hr' }),
 		Object.assign(document.createElement('div'), { className: 'device-view__inspector-label', textContent: 'OS / X11 Settings (xrandr)', style: 'font-size:10px; opacity:0.7' }),
-		Object.assign(document.createElement('div'), { className: 'device-view__row', style: 'margin: 4px 0', innerHTML: `<small style="font-size:10px; opacity:0.6">Physical: ${detectedDisplay ? `<strong>${detectedDisplay.name}</strong>` : '<em>None</em>'}</small>` }),
-		overrideResRow,
+		Object.assign(document.createElement('div'), { className: 'device-view__row', style: 'margin: 4px 0', innerHTML: `<small style="font-size:10px; opacity:0.6">Physical: ${detectedDisplay ? `<strong>${detectedDisplay.name}</strong>` : '<em>None</em>'}${physicalScreenN !== screenN ? ` · rear port ${physicalScreenN} · Caspar screen ${screenN}` : ` · Caspar screen ${screenN}`}</small>` }),
 		osBackendWrap,
-		displayModeSelect,
-		autoFromEdidBtn,
 		Object.assign(document.createElement('hr'), { className: 'device-view__hr' }),
 		Object.assign(document.createElement('label'), { className: 'device-view__inspector-label', textContent: 'Stretch', style: 'font-size:10px;opacity:.7' }), stretchSel,
 		Object.assign(document.createElement('label'), { className: 'device-view__inspector-label', textContent: 'Colour Space', style: 'font-size:10px;opacity:.7' }), colourSpaceSel,

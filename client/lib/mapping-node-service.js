@@ -19,15 +19,95 @@ export const MAPPING_OUTPUT_VIDEO_MODES = [
 	'NTSC',
 ]
 
-/** Resolve resolution from mode string */
+/** Resolve resolution from mode string (standard Caspar id or custom `3456x1152p50`). */
+export function parseCustomVideoMode(mode) {
+	const m = String(mode || '').trim()
+	const match = m.match(/^(\d{2,5})x(\d{2,5})p([\d.]+)$/i)
+	if (match) {
+		return {
+			width: Math.max(1, parseInt(match[1], 10) || 1),
+			height: Math.max(1, parseInt(match[2], 10) || 1),
+			fps: Math.max(1, parseFloat(match[3]) || 50),
+			isCustom: true,
+		}
+	}
+	return null
+}
+
+export function formatCustomVideoMode(width, height, fps) {
+	const w = Math.max(1, parseInt(String(width), 10) || 1)
+	const h = Math.max(1, parseInt(String(height), 10) || 1)
+	const f = Math.max(1, parseFloat(String(fps)) || 50)
+	const fpsStr = Number.isInteger(f) ? String(f) : String(f)
+	return `${w}x${h}p${fpsStr}`
+}
+
+/** @param {object | null | undefined} output */
+export function resolveMappingOutputResolution(output) {
+	const mode = String(output?.mode || '1080p5000').trim() || '1080p5000'
+	const custom = parseCustomVideoMode(mode)
+	if (custom) {
+		return {
+			mode,
+			width: Number.isFinite(Number(output?.width)) ? Number(output.width) : custom.width,
+			height: Number.isFinite(Number(output?.height)) ? Number(output.height) : custom.height,
+			fps: Number.isFinite(Number(output?.fps)) ? Number(output.fps) : custom.fps,
+			isCustom: true,
+		}
+	}
+	if (Number.isFinite(Number(output?.width)) && Number.isFinite(Number(output?.height))) {
+		return {
+			mode,
+			width: Number(output.width),
+			height: Number(output.height),
+			fps: Number.isFinite(Number(output?.fps)) ? Number(output.fps) : 50,
+			isCustom: !MAPPING_OUTPUT_VIDEO_MODES.includes(mode),
+		}
+	}
+	const res = videoModeToResolution(mode)
+	return { mode, width: res.w, height: res.h, fps: res.fps ?? 50, isCustom: false }
+}
+
 export function videoModeToResolution(mode) {
+	const custom = parseCustomVideoMode(mode)
+	if (custom) return { w: custom.width, h: custom.height, fps: custom.fps }
 	const m = String(mode || '').toLowerCase()
-	if (m.startsWith('1080')) return { w: 1920, h: 1080 }
-	if (m.startsWith('2160')) return { w: 3840, h: 2160 }
-	if (m.startsWith('720')) return { w: 1280, h: 720 }
-	if (m === 'pal') return { w: 720, h: 576 }
-	if (m === 'ntsc') return { w: 720, h: 486 }
-	return { w: 1920, h: 1080 }
+	if (m.startsWith('1080')) return { w: 1920, h: 1080, fps: 50 }
+	if (m.startsWith('2160')) return { w: 3840, h: 2160, fps: 50 }
+	if (m.startsWith('720')) return { w: 1280, h: 720, fps: 50 }
+	if (m === 'pal') return { w: 720, h: 576, fps: 25 }
+	if (m === 'ntsc') return { w: 720, h: 486, fps: 29.97 }
+	return { w: 1920, h: 1080, fps: 50 }
+}
+
+/**
+ * Split input canvas horizontally across N mapping outputs.
+ * @param {number} inputWidth
+ * @param {number} inputHeight
+ * @param {number} fps
+ * @param {number} numOutputs
+ */
+export function proposeMappingOutputLayout(inputWidth, inputHeight, fps, numOutputs) {
+	const inW = Math.max(1, parseInt(String(inputWidth), 10) || 1)
+	const inH = Math.max(1, parseInt(String(inputHeight), 10) || 1)
+	const rate = Math.max(1, parseFloat(String(fps)) || 50)
+	const n = Math.max(1, parseInt(String(numOutputs), 10) || 1)
+	const baseW = Math.floor(inW / n)
+	const out = []
+	let x = 0
+	for (let i = 0; i < n; i++) {
+		const w = i === n - 1 ? inW - x : baseW
+		out.push({
+			label: `Output ${i + 1}`,
+			width: w,
+			height: inH,
+			fps: rate,
+			mode: formatCustomVideoMode(w, inH, rate),
+			rect: { x, y: 0, w, h: inH },
+		})
+		x += w
+	}
+	return out
 }
 
 export async function fetchDeviceView() {
@@ -261,11 +341,65 @@ export async function updateMappingOutputFields(nodeId, outputId, patch) {
 		const cur = outputs[idx]
 		if (patch.label != null) cur.label = String(patch.label).trim() || cur.label
 		if (patch.mode != null) cur.mode = String(patch.mode).trim() || cur.mode
+		if (patch.width != null) cur.width = Math.max(1, parseInt(String(patch.width), 10) || 1)
+		if (patch.height != null) cur.height = Math.max(1, parseInt(String(patch.height), 10) || 1)
+		if (patch.fps != null) cur.fps = Math.max(1, parseFloat(String(patch.fps)) || 50)
 		outputs[idx] = cur
 		node.settings = { ...(node.settings || {}), outputs }
 		syncPixelMapOutputConnectors(graph, nodeId)
 		await saveDeviceGraph(graph)
 		return { ok: true, graph }
+	} catch (e) {
+		return { ok: false, error: e?.message || String(e) }
+	}
+}
+
+/**
+ * Fill output modes + source slice rects from input resolution ÷ output count.
+ * @param {string} nodeId
+ * @param {{ width: number, height: number, fps?: number }} input
+ */
+export async function proposeMappingOutputsFromInput(nodeId, input) {
+	try {
+		const payload = await fetchDeviceView()
+		const graph = payload?.graph
+		if (!graph) return { ok: false, error: 'No graph' }
+		const node = findMappingNode(graph, nodeId)
+		if (!node) return { ok: false, error: 'Node not found' }
+		const outputs = Array.isArray(node.settings?.outputs) ? node.settings.outputs : []
+		if (!outputs.length) return { ok: false, error: 'No outputs on node' }
+		const inW = Math.max(1, parseInt(String(input?.width), 10) || 1)
+		const inH = Math.max(1, parseInt(String(input?.height), 10) || 1)
+		const fps = Math.max(1, parseFloat(String(input?.fps ?? 50)) || 50)
+		const proposed = proposeMappingOutputLayout(inW, inH, fps, outputs.length)
+		const mappings = []
+		for (let i = 0; i < outputs.length; i++) {
+			const out = outputs[i]
+			const p = proposed[i]
+			if (!p) continue
+			out.mode = p.mode
+			out.width = p.width
+			out.height = p.height
+			out.fps = p.fps
+			if (!out.label) out.label = p.label
+			mappings.push({
+				id: `map_${out.id}`,
+				type: 'video_slice',
+				label: out.label || p.label,
+				outputId: out.id,
+				rotation: 0,
+				rect: { ...p.rect },
+			})
+		}
+		node.settings = {
+			...(node.settings || {}),
+			outputs,
+			mappings,
+			numOutputs: outputs.length,
+		}
+		syncPixelMapOutputConnectors(graph, nodeId)
+		await saveDeviceGraph(graph)
+		return { ok: true, graph, proposed }
 	} catch (e) {
 		return { ok: false, error: e?.message || String(e) }
 	}

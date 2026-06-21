@@ -5,12 +5,35 @@ export function normRandrCaspar(v) {
 	return String(v || '').trim().toUpperCase().replace(/^CARD\d+-/i, '')
 }
 
+function layoutSlotIdForPairs(pairs) {
+	const want = new Set((pairs || []).map((p) => normRandrCaspar(p)).filter(Boolean))
+	if (!want.size) return ''
+	try {
+		const raw = localStorage.getItem('gpu_custom_layout')
+		const arr = raw ? JSON.parse(raw) : null
+		if (!Array.isArray(arr)) return ''
+		for (const item of arr) {
+			const slotId = String(item?.id || '').replace(/__.*$/i, '')
+			if (!/^gpu_p\d+$/i.test(slotId)) continue
+			const itemPairs = Array.isArray(item?.pairs) ? item.pairs : []
+			for (const p of itemPairs) {
+				if (want.has(normRandrCaspar(p))) return slotId
+			}
+		}
+	} catch {
+		/* ignore */
+	}
+	return ''
+}
+
 /**
  * Map a UI slot's RandR pair to the canonical graph connector id (e.g. gpu_p0).
- * Prefer runtime.activePort when it matches the slot pair so cabling uses the same id as suggested.connectors.
+ * Saved rear-panel layout wins over server physicalMap when pairs were reassigned.
  */
 export function resolveCanonicalGpuConnectorId(pairs, physicalPorts, suggestedGpuOuts) {
 	if (!Array.isArray(pairs) || !pairs.length) return ''
+	const fromLayout = layoutSlotIdForPairs(pairs)
+	if (fromLayout) return fromLayout
 	const set = new Set(pairs.map((p) => normRandrCaspar(p)).filter(Boolean))
 	if (set.size === 0) return ''
 	for (const p of physicalPorts || []) {
@@ -55,7 +78,9 @@ export function createCasparRearMarkerStatusResolver({ live, lastPayload }) {
 	return (it) => {
 		if (!it.connectorId) return stateClass('off')
 		if (it.kind === 'gpu_out') {
-			return stateClass(it.connected ? 'ok' : 'off')
+			if (it.connected) return stateClass('ok')
+			if (it.livePresent) return stateClass('warn')
+			return stateClass('off')
 		}
 		const conn = connectorById(lastPayload, it.connectorId)
 		if (!conn) return ''

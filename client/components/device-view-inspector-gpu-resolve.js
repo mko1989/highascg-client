@@ -1,3 +1,26 @@
+import { gpuPhysicalPortCableId } from '../lib/device-view-gpu-port-list.js'
+
+/**
+ * Caspar screen index (1–4) from the physical rear jack (gpu_p0 → 1, gpu_p2 → 3).
+ * Used for OS/xrandr settings keys (`screen_N_system_id`, EDID list, etc.) — not cable routing.
+ */
+export function resolveGpuPhysicalScreenIndex(conn, lastPayload) {
+	const id = gpuPhysicalPortCableId(conn?.id || '')
+	const m = /^gpu_p(\d+)$/i.exec(id)
+	if (m) {
+		const n = parseInt(m[1], 10)
+		if (Number.isFinite(n) && n >= 0) return Math.max(1, Math.min(4, n + 1))
+	}
+	const ports = Array.isArray(lastPayload?.live?.gpu?.physicalMap?.ports) ? lastPayload.live.gpu.physicalMap.ports : []
+	const p = ports.find((x) => String(x?.physicalPortId || '').trim() === id) || null
+	if (p != null && Number.isFinite(Number(p.slotOrder))) {
+		return Math.max(1, Math.min(4, Number(p.slotOrder) + 1))
+	}
+	const slot = Number(conn?.gpuPhysical?.slotOrder)
+	if (Number.isFinite(slot) && slot >= 0) return Math.max(1, Math.min(4, Math.round(slot) + 1))
+	return resolveGpuScreenNumber(conn, lastPayload)
+}
+
 /**
  * Resolves Caspar screen index (1–4) for a GPU output connector from graph / bindings.
  * Must match `calculateLayoutPositions` graph-bound logic: screen index from binding / destination, not GPU list order.

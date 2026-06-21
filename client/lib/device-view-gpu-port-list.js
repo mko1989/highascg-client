@@ -104,27 +104,263 @@ export function resolveExpectedGpuPhysicalPortCount(live, physicalPorts, suggest
 	return expected
 }
 
-function entryFromInferredPhysicalPort(portIndex, suggestedGpuOuts, displays) {
+function entryFromInferredPhysicalPort(portIndex, suggestedGpuOuts, displays, topology = null) {
 	const id = `gpu_p${portIndex}`
 	const existing = (suggestedGpuOuts || []).find((c) => String(c?.id || '').trim() === id)
 	if (existing) return entryFromSuggested(existing, displays, 0, null)
-	const dpA = `DP-${portIndex * 2}`
-	const dpB = `DP-${portIndex * 2 + 1}`
+	const topoRow = (topology || defaultClientGpuTopology()).find(
+		(t) => String(t?.physicalPortId || '').trim() === id,
+	)
+	const pairs = topoRow
+		? [topoRow.dpA, topoRow.dpB].filter(Boolean).map(String)
+		: [`DP-${portIndex * 2}`, `DP-${portIndex * 2 + 1}`]
+	return entryFromTopologyRow(
+		{ physicalPortId: id, dpA: pairs[0] || '', dpB: pairs[1] || '', slotOrder: portIndex },
+		displays,
+		suggestedGpuOuts,
+		0,
+	)
+}
+
+/** RTX 20/30 quad + HDMI: four physical sockets on the backplate. */
+export const RTX_20_30_SOCKET_COUNT = 4
+
+/** RTX 20/30 backplate order: DP 0/1, HDMI, DP 2/3, DP 4/5. */
+export function defaultClientGpuTopology() {
+	return [
+		{ physicalPortId: 'gpu_p0', slotOrder: 0, dpA: 'DP-0', dpB: 'DP-1', connectorNumber: 0, location: 0 },
+		{ physicalPortId: 'gpu_p1', slotOrder: 1, dpA: 'HDMI-0', dpB: 'HDMI-1', connectorNumber: 1, location: 1 },
+		{ physicalPortId: 'gpu_p2', slotOrder: 2, dpA: 'DP-2', dpB: 'DP-3', connectorNumber: 2, location: 2 },
+		{ physicalPortId: 'gpu_p3', slotOrder: 3, dpA: 'DP-4', dpB: 'DP-5', connectorNumber: 3, location: 3 },
+	]
+}
+
+/** Fill gpu_p0..p3 when saved layout only has 3 rows (stale prefs). */
+function mergeTopologyWithDefaultSockets(rows) {
+	const defaults = defaultClientGpuTopology()
+	const byId = new Map((rows || []).map((r) => [String(r?.physicalPortId || '').trim(), r]))
+	const merged = defaults.map((def, idx) => {
+		const cur = byId.get(def.physicalPortId)
+		if (!cur) return { ...def }
+		return {
+			...def,
+			...cur,
+			physicalPortId: def.physicalPortId,
+			dpA: String(cur.dpA || def.dpA || '').trim(),
+			dpB: String(cur.dpB || def.dpB || '').trim(),
+			slotOrder: idx,
+			connectorNumber: idx,
+			location: idx,
+		}
+	})
+	for (const row of rows || []) {
+		const id = String(row?.physicalPortId || '').trim()
+		if (!id || defaults.some((d) => d.physicalPortId === id)) continue
+		merged.push(row)
+	}
+	return merged.map((row, idx) => ({
+		...row,
+		slotOrder: idx,
+		connectorNumber: idx,
+		location: idx,
+	}))
+}
+
+function topologyRowsFromLayoutPrefs(prefs) {
+	const order =
+		(prefs?.orderIds || []).length > 0
+			? prefs.orderIds
+			: [...(prefs?.byId || new Map()).keys()]
+	if (!order.length || !prefs?.byId?.size) return []
+	const rows = []
+	for (const rawId of order) {
+		const item = prefs.byId.get(rawId)
+		if (!item) continue
+		const physicalPortId = String(item.id || rawId).replace(/__.*$/i, '')
+		if (!/^gpu_p\d+$/i.test(physicalPortId)) continue
+		const pairs = Array.isArray(item.pairs) ? item.pairs.filter(Boolean) : []
+		rows.push({
+			physicalPortId,
+			slotOrder: rows.length,
+			dpA: String(pairs[0] || '').trim(),
+			dpB: String(pairs[1] || '').trim(),
+			connectorNumber: rows.length,
+			location: rows.length,
+		})
+	}
+	return rows
+}
+
+/**
+ * Saved settings topology + localStorage layout; layout wins, else settings, else client default.
+ * Always includes all four RTX 20/30 sockets (gpu_p0..gpu_p3).
+ * @param {object[] | null | undefined} savedTopology
+ * @param {{ byId?: Map<string, object>, orderIds?: string[] }} [layoutPrefs]
+ */
+export function resolveEffectiveGpuTopology(savedTopology, layoutPrefs = null) {
+	const prefs = layoutPrefs || readGpuLayoutPrefs()
+	const fromPrefs = topologyRowsFromLayoutPrefs(prefs)
+	if (fromPrefs.length) return mergeTopologyWithDefaultSockets(fromPrefs)
+	if (Array.isArray(savedTopology) && savedTopology.length) {
+		return mergeTopologyWithDefaultSockets(savedTopology)
+	}
+	return defaultClientGpuTopology()
+}
+
+function connectedLiveRandrNames(live) {
+	const out = new Set()
+	for (const d of live?.gpu?.displays || []) {
+		if (!d || d.connected === false) continue
+		const n = normRandrCaspar(d?.name)
+		if (n) out.add(n)
+	}
+	return out
+}
+
+function bracketHasLiveRandr(connected, dpA, dpB) {
+	const a = normRandrCaspar(dpA)
+	const b = normRandrCaspar(dpB)
+	return (a && connected.has(a)) || (b && connected.has(b))
+}
+
+/** xrandr shows DP-0, HDMI-0, DP-2, DP-4 (or bracket alternates) — RTX 20/30 quad. */
+export function detectRtx2030QuadFromLive(live) {
+	const connected = connectedLiveRandrNames(live)
+	if (connected.size < 4) return false
+	const rtx = defaultClientGpuTopology()
+	let matched = 0
+	for (const row of rtx) {
+		if (bracketHasLiveRandr(connected, row.dpA, row.dpB)) matched++
+	}
+	return matched >= 4
+}
+
+/** Prefer live xrandr over stale saved pair → gpu_pN map (fixes DP-4 on gpu_unmapped). */
+export function reconcileTopologyWithLiveDisplays(topology, live) {
+	const connected = connectedLiveRandrNames(live)
+	if (!connected.size) return topology
+	if (detectRtx2030QuadFromLive(live)) return defaultClientGpuTopology()
+	const rtx = defaultClientGpuTopology()
+	const merged = mergeTopologyWithDefaultSockets(topology)
+	return merged.map((row, idx) => {
+		const def = rtx.find((r) => r.physicalPortId === row.physicalPortId)
+		if (!def) return row
+		if (bracketHasLiveRandr(connected, row.dpA, row.dpB)) return row
+		if (bracketHasLiveRandr(connected, def.dpA, def.dpB)) {
+			return {
+				...row,
+				dpA: def.dpA,
+				dpB: def.dpB,
+				slotOrder: idx,
+				connectorNumber: idx,
+				location: idx,
+			}
+		}
+		return row
+	})
+}
+
+/**
+ * Topology for cabling + server persist: server-reconciled map, else live xrandr, else saved/default.
+ * @param {object | null | undefined} payload
+ * @param {object | null | undefined} settings
+ */
+export function resolveTopologyForDeviceView(payload, settings = null) {
+	const fromMap = payload?.live?.gpu?.physicalMap?.effectiveTopology
+	if (Array.isArray(fromMap) && fromMap.length) return fromMap
+	const base = resolveEffectiveGpuTopology(
+		payload?.gpuPhysicalTopology || settings?.gpuPhysicalTopology,
+	)
+	return reconcileTopologyWithLiveDisplays(base, payload?.live)
+}
+
+/** RandR output present on the socket (includes connected-without-active-mode, e.g. DP-4). */
+function displaysMatchingPairs(pairs, displays, connectors) {
+	const want = new Set((pairs || []).map((p) => normRandrCaspar(p)).filter(Boolean))
+	if (!want.size) return []
+	const hits = []
+	for (const d of displays || []) {
+		const n = normRandrCaspar(d?.name)
+		if (!n || !want.has(n)) continue
+		if (d.connected === false) continue
+		hits.push({ name: n, ref: d })
+	}
+	for (const c of connectors || []) {
+		const n = normRandrCaspar(c?.shortName || c?.name)
+		if (!n || !want.has(n)) continue
+		if (c.connected === false) continue
+		if (hits.some((h) => h.name === n)) continue
+		hits.push({ name: n, ref: c })
+	}
+	return hits
+}
+
+function isPrimaryTopologySocket(id) {
+	const m = /^gpu_p(\d+)$/i.exec(String(id || '').trim())
+	if (!m) return false
+	return parseInt(m[1], 10) < RTX_20_30_SOCKET_COUNT
+}
+
+function labelForTopologyPairs(pairs) {
+	const list = (pairs || []).filter(Boolean).map(String)
+	if (!list.length) return ''
+	const blob = list.join(' ').toUpperCase()
+	if (blob.includes('HDMI')) {
+		return `HDMI ${list.map((p) => p.split('-').slice(1).join('-')).join('/')}`
+	}
+	if (blob.includes('EDP')) return list.join(' · ')
+	return `DP ${list.map((p) => p.replace(/^DP-/i, '')).join('/')}`
+}
+
+function entryFromTopologyRow(row, displays, connectors, suggestedGpuOuts, index, graphGpuOuts = []) {
+	const id = String(row?.physicalPortId || '').trim()
+	const pairs = [row?.dpA, row?.dpB].filter(Boolean).map(String)
+	const hits = displaysMatchingPairs(pairs, displays, connectors)
+	const connected = hits.length > 0
+	const activeHit = hits[0] || null
+	const active = activeHit?.name || ''
+	const disp =
+		activeHit?.ref && 'resolution' in activeHit.ref
+			? activeHit.ref
+			: (displays || []).find((d) => normRandrCaspar(d?.name) === normRandrCaspar(active)) || null
+	const suggested = (suggestedGpuOuts || []).find((c) => String(c?.id || '').trim() === id)
+	const inGraph = (graphGpuOuts || []).some((c) => String(c?.id || '').trim() === id)
+	const resolution = String(disp?.resolution || '').trim()
+	const hasMode = connected && resolution && resolution !== 'unknown'
+	let label = labelForTopologyPairs(pairs) || id
+	if (connected && active) {
+		label = hasMode ? `${label} · ${active}` : `${label} · ${active} (no mode)`
+	}
 	return {
 		connectorId: id,
 		layoutSlotId: id,
-		label: `${dpA}/${dpB}`,
+		label,
 		kind: 'gpu_out',
-		index: 0,
-		connected: false,
+		index,
+		connected: hasMode,
+		livePresent: connected,
+		topologySlot: isPrimaryTopologySocket(id),
 		hidden: false,
-		pairs: [dpA, dpB],
-		monitor: '',
-		resolution: '',
-		refreshHz: null,
-		icon: iconForPortHints(dpA, dpB),
-		isVirtual: true,
+		pairs,
+		monitor: active ? String(active).trim() : '',
+		resolution,
+		refreshHz: Number.isFinite(Number(disp?.refreshHz)) ? Number(disp.refreshHz) : null,
+		icon: iconForPortHints(...pairs),
+		isVirtual: !suggested && !inGraph && !connected,
+		inDeviceGraph: !!(suggested || inGraph || connected),
 	}
+}
+
+/** Build rear-panel rows from topology (authoritative pair → gpu_pN map). */
+export function buildGpuEntriesFromTopology(topology, live, suggestedGpuOuts = [], graphGpuOuts = []) {
+	const displays = Array.isArray(live?.gpu?.displays) ? live.gpu.displays : []
+	const connectors = Array.isArray(live?.gpu?.connectors) ? live.gpu.connectors : []
+	const sorted = [...(topology || [])].sort(
+		(a, b) => (Number(a?.slotOrder) || 0) - (Number(b?.slotOrder) || 0),
+	)
+	return sorted.map((row, index) =>
+		entryFromTopologyRow(row, displays, connectors, suggestedGpuOuts, index, graphGpuOuts),
+	)
 }
 
 /** @param {object} [live] */
@@ -198,6 +434,12 @@ function labelForPhysicalPort(p) {
 	return pairLabel
 }
 
+export function gpuPhysicalPortCableId(connectorOrSlotId) {
+	const raw = String(connectorOrSlotId || '').trim()
+	const m = raw.match(/^(gpu_p\d+)/i)
+	return m ? m[1] : raw
+}
+
 /** Per-connector jack id, e.g. gpu_p0 + DP-1 → gpu_p0__DP_1 */
 export function gpuSplitConnectorId(parentPortId, shortName) {
 	const base = String(parentPortId || '').trim()
@@ -205,13 +447,47 @@ export function gpuSplitConnectorId(parentPortId, shortName) {
 	return tag ? `${base}__${tag}` : base
 }
 
-/** modetest reports each DP as its own connector — show 4 jacks on a 4-DP card, not 2 pairs. */
-function shouldExpandPhysicalPortToConnectors(p, live) {
-	const src = String(live?.gpu?.physicalMap?.topologySource || '').trim().toLowerCase()
-	if (src !== 'modetest') return false
-	const a = String(p?.probe?.connectorA?.shortName || '').trim()
-	const b = String(p?.probe?.connectorB?.shortName || '').trim()
-	return !!(a && b && normRandrCaspar(a) !== normRandrCaspar(b))
+/** modetest lists DP-N and DP-(N+1) on the same physical socket — never show as two cabled jacks. */
+function shouldExpandPhysicalPortToConnectors(_p, _live) {
+	return false
+}
+
+/** Merge gpu_pN__DP_X split rows back into one jack per physical socket. */
+function consolidateBracketSplitEntries(entries) {
+	const splitByParent = new Map()
+	const keep = []
+	for (const entry of entries) {
+		const id = String(entry?.connectorId || '').trim()
+		const parent =
+			String(entry?.parentPortId || '').trim() || (id.match(/^(gpu_p\d+)__/i) || [])[1] || ''
+		if (!parent) {
+			keep.push(entry)
+			continue
+		}
+		let row = splitByParent.get(parent)
+		if (!row) {
+			const pairs = Array.isArray(entry.pairs) ? [...entry.pairs] : []
+			row = {
+				...entry,
+				connectorId: parent,
+				layoutSlotId: parent,
+				parentPortId: undefined,
+				pairs,
+			}
+			splitByParent.set(parent, row)
+			continue
+		}
+		const pairs = Array.isArray(entry.pairs) ? entry.pairs : []
+		row.pairs = [...new Set([...(row.pairs || []), ...pairs])]
+		row.connected = !!(row.connected || entry.connected)
+		if (entry.connected && entry.monitor) {
+			row.monitor = entry.monitor
+			row.resolution = entry.resolution || row.resolution
+			row.refreshHz = entry.refreshHz ?? row.refreshHz
+			row.label = entry.label || row.label
+		}
+	}
+	return [...keep, ...splitByParent.values()]
 }
 
 function entryFromPhysicalPortSide(p, probeConn, index, suggestedConnector = null) {
@@ -559,7 +835,7 @@ export function buildRawGpuPortEntriesFromLive(live, suggestedGpuOuts = [], grap
 			}
 		})
 	traceGpuLayoutRawComplete(seq, tagged)
-	return tagged
+	return consolidateBracketSplitEntries(tagged)
 }
 
 export const GPU_CUSTOM_LAYOUT_KEY = 'gpu_custom_layout'
@@ -578,11 +854,12 @@ export function clearGpuLayoutPrefs() {
  * @param {object} [live]
  * @param {object[]} [suggestedGpuOuts]
  */
-export function buildGpuLayoutItemsFromLive(live, suggestedGpuOuts = []) {
+export function buildGpuLayoutItemsFromLive(live, suggestedGpuOuts = [], savedTopology = null) {
 	return layoutItemsFromGpuEntries(
 		buildGpuSelectablePortEntries({
 			live,
 			suggestedGpuOuts,
+			savedTopology,
 			layoutPrefs: { byId: new Map(), orderIds: [] },
 			hideDisconnectedByDefault: false,
 		}),
@@ -609,24 +886,81 @@ export function readGpuLayoutPrefs() {
 	}
 }
 
+/** Saved layout row → server `gpuPhysicalTopology` (persisted in settings). */
+export function gpuLayoutItemsToPhysicalTopology(items) {
+	if (!Array.isArray(items)) return []
+	return items
+		.map((item, idx) => {
+			const rawId = String(item?.id || '').trim()
+			const m = rawId.match(/^(gpu_p\d+)/i)
+			if (!m) return null
+			const pairs = Array.isArray(item.pairs) ? item.pairs.filter(Boolean) : []
+			return {
+				physicalPortId: m[1],
+				slotOrder: idx,
+				dpA: String(pairs[0] || '').trim(),
+				dpB: String(pairs[1] || '').trim(),
+				connectorNumber: idx,
+				location: idx,
+			}
+		})
+		.filter(Boolean)
+}
+
+/**
+ * Map RandR pair names to layout slot id (gpu_pN) from saved rear-panel layout or settings topology.
+ * @param {string[]} pairs
+ * @param {{ byId?: Map<string, object> }} [prefs]
+ * @param {object[] | null} [savedTopology]
+ */
+export function resolveGpuSlotIdFromSavedLayout(pairs, prefs = null, savedTopology = null) {
+	const want = new Set((pairs || []).map((p) => normRandrCaspar(p)).filter(Boolean))
+	if (!want.size) return ''
+	const byId = prefs?.byId || readGpuLayoutPrefs().byId
+	for (const [slotId, item] of byId) {
+		const canonical = String(slotId).replace(/__.*$/i, '')
+		if (!/^gpu_p\d+$/i.test(canonical)) continue
+		const itemPairs = Array.isArray(item?.pairs) ? item.pairs : []
+		for (const p of itemPairs) {
+			if (want.has(normRandrCaspar(p))) return canonical
+		}
+	}
+	for (const row of resolveEffectiveGpuTopology(savedTopology, prefs)) {
+		const canonical = String(row?.physicalPortId || '').trim()
+		if (!/^gpu_p\d+$/i.test(canonical)) continue
+		for (const p of [row.dpA, row.dpB].filter(Boolean)) {
+			if (want.has(normRandrCaspar(p))) return canonical
+		}
+	}
+	return ''
+}
+
 /**
  * Apply saved order/hidden/labels from localStorage onto port entries.
  * @param {object[]} entries
  * @param {{ byId?: Map<string, object>, orderIds?: string[] }} [prefs]
- * @param {{ defaultHideDisconnected?: boolean }} [opts]
+ * @param {{ defaultHideDisconnected?: boolean, connectedDisplays?: object[], connectors?: object[], topology?: object[] }} [opts]
  */
-export function mergeGpuLayoutEntriesWithPrefs(entries, prefs, { defaultHideDisconnected = false } = {}) {
+export function mergeGpuLayoutEntriesWithPrefs(entries, prefs, { defaultHideDisconnected = false, connectedDisplays = [], connectors = [], topology = null } = {}) {
+	const connectedNames = new Set(
+		(connectedDisplays || [])
+			.filter((d) => d?.connected)
+			.map((d) => normRandrCaspar(d.name))
+			.filter(Boolean),
+	)
 	const liveIds = new Set(entries.map((e) => String(e.connectorId || e.layoutSlotId || '').trim()).filter(Boolean))
 	const byIdRaw = prefs?.byId || new Map()
-	const byId = new Map()
-	for (const [id, saved] of byIdRaw.entries()) {
-		if (liveIds.has(String(id).trim())) byId.set(id, saved)
-	}
-	const orderIds = (prefs?.orderIds || []).filter((id) => liveIds.has(String(id).trim()))
+	const orderIds = [
+		...new Set([
+			...(prefs?.orderIds || []),
+			...byIdRaw.keys(),
+			...(topology || []).map((t) => String(t?.physicalPortId || '').trim()),
+		]),
+	].filter((id) => /^gpu_p\d+$/i.test(String(id).trim()))
 	const decisions = []
 	const merged = entries.map((entry) => {
 		const id = String(entry.connectorId || entry.layoutSlotId || '').trim()
-		const saved = byId.get(id)
+		const saved = byIdRaw.get(id)
 		let hiddenReason = 'visible (default)'
 		let hidden
 		if (saved != null) {
@@ -639,22 +973,48 @@ export function mergeGpuLayoutEntriesWithPrefs(entries, prefs, { defaultHideDisc
 			hidden = !!entry.hidden
 			hiddenReason = hidden ? 'entry.hidden' : 'visible (default)'
 		}
+		const pairs =
+			Array.isArray(saved?.pairs) && saved.pairs.length ? [...saved.pairs] : entry.pairs
+		let livePresent = !!entry.livePresent
+		let connected = !!entry.connected
+		let monitor = entry.monitor || ''
+		if (Array.isArray(saved?.pairs) && saved.pairs.length) {
+			const hits = displaysMatchingPairs(pairs, connectedDisplays, connectors)
+			if (hits.length) {
+				livePresent = true
+				monitor = hits[0].name
+				const disp = (connectedDisplays || []).find(
+					(d) => normRandrCaspar(d?.name) === hits[0].name,
+				)
+				const res = String(disp?.resolution || '').trim()
+				connected = !!(res && res !== 'unknown')
+			} else if (connectedNames.size) {
+				livePresent = pairs.some((p) => connectedNames.has(normRandrCaspar(p)))
+				connected = livePresent
+				const active = pairs.find((p) => connectedNames.has(normRandrCaspar(p)))
+				if (active) monitor = String(active).trim()
+			}
+		}
 		decisions.push({
 			id,
 			hidden,
 			hiddenReason,
 			inSavedPrefs: saved != null,
 			savedHidden: saved != null ? !!saved.hidden : null,
-			connected: !!entry.connected,
+			connected,
+			livePresent,
 			label: entry.label,
 			orphanSavedPref: false,
 		})
 		return {
 			...entry,
 			hidden,
+			connected,
+			livePresent,
+			monitor,
 			label: saved?.label ? String(saved.label) : entry.label,
-			pairs:
-				Array.isArray(saved?.pairs) && saved.pairs.length ? [...saved.pairs] : entry.pairs,
+			pairs,
+			topologySlot: entry.topologySlot === true || isPrimaryTopologySocket(id),
 		}
 	})
 	for (const savedId of byIdRaw.keys()) {
@@ -672,12 +1032,37 @@ export function mergeGpuLayoutEntriesWithPrefs(entries, prefs, { defaultHideDisc
 		}
 	}
 	traceGpuLayoutMergeComplete(lastGpuLayoutTraceSeq, merged, decisions)
-	if (!orderIds.length) return merged
+	let result = merged
+	const mergedIds = new Set(merged.map((e) => String(e.connectorId || '').trim()))
+	for (const slotId of orderIds) {
+		const id = String(slotId).trim()
+		if (!id || mergedIds.has(id)) continue
+		const m = /^gpu_p(\d+)$/i.exec(id)
+		if (!m) continue
+		const saved = byIdRaw.get(id)
+		const topoRow = (topology || []).find((t) => String(t?.physicalPortId || '').trim() === id)
+		const inferred = topoRow
+			? entryFromTopologyRow(topoRow, connectedDisplays, [], [], result.length)
+			: entryFromInferredPhysicalPort(parseInt(m[1], 10), [], connectedDisplays, topology)
+		if (saved?.pairs?.length) {
+			inferred.pairs = [...saved.pairs]
+			if (connectedNames.size) {
+				inferred.connected = inferred.pairs.some((p) => connectedNames.has(normRandrCaspar(p)))
+				const active = inferred.pairs.find((p) => connectedNames.has(normRandrCaspar(p)))
+				if (active) inferred.monitor = String(active).trim()
+			}
+		}
+		if (saved?.label) inferred.label = String(saved.label)
+		if (saved?.hidden != null) inferred.hidden = !!saved.hidden
+		result.push(inferred)
+		mergedIds.add(id)
+	}
+	if (!orderIds.length) return result
 	const rank = (id) => {
 		const i = orderIds.indexOf(id)
-		return i >= 0 ? i : 9000 + merged.findIndex((e) => e.connectorId === id)
+		return i >= 0 ? i : 9000 + result.findIndex((e) => e.connectorId === id)
 	}
-	return [...merged].sort((a, b) => rank(a.connectorId) - rank(b.connectorId))
+	return [...result].sort((a, b) => rank(a.connectorId) - rank(b.connectorId))
 }
 
 /** Layout-editor / localStorage row shape from port entries. */
@@ -698,7 +1083,7 @@ export function layoutItemsFromGpuEntries(entries) {
 
 /**
  * Build GPU rear-panel entries from live server data (physical map + suggested + all RandR outputs).
- * @param {{ live: object, suggestedGpuOuts?: object[], layoutPrefs?: { byId: Map, orderIds: string[] }, hideDisconnectedByDefault?: boolean }} opts
+ * @param {{ live: object, suggestedGpuOuts?: object[], graphGpuOuts?: object[], layoutPrefs?: { byId: Map, orderIds: string[] }, savedTopology?: object[], hideDisconnectedByDefault?: boolean }} opts
  * @returns {Array<object>}
  */
 export function buildGpuSelectablePortEntries({
@@ -706,14 +1091,35 @@ export function buildGpuSelectablePortEntries({
 	suggestedGpuOuts = [],
 	graphGpuOuts = [],
 	layoutPrefs = null,
+	savedTopology = null,
 	hideDisconnectedByDefault = null,
 }) {
-	const raw = buildRawGpuPortEntriesFromLive(live, suggestedGpuOuts, graphGpuOuts)
 	const prefs = layoutPrefs ?? readGpuLayoutPrefs()
+	const topology = reconcileTopologyWithLiveDisplays(
+		resolveEffectiveGpuTopology(savedTopology, prefs),
+		live,
+	)
+	let base = buildGpuEntriesFromTopology(topology, live, suggestedGpuOuts, graphGpuOuts)
+
+	const raw = consolidateBracketSplitEntries(
+		buildRawGpuPortEntriesFromLive(live, suggestedGpuOuts, graphGpuOuts),
+	)
+	const baseIds = new Set(base.map((e) => String(e?.connectorId || '').trim()))
+	for (const e of raw) {
+		const id = String(e?.connectorId || '').trim()
+		if (/^gpu_p\d+(__.*)?$/i.test(id)) continue
+		if (!id || baseIds.has(id)) continue
+		base.push(e)
+		baseIds.add(id)
+	}
+
 	const hideDefault =
 		hideDisconnectedByDefault !== null ? hideDisconnectedByDefault : false
-	return mergeGpuLayoutEntriesWithPrefs(raw, prefs, {
+	return mergeGpuLayoutEntriesWithPrefs(base, prefs, {
 		defaultHideDisconnected: hideDefault,
+		connectedDisplays: Array.isArray(live?.gpu?.displays) ? live.gpu.displays : [],
+		connectors: Array.isArray(live?.gpu?.connectors) ? live.gpu.connectors : [],
+		topology,
 	})
 }
 
@@ -737,13 +1143,11 @@ export function listStaleGpuGraphConnectors(graphGpuOuts = [], rearEntries = [])
 	})
 }
 
-export function entryToRearPanelGpuItem(entry, connectedDisplays = []) {
+export function entryToRearPanelGpuItem(entry, connectedDisplays = [], connectors = []) {
 	const pairs = Array.isArray(entry.pairs) ? entry.pairs : []
-	const connected =
-		entry.connected ||
-		pairs.some((pName) =>
-			connectedDisplays.some((d) => d?.connected && normRandrCaspar(d.name) === normRandrCaspar(pName)),
-		)
+	const hits = displaysMatchingPairs(pairs, connectedDisplays, connectors)
+	const livePresent = !!(entry.livePresent || hits.length > 0)
+	const connected = !!(entry.connected || (livePresent && entry.resolution && entry.resolution !== 'unknown'))
 	const inDeviceGraph = entry.inDeviceGraph === true
 	return {
 		id: entry.connectorId,
@@ -753,13 +1157,14 @@ export function entryToRearPanelGpuItem(entry, connectedDisplays = []) {
 		kind: 'gpu_out',
 		index: entry.index,
 		connected,
+		livePresent,
+		topologySlot: entry.topologySlot === true || isPrimaryTopologySocket(entry.connectorId),
 		hidden: entry.hidden,
 		pairs,
 		monitor: entry.monitor || '',
 		resolution: entry.resolution || '',
 		refreshHz: entry.refreshHz,
 		inDeviceGraph,
-		// Unmapped = jack exists on the card but has no gpu_pN row in the device graph (not merely unplugged).
 		isVirtual: !inDeviceGraph,
 	}
 }

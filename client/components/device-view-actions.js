@@ -2,6 +2,8 @@
  * API Actions for Device View.
  */
 import { api } from '../lib/api-client.js'
+import { patchGraphWithMissingCableConnectors } from '../lib/device-view-cable-preflight.js'
+import { resolveTopologyForDeviceView } from '../lib/device-view-gpu-port-list.js'
 
 export async function loadDeviceView() {
 	return await api.get('/api/device-view')
@@ -25,6 +27,12 @@ export async function loadSettings() {
 
 export async function saveSettingsPatch(patch) {
 	return await api.post('/api/settings', patch)
+}
+
+/** Persist rear-panel DP/HDMI bracket map so server physicalMap matches the layout editor. */
+export async function saveGpuPhysicalTopology(topology) {
+	if (!Array.isArray(topology) || !topology.length) return null
+	return await api.post('/api/settings', { gpuPhysicalTopology: topology })
 }
 
 export async function applyOsSettings(patch = {}) {
@@ -81,6 +89,62 @@ export async function applyDeviceViewPlan(opts = {}) {
 
 export async function saveDeviceGraph(graph) {
 	return await api.post('/api/device-view', { deviceGraph: graph })
+}
+
+/** Merge live GPU/DeckLink connectors into the saved device graph (server `syncFromLive`). */
+export async function syncDeviceGraphFromLive() {
+	return await api.post('/api/device-view', { syncFromLive: true })
+}
+
+/**
+ * Persist topology + materialize missing cable endpoints in the saved graph.
+ * Avoids syncFromLive here — it strips gpu_out rows that are not in suggested hardware.
+ * @param {object | null | undefined} payload
+ * @param {object | null | undefined} settings
+ * @param {string} sourceId
+ * @param {string} sinkId
+ */
+export async function recoverDeviceGraphForCable(payload, settings, sourceId, sinkId) {
+	const topology = resolveTopologyForDeviceView(payload, settings)
+	await saveGpuPhysicalTopology(topology)
+	let working = payload
+	try {
+		const fresh = await loadDeviceView()
+		if (fresh) {
+			working = { ...fresh, gpuPhysicalTopology: topology }
+		}
+	} catch {
+		/* use payload */
+	}
+	const materialized = await ensureCableConnectorsInSavedGraph(working, settings, sourceId, sinkId)
+	return { topology, fresh: materialized.fresh || working, graph: materialized.graph }
+}
+
+/**
+ * Write minimal gpu_pN / dst_in_* rows into the persisted graph when absent.
+ * @param {object | null | undefined} payload
+ * @param {object | null | undefined} settings
+ * @param {string} sourceId
+ * @param {string} sinkId
+ */
+export async function ensureCableConnectorsInSavedGraph(payload, settings, sourceId, sinkId) {
+	const { graph, addedIds } = patchGraphWithMissingCableConnectors(payload, settings, [
+		sourceId,
+		sinkId,
+	])
+	if (!addedIds.length) {
+		return { graph: payload?.graph || graph, fresh: payload, addedIds }
+	}
+	const res = await saveDeviceGraph(graph)
+	const saved = res?.graph || graph
+	let fresh = null
+	try {
+		fresh = await loadDeviceView()
+		if (fresh?.graph) fresh.graph = saved
+	} catch {
+		/* saved graph is enough */
+	}
+	return { graph: saved, fresh: fresh || { ...(payload || {}), graph: saved }, addedIds }
 }
 
 export async function addCable(sourceId, sinkId) {

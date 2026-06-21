@@ -227,7 +227,7 @@ export function initPreviewPanel(host, options) {
 				badge.appendChild(lockSpan)
 				
 				const textSpan = document.createElement('span')
-				textSpan.textContent = 'PGM'
+				textSpan.textContent = d.label
 				badge.appendChild(textSpan)
 			} else {
 				const textSpan = document.createElement('span')

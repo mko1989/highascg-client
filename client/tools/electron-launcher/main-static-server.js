@@ -263,6 +263,16 @@ function createLauncherStaticServer({
 		}
 	})
 
+	server.on('error', (err) => {
+		if (err && err.code === 'EADDRINUSE') {
+			console.error(
+				`[Electron Main] Port ${port} is already in use. Stop the other process first (often \`npm run dev\` / Vite): lsof -i :${port}`,
+			)
+			return
+		}
+		console.error('[Electron Main] WebUI static server error:', err?.message || err)
+	})
+
 	server.listen(port, '0.0.0.0', () => {
 		console.log(`[Electron Main] WebUI Static Server listening on http://localhost:${port}`)
 	})

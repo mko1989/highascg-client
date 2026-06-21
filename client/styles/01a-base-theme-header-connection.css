@@ -136,16 +136,17 @@ optgroup {
 	font-size: 10px;
 	font-weight: 600;
 	cursor: pointer;
-	border: 1px solid var(--border);
+	border: 1px solid #5a626d;
 	transition: all 0.2s ease;
 	padding: 0;
-	background: var(--bg-elevated);
-	color: var(--text-muted);
+	background: #484f58;
+	color: #aeb5bd;
 }
 
 .header-stream-indicator:hover {
 	border-color: var(--accent);
 	color: var(--text);
+	background: #565d66;
 }
 
 .header-stream-indicator.active {

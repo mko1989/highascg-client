@@ -39,7 +39,7 @@ export function initScenesEditor(root, stateStore, opts = {}) {
 	 */
 	function buildLayerRouteLiveSourceItem(scene, layerNumber, opts = {}) {
 		const cm = getChannelMap()
-		const forceBus = opts.forceBus || 'edit'
+		const forceBus = opts.forceBus || 'pgm'
 		const ch = resolveLookStackChannelForBus(cm, sceneState, scene, forceBus)
 		if (!Number.isFinite(ch) || ch <= 0) {
 			return { error: 'No Caspar preview/program channel for this screen. Check routing in Settings.' }
@@ -57,12 +57,15 @@ export function initScenesEditor(root, stateStore, opts = {}) {
 		const fps = res?.fps != null ? formatFps(res.fps) : ''
 		const value = `route://${ch}-${ln}`
 		const busTag = forceBus === 'pgm' ? ' PGM' : forceBus === 'prv' ? ' PRV' : ''
+		const lookName = String(scene?.name || '').trim() || 'Untitled look'
 		return {
 			item: {
 				type: 'route',
 				routeType: 'layer',
 				value,
-				label: `Route: Ch${ch} L${ln}${busTag}`,
+				label: `Route: Ch${ch} L${ln}${busTag} · ${lookName}`,
+				lookId: scene?.id || '',
+				lookName,
 				resolution,
 				fps,
 				thumbnailChannel: ch,

@@ -97,6 +97,17 @@ export async function importProjectWithHardwareReconcile(project, deps) {
 		return 'looks_only'
 	}
 
+	// Boot / reconnect: OS layout drift alone should not block the UI (operator already on this machine).
+	if (
+		(deps.source === 'server-bootstrap' || deps.source === 'server-reconnect') &&
+		report.severity === 'soft' &&
+		report.items.every((it) => it.section === 'OS display layout' || it.section === 'Caspar screen modes')
+	) {
+		importLooks()
+		hideKeepLiveBanner()
+		return 'looks_only'
+	}
+
 	if (policy === 'apply_saved' && report.severity !== 'hard') {
 		return applyFull()
 	}
