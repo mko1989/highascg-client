@@ -16,55 +16,6 @@ function logProxyError(...args) {
 	console.error(`[Electron Main] [proxy ${ts}]`, ...args)
 }
 
-/**
- * @param {string} distWebPath
- * @param {string} cgStudioTemplatesDir
- */
-function handleCgStudioApiLocal(req, res, pathname, cgStudioTemplatesDir) {
-	if (!pathname.startsWith('/api/cg-studio')) return false
-
-	if (pathname === '/api/cg-studio/health' && req.method === 'GET') {
-		res.setHeader('Content-Type', 'application/json')
-		res.end(JSON.stringify({ ok: true, module: 'cg-studio', launcher: true }))
-		return true
-	}
-
-	if (pathname === '/api/cg-studio/save' && req.method === 'POST') {
-		let body = ''
-		req.on('data', (chunk) => {
-			body += chunk
-		})
-		req.on('end', () => {
-			try {
-				const payload = JSON.parse(body || '{}')
-				const name = String(payload.name || 'template').trim().replace(/[^\w.-]+/g, '_') || 'template'
-				fs.mkdirSync(cgStudioTemplatesDir, { recursive: true })
-				const htmlPath = path.join(cgStudioTemplatesDir, `${name}.html`)
-				const jsonPath = path.join(cgStudioTemplatesDir, `${name}.project.json`)
-				fs.writeFileSync(htmlPath, String(payload.casparHtml || payload.html || ''), 'utf8')
-				fs.writeFileSync(jsonPath, String(payload.projectJson || '{}'), 'utf8')
-				res.setHeader('Content-Type', 'application/json')
-				res.end(
-					JSON.stringify({
-						ok: true,
-						name,
-						path: `/fixtures/cg-studio-templates/${name}.html`,
-					}),
-				)
-			} catch (err) {
-				res.statusCode = 400
-				res.setHeader('Content-Type', 'text/plain')
-				res.end(err && err.message ? err.message : String(err))
-			}
-		})
-		return true
-	}
-
-	res.statusCode = 404
-	res.end('Not found')
-	return true
-}
-
 function mapInstanceStaticPath(requestPath) {
 	const m = String(requestPath || '/').match(/^\/instance\/[^/]+(\/.*)?$/)
 	if (!m) return requestPath
@@ -83,8 +34,6 @@ function createLauncherStaticServer({
 	getEnabledModuleIds,
 	buildModulesApiPayload,
 }) {
-	const cgStudioTemplatesDir = path.join(distWebPath, 'fixtures', 'cg-studio-templates')
-
 	const server = http.createServer((req, res) => {
 		const parsedUrl = url.parse(req.url)
 		const pathname = parsedUrl.pathname
@@ -95,10 +44,6 @@ function createLauncherStaticServer({
 			res.setHeader('Content-Type', 'application/json')
 			res.setHeader('Cache-Control', 'no-store')
 			res.end(JSON.stringify(buildModulesApiPayload()))
-			return
-		}
-
-		if (enabledIds.includes('cg-studio') && handleCgStudioApiLocal(req, res, pathname, cgStudioTemplatesDir)) {
 			return
 		}
 

@@ -145,3 +145,18 @@
   background-color: var(--accent-hover);
   border-color: var(--accent-hover);
 }
+
+.header-btn--open-cg-studio {
+  background-color: transparent;
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.header-btn--open-cg-studio:hover {
+  background-color: rgba(79, 195, 247, 0.15);
+  color: var(--accent);
+}
+
+.hidden {
+  display: none !important;
+}

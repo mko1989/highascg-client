@@ -4,6 +4,7 @@
  */
 
 import { api } from '../lib/api-client.js'
+import { isLowerThirdSource } from '../lib/lower-third-cg-data.js'
 
 /**
  * @param {HTMLElement} root
@@ -18,6 +19,7 @@ export function appendSceneLayerHtmlTemplateGroup(root, { sceneState, stateStore
 	if (!src?.value) return
 	const t = src.type
 	if (t !== 'template' && t !== 'html') return
+	if (isLowerThirdSource(src)) return
 
 	const grp = document.createElement('div')
 	grp.className = 'inspector-group inspector-html-template-group'

@@ -2,7 +2,16 @@
  * GrapesJS integration for HighAsCG CG Overlay Studio (WO-32).
  */
 
-import { buildCasparTemplateHtml } from '../../../lib/cg-studio-caspar-export.js'
+import grapesjs from 'grapesjs'
+import { buildCasparTemplateHtml, extractLtGraphicFromEditor, buildLtEngineInitScript } from '../../../lib/cg-studio-caspar-export.js'
+import {
+	buildLtEditorComponents,
+	LT_ANIMATION_PRESETS,
+	LT_BASE_CSS,
+	LT_CONTAINER_CLASS,
+	LT_GRAPHIC_CLASS,
+	normalizeLtTemplateId,
+} from '../../../lib/cg-studio-lt-presets.js'
 
 /** Editor-only iframe background (not exported in getHtml/getCss). */
 const CANVAS_CHECKERBOARD_CSS = `
@@ -86,19 +95,35 @@ function tryMountInspectorPanels() {
 /**
  * @param {HTMLElement} container — `#tab-cg-studio`
  */
-const GRAPESJS_VENDOR = '/vendor/grapesjs/dist/grapes.mjs'
-
 export async function initEditor(container) {
-	const mod = await import(/* @vite-ignore */ GRAPESJS_VENDOR)
-	const grapesjs = mod.default || mod
 
 	const header = document.createElement('div')
 	header.className = 'cg-studio-toolbar'
 
 	const nameInp = document.createElement('input')
 	nameInp.type = 'text'
-	nameInp.placeholder = 'Template name (e.g. lowerthird)'
+	nameInp.placeholder = 'Template name (e.g. my-brand)'
 	nameInp.className = 'header-project__name'
+
+	const animSel = document.createElement('select')
+	animSel.className = 'header-btn--secondary cg-studio-anim-preset'
+	animSel.title = 'Play in / play out animation'
+	for (const preset of Object.values(LT_ANIMATION_PRESETS)) {
+		const opt = document.createElement('option')
+		opt.value = preset.id
+		opt.textContent = preset.label
+		animSel.appendChild(opt)
+	}
+
+	const previewBtn = mkBtn('Preview', 'header-btn--secondary')
+	const loadSel = document.createElement('select')
+	loadSel.className = 'cg-studio-load-select header-btn--secondary'
+	loadSel.title = 'Load saved lower-third project'
+	const loadOpt = document.createElement('option')
+	loadOpt.value = ''
+	loadOpt.textContent = 'Load…'
+	loadSel.appendChild(loadOpt)
+	const loadBtn = mkBtn('Open', 'header-btn--secondary')
 
 	const addTextBtn = mkBtn('+ Text', 'header-btn--secondary')
 	const addBoxBtn = mkBtn('+ Box', 'header-btn--secondary')
@@ -110,11 +135,11 @@ export async function initEditor(container) {
 	const zoomInBtn = mkBtn('+', 'header-btn--icon')
 	const zoomFitBtn = mkBtn('Fit', 'header-btn--secondary')
 
-	const saveBtn = mkBtn('Save & deploy')
+	const saveBtn = mkBtn('Save LT template')
 	const statusSpan = document.createElement('span')
 	statusSpan.className = 'cg-studio-status'
 
-	header.append(nameInp, addTextBtn, addBoxBtn, zoomOutBtn, zoomLabel, zoomInBtn, zoomFitBtn, saveBtn, statusSpan)
+	header.append(nameInp, animSel, loadSel, loadBtn, addTextBtn, addBoxBtn, previewBtn, zoomOutBtn, zoomLabel, zoomInBtn, zoomFitBtn, saveBtn, statusSpan)
 
 	const body = document.createElement('div')
 	body.className = 'cg-studio-body'
@@ -170,6 +195,10 @@ export async function initEditor(container) {
 		},
 		canvas: {
 			styles: [],
+			scripts: [
+				'/template/CasparCG-Guide-HTML-Template-master/node_modules/gsap/dist/gsap.js',
+				'/template/lower-thirds/lt-engine.js'
+			],
 		},
 	})
 
@@ -197,8 +226,28 @@ export async function initEditor(container) {
 		return { left: `${80 + dropOffset}px`, top: `${80 + dropOffset}px` }
 	}
 
+	function isLtScaffoldComponent(component) {
+		if (!component) return false
+		const tag = String(component.get?.('tagName') || '').toLowerCase()
+		const cls = String(component.getClasses?.() || '')
+		const role = component.getAttributes?.()?.['data-lt-role']
+		if (cls.includes(LT_CONTAINER_CLASS) || cls.includes(LT_GRAPHIC_CLASS)) return true
+		if (tag === 'main' || tag === 'h1' || tag === 'p') return true
+		if (role === 'title' || role === 'subtitle') return true
+		if (cls.includes('subtitle')) return true
+		return false
+	}
+
 	function prepareOverlayComponent(component) {
 		if (!component || component === editor.getWrapper()) return
+		if (isLtScaffoldComponent(component)) {
+			component.set({
+				draggable: component.getClasses?.().includes(LT_GRAPHIC_CLASS) ? false : true,
+				removable: false,
+				copyable: false,
+			})
+			return
+		}
 		const pos = nextDropPosition()
 		component.set({
 			draggable: true,
@@ -229,6 +278,10 @@ export async function initEditor(container) {
 			style.setAttribute('data-cg-studio', 'checkerboard')
 			style.textContent = CANVAS_CHECKERBOARD_CSS
 			doc.head.appendChild(style)
+			const ltStyle = doc.createElement('style')
+			ltStyle.setAttribute('data-cg-studio', 'lt-base')
+			ltStyle.textContent = LT_BASE_CSS
+			doc.head.appendChild(ltStyle)
 
 			// Capture wheel events inside GrapesJS's iframe to handle zooming and swipe panning
 			doc.addEventListener(
@@ -254,7 +307,7 @@ export async function initEditor(container) {
 		const wrapper = editor.getWrapper()
 		if (wrapper) {
 			wrapper.set({
-				droppable: true,
+				droppable: false,
 				selectable: false,
 				hoverable: false,
 				badgable: false,
@@ -267,6 +320,8 @@ export async function initEditor(container) {
 				},
 			})
 		}
+
+		seedLowerThirdScaffold()
 
 		editor.setDevice('hd')
 		requestAnimationFrame(() => {
@@ -285,17 +340,50 @@ export async function initEditor(container) {
 		media: '<span style="font-size:18px">T</span>',
 		content: {
 			tagName: 'div',
-			attributes: { 'data-field': 'headline' },
+			attributes: { 'data-lt-role': 'body' },
 			style: {
-				position: 'absolute',
-				left: '80px',
-				top: '80px',
+				position: 'relative',
 				padding: '10px',
 				'font-family': 'sans-serif',
-				'font-size': '32px',
+				'font-size': '24px',
 				color: '#ffffff',
 			},
-			components: 'Headline',
+			components: 'Text',
+		},
+	})
+	bm.add('lt-title', {
+		label: 'Title (h1)',
+		media: '<span style="font-size:14px;font-weight:700">H1</span>',
+		content: {
+			tagName: 'h1',
+			attributes: { 'data-lt-role': 'title' },
+			type: 'text',
+			content: 'Name',
+			style: {
+				'font-size': '46px',
+				'font-weight': '700',
+				color: 'var(--text, #fff)',
+			},
+		},
+	})
+	bm.add('lt-subtitle', {
+		label: 'Subtitle',
+		media: '<span style="font-size:12px">Sub</span>',
+		content: {
+			tagName: 'div',
+			attributes: { class: 'subtitle' },
+			components: [
+				{
+					tagName: 'p',
+					attributes: { 'data-lt-role': 'subtitle' },
+					type: 'text',
+					content: 'Title',
+					style: {
+						'font-size': '27px',
+						color: 'var(--primary, lightblue)',
+					},
+				},
+			],
 		},
 	})
 	bm.add('box', {
@@ -314,10 +402,25 @@ export async function initEditor(container) {
 		},
 	})
 
-	function addBlockFromManager(blockId) {
+	function seedLowerThirdScaffold() {
+		const wrapper = editor.getWrapper()
+		if (!wrapper) return
+		wrapper.components().reset()
+		const added = wrapper.append(buildLtEditorComponents())
+		const main = Array.isArray(added) ? added[0] : added
+		if (main) editor.select(main)
+	}
+
+	function findGraphicComponent() {
+		const wrapper = editor.getWrapper()
+		return wrapper?.find?.(`.${LT_GRAPHIC_CLASS}`)?.[0] || null
+	}
+
+	function addToGraphic(blockId) {
 		const block = bm.get(blockId)
-		if (!block) return
-		const added = editor.addComponents(block.get('content'))
+		const graphic = findGraphicComponent()
+		if (!block || !graphic) return
+		const added = graphic.append(block.get('content'))
 		const component = Array.isArray(added) ? added[0] : added
 		if (component) {
 			prepareOverlayComponent(component)
@@ -325,8 +428,33 @@ export async function initEditor(container) {
 		}
 	}
 
-	addTextBtn.onclick = () => addBlockFromManager('text')
-	addBoxBtn.onclick = () => addBlockFromManager('box')
+	addTextBtn.onclick = () => addToGraphic('text')
+	addBoxBtn.onclick = () => addToGraphic('box')
+
+	previewBtn.onclick = () => {
+		const frame = editor.Canvas.getFrameEl()
+		const win = frame?.contentWindow
+		if (!win?.LTEngine) {
+			statusSpan.textContent = 'Preview runs on exported template (save first)'
+			return
+		}
+		if (!win.LTEngine.isInitialized) {
+			const preset = animSel.value || 'fade'
+			const scriptText = buildLtEngineInitScript({ animationPreset: preset })
+			win.eval(scriptText)
+			win.LTEngine.isInitialized = true
+		}
+		const sample = {
+			data: { title: 'Preview Name', subtitle: 'Preview Title' },
+			style: { primaryColor: '#4fc3f7', textColor: '#ffffff', position: 'left' },
+		}
+		win.update(JSON.stringify(sample))
+		win.play?.()
+		statusSpan.textContent = 'Preview play'
+		setTimeout(() => {
+			statusSpan.textContent = ''
+		}, 2500)
+	}
 	zoomInBtn.onclick = () => applyZoom(zoomPct * 1.15)
 	zoomOutBtn.onclick = () => applyZoom(zoomPct / 1.15)
 	zoomFitBtn.onclick = () => fitCanvasZoom()
@@ -351,42 +479,46 @@ export async function initEditor(container) {
 	)
 
 	saveBtn.onclick = async () => {
-		const tplName = nameInp.value.trim().replace(/[^\w.-]+/g, '_')
-		if (!tplName) {
+		const tplName = normalizeLtTemplateId(nameInp.value.trim())
+		if (!tplName || tplName === 'lt-') {
 			statusSpan.textContent = 'Enter a template name'
 			return
 		}
+		nameInp.value = tplName.replace(/^lt-/, '')
 		saveBtn.disabled = true
 		statusSpan.textContent = 'Saving…'
 		try {
 			const projectData = editor.getProjectData()
-			const html = editor.getHtml()
-			const css = editor.getCss()
-			const { html: casparHtml, projectJson } = buildCasparTemplateHtml({
+			const { graphicHtml, css } = extractLtGraphicFromEditor(editor)
+			const animationPreset = animSel.value || 'fade'
+			const { html: casparHtml, projectJson, templateId, htmlPath } = buildCasparTemplateHtml({
 				name: tplName,
-				html,
+				html: graphicHtml,
 				css,
 				projectData,
+				animationPreset,
 			})
 
 			const res = await fetch('/api/cg-studio/save', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
-					name: tplName,
-					html,
+					name: templateId,
+					html: graphicHtml,
 					css,
 					projectData,
+					animationPreset,
 					casparHtml,
 					projectJson,
 				}),
 			})
 			if (!res.ok) throw new Error((await res.text()) || `HTTP ${res.status}`)
 			const out = await res.json().catch(() => ({}))
-			statusSpan.textContent = out.path ? `Saved → ${out.path}` : `Saved ${tplName}`
+			statusSpan.textContent = out.path ? `Saved → ${out.path}` : `Saved ${templateId} (${htmlPath})`
+			void refreshLoadList()
 			setTimeout(() => {
 				statusSpan.textContent = ''
-			}, 4000)
+			}, 5000)
 		} catch (err) {
 			console.error('[cg-studio] save failed:', err)
 			statusSpan.textContent = `Error: ${err && err.message ? err.message : err}`
@@ -394,6 +526,63 @@ export async function initEditor(container) {
 			saveBtn.disabled = false
 		}
 	}
+
+	async function refreshLoadList() {
+		try {
+			const res = await fetch('/api/cg-studio/templates')
+			if (!res.ok) return
+			const data = await res.json()
+			loadSel.replaceChildren(loadOpt.cloneNode(true))
+			for (const t of data.templates || []) {
+				const opt = document.createElement('option')
+				opt.value = t.id
+				opt.textContent = t.name || t.id
+				loadSel.appendChild(opt)
+			}
+		} catch {
+			/* dev API optional */
+		}
+	}
+
+	async function loadTemplateById(id) {
+		if (!id) return
+		statusSpan.textContent = 'Loading…'
+		try {
+			const res = await fetch(`/api/cg-studio/load/${encodeURIComponent(id)}`)
+			if (!res.ok) throw new Error(`HTTP ${res.status}`)
+			const project = await res.json()
+			if (project.projectData) {
+				editor.loadProjectData(project.projectData)
+			} else {
+				seedLowerThirdScaffold()
+				const graphic = findGraphicComponent()
+				if (graphic && project.graphicHtml) {
+					graphic.components(project.graphicHtml)
+				}
+			}
+			if (project.animationPreset) animSel.value = project.animationPreset
+			nameInp.value = String(project.name || id).replace(/^lt-/, '')
+			statusSpan.textContent = `Loaded ${id}`
+			setTimeout(() => {
+				statusSpan.textContent = ''
+			}, 2500)
+		} catch (err) {
+			statusSpan.textContent = `Load failed: ${err?.message || err}`
+		}
+	}
+
+	async function loadSelectedTemplate() {
+		const id = loadSel.value
+		if (!id) return
+		await loadTemplateById(id)
+	}
+
+	loadBtn.onclick = () => void loadSelectedTemplate()
+	window.addEventListener('highascg-cg-studio-load-template', (e) => {
+		const id = e.detail?.id
+		if (id) void loadTemplateById(id)
+	})
+	void refreshLoadList()
 
 	window.addEventListener('highascg-cg-studio-inspector-mount', (e) => {
 		const root = e.detail?.root

@@ -228,7 +228,10 @@ export function renderMediaBrowser(container, media, filter, onMediaDeleted, opt
 			// Row click toggles selection (modifiers handled in panel)
 			el.addEventListener('click', (e) => {
 				if (e.target.closest('.source-item__delete-folder')) return
-				if (e.ctrlKey || e.metaKey) return // download / delete modifiers
+				// Ctrl+Alt / ⌘+⌥ delete — handled by attachMediaModifierClick
+				if (e.altKey && (e.ctrlKey || e.metaKey)) return
+				// Alt alone — download
+				if (e.altKey) return
 				e.preventDefault()
 				e.stopPropagation()
 				options.onToggleSelect?.(id, {

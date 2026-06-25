@@ -200,6 +200,8 @@ const simRuntimeHint = document.getElementById('sim-runtime-hint')
 const headerIpInput = document.getElementById('header-server-ip')
 const headerPortInput = document.getElementById('header-server-port')
 const headerBtnOpenWebui = document.getElementById('header-btn-open-webui')
+const headerBtnOpenCgStudio = document.getElementById('header-btn-open-cg-studio')
+const btnOpenCgStudio = document.getElementById('btn-open-cg-studio')
 const headerStatusDot = document.getElementById('header-status-dot')
 const headerStatusText = document.getElementById('header-status-text')
 
@@ -290,14 +292,61 @@ async function saveOptionalModulesFromUi() {
 		enabled.push(input.getAttribute('data-module-id'))
 	})
 	try {
-		await ipcRenderer.invoke('set-optional-modules', enabled)
+		const result = await ipcRenderer.invoke('set-optional-modules', enabled)
 		localStorage.setItem(LS_OPTIONAL_MODULES, JSON.stringify(enabled))
+		await updateCgStudioButtons()
+		if (result && result.cgStudio) {
+			if (result.cgStudio.running && result.cgStudio.url) {
+				appendLog(`[Launcher] CG Studio server running at ${result.cgStudio.url}\n`)
+			} else if (result.cgStudio.error) {
+				appendLog(`[Launcher] CG Studio: ${result.cgStudio.error}\n`)
+			} else if (!enabled.includes('cg-studio')) {
+				appendLog('[Launcher] CG Studio stopped\n')
+			}
+		}
 	} catch (e) {
 		console.error('Save optional modules failed:', e)
 	}
 }
 
-void loadOptionalModulesUi()
+async function updateCgStudioButtons() {
+	let show = false
+	try {
+		const state = await ipcRenderer.invoke('cg-studio-is-enabled')
+		show = Boolean(state && state.enabled)
+	} catch (e) {
+		console.warn('CG Studio module state check failed:', e)
+	}
+	for (const el of [headerBtnOpenCgStudio, btnOpenCgStudio]) {
+		if (!el) continue
+		el.classList.toggle('hidden', !show)
+	}
+}
+
+async function openCgStudio() {
+	for (const btn of [headerBtnOpenCgStudio, btnOpenCgStudio]) {
+		if (btn) btn.disabled = true
+	}
+	try {
+		const result = await ipcRenderer.invoke('open-cg-studio')
+		if (!result.ok) {
+			appendLog(`[Launcher] CG Studio: ${result.error}\n`)
+			window.alert(result.error)
+		} else {
+			appendLog(`[Launcher] CG Studio opened at ${result.url}\n`)
+		}
+	} catch (e) {
+		const msg = e && e.message ? e.message : String(e)
+		appendLog(`[Launcher] CG Studio failed: ${msg}\n`)
+		window.alert(msg)
+	} finally {
+		for (const btn of [headerBtnOpenCgStudio, btnOpenCgStudio]) {
+			if (btn) btn.disabled = false
+		}
+	}
+}
+
+void loadOptionalModulesUi().then(() => updateCgStudioButtons())
 
 function getTargetUrl() {
   const ip = (headerIpInput.value || '127.0.0.1').trim()
@@ -508,6 +557,16 @@ if (btnOpenWebui) {
 if (headerBtnOpenWebui) {
   headerBtnOpenWebui.addEventListener('click', () => {
     ipcRenderer.send('open-external-url', getWebuiUrl())
+  })
+}
+if (headerBtnOpenCgStudio) {
+  headerBtnOpenCgStudio.addEventListener('click', () => {
+    void openCgStudio()
+  })
+}
+if (btnOpenCgStudio) {
+  btnOpenCgStudio.addEventListener('click', () => {
+    void openCgStudio()
   })
 }
 

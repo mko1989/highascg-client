@@ -55,3 +55,18 @@ export function resolveGpuScreenNumber(conn, lastPayload) {
 	const idx = gpu.findIndex((x) => String(x?.id || '') === String(conn?.id || ''))
 	return idx >= 0 ? Math.max(1, Math.min(4, idx + 1)) : 1
 }
+
+/** GPU output routed to a multiview Caspar channel (binding or cabled multiview destination). */
+export function gpuOutputIsMultiviewBound(conn, lastPayload) {
+	const ob = conn?.caspar?.outputBinding
+	if (ob && String(ob.type || '').toLowerCase() === 'multiview') return true
+	const edges = lastPayload?.graph?.edges || []
+	const inEdge = edges.find((e) => String(e?.sinkId || '') === String(conn?.id || ''))
+	if (!inEdge) return false
+	const srcId = String(inEdge.sourceId || '')
+	if (!srcId.startsWith('dst_in_')) return false
+	const dstId = srcId.slice('dst_in_'.length)
+	const dests = lastPayload?.screenDestinations?.destinations || []
+	const d = dests.find((x) => String(x?.id || '') === dstId)
+	return !!d && String(d.mode || '').toLowerCase() === 'multiview'
+}

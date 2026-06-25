@@ -15,8 +15,16 @@ export function decklinkInputForSlot(cm, slot) {
 	const entry = (cm?.inputChannels || []).find((e) => e && e.kind === 'decklink' && e.slot === n)
 	if (entry) return entry
 	const ch = cm?.decklinkInputChannels?.[n - 1]
-	if (ch == null) return null
-	return { kind: 'decklink', slot: n, channel: ch, layer: n, route: `route://${ch}-${n}` }
+	if (ch != null) {
+		return { kind: 'decklink', slot: n, channel: ch, layer: n, route: `route://${ch}-${n}` }
+	}
+	// Legacy shared inputs host: all DeckLink slots play on inputsCh as layers 1…N.
+	const sharedHost = cm?.inputsCh
+	const deckCount = Math.max(0, parseInt(String(cm?.decklinkCount ?? 0), 10) || 0)
+	if (sharedHost != null && n <= deckCount) {
+		return { kind: 'decklink', slot: n, channel: sharedHost, layer: n, route: `route://${sharedHost}-${n}` }
+	}
+	return null
 }
 
 /**

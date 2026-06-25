@@ -6,6 +6,12 @@ import {
 	migrateScene,
 	newId,
 } from './scene-state-helpers.js'
+import {
+	buildLowerThirdCasparCgData,
+	cgDataHasLowerThirdEditorContent,
+	isLowerThirdSource,
+	resolveLayerLowerThirdConfig,
+} from './lower-third-cg-data.js'
 
 export function uniqueLookNameForDuplicate(scenes, baseName) {
 	const base = String(baseName || '').trim() || 'Look'
@@ -58,11 +64,45 @@ export function importLookPresetsFromServer(list) {
 	return next.length > 0 ? next : null
 }
 
+function preserveLowerThirdEditorFields(prevLayers, incomingLayers) {
+	return incomingLayers.map((incoming, i) => {
+		const merged = JSON.parse(JSON.stringify(incoming))
+		const prev = prevLayers?.[i]
+		if (!isLowerThirdSource(merged?.source) && !isLowerThirdSource(prev?.source)) return merged
+
+		const effectiveCg =
+			cgDataHasLowerThirdEditorContent(merged.cgData) || !prev?.cgData
+				? merged.cgData
+				: prev.cgData
+
+		const ltCfg = resolveLayerLowerThirdConfig({
+			...merged,
+			cgData: effectiveCg,
+			source: {
+				...(prev?.source || {}),
+				...(merged.source || {}),
+				lowerThirdConfig: merged.source?.lowerThirdConfig ?? prev?.source?.lowerThirdConfig,
+				lowerThirdRoster: merged.source?.lowerThirdRoster ?? prev?.source?.lowerThirdRoster,
+			},
+		})
+		if (!ltCfg) return merged
+
+		merged.source = {
+			...(merged.source || prev?.source || {}),
+			lowerThirdConfig: ltCfg,
+			lowerThirdRoster: merged.source?.lowerThirdRoster ?? prev?.source?.lowerThirdRoster,
+		}
+		merged.cgData = buildLowerThirdCasparCgData(ltCfg)
+		return merged
+	})
+}
+
 export function applySceneFromTakePayload(scene, payload) {
 	if (!scene || !payload || typeof payload !== 'object') return false
 	let any = false
 	if (Array.isArray(payload.layers)) {
-		scene.layers = JSON.parse(JSON.stringify(payload.layers))
+		const prevLayers = scene.layers
+		scene.layers = preserveLowerThirdEditorFields(prevLayers, payload.layers)
 		any = true
 	}
 	if (payload.defaultTransition != null) {

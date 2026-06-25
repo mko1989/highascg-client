@@ -10,6 +10,7 @@ const {
 } = require('./launcher-modules-prefs.js')
 const { createWindow } = require('./main-window.js')
 const { registerSimIpc } = require('./main-sim.js')
+const { registerCgStudioIpc, closeCgStudioWindow, stopCgStudioServer, syncCgStudioModule } = require('./main-cg-studio.js')
 const { createUsbProbe } = require('./main-usb.js')
 
 const LAUNCHER_DIR = __dirname
@@ -59,9 +60,20 @@ ipcMain.handle('get-optional-modules', () => ({
 	enabled: getEnabledModuleIds(),
 }))
 
-ipcMain.handle('set-optional-modules', (_event, enabled) => {
-	setEnabledModuleIds(Array.isArray(enabled) ? enabled : [])
-	return { enabled: getEnabledModuleIds() }
+ipcMain.handle('set-optional-modules', async (_event, enabled) => {
+	const prev = getEnabledModuleIds()
+	const nextIds = Array.isArray(enabled) ? enabled : []
+	setEnabledModuleIds(nextIds)
+	const next = getEnabledModuleIds()
+	const wasOn = prev.includes('cg-studio')
+	const nowOn = next.includes('cg-studio')
+	let cgStudio = null
+	if (wasOn !== nowOn) {
+		cgStudio = await syncCgStudioModule(nowOn, LAUNCHER_DIR, REPO_ROOT, resolveSimAppRoot, (msg) =>
+			console.log('[Electron Main]', msg),
+		)
+	}
+	return { enabled: next, cgStudio }
 })
 
 const { cleanupSimulation } = registerSimIpc({
@@ -73,6 +85,14 @@ const { cleanupSimulation } = registerSimIpc({
 	isServerAppRoot,
 })
 
+registerCgStudioIpc({
+	launcherDir: LAUNCHER_DIR,
+	repoRoot: REPO_ROOT,
+	resolveSimAppRoot,
+	getEnabledModuleIds,
+	log: (msg) => console.log('[Electron Main]', msg),
+})
+
 const { checkUsbStatus } = createUsbProbe({ isServerAppRoot, simPathOnVolume })
 ipcMain.handle('check-usb-status', checkUsbStatus)
 
@@ -80,10 +100,22 @@ ipcMain.on('open-external-url', (_event, url) => {
 	shell.openExternal(url)
 })
 
-const windowHooks = { onClosed: () => cleanupSimulation() }
+const windowHooks = {
+	onClosed: () => {
+		closeCgStudioWindow()
+		void stopCgStudioServer()
+		cleanupSimulation()
+	},
+}
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
 	createWindow(LAUNCHER_DIR, windowHooks)
+
+	if (getEnabledModuleIds().includes('cg-studio')) {
+		await syncCgStudioModule(true, LAUNCHER_DIR, REPO_ROOT, resolveSimAppRoot, (msg) =>
+			console.log('[Electron Main]', msg),
+		)
+	}
 
 	app.on('activate', () => {
 		if (BrowserWindow.getAllWindows().length === 0) {
@@ -93,6 +125,8 @@ app.whenReady().then(() => {
 })
 
 app.on('window-all-closed', () => {
+	closeCgStudioWindow()
+	void stopCgStudioServer()
 	cleanupSimulation()
 	server.close()
 	if (process.platform !== 'darwin') {

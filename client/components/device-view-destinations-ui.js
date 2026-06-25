@@ -4,6 +4,7 @@
 import { destinationRectLabel } from './device-view-ui-utils.js'
 import { edgeOutputLayer } from './device-view-destinations-inspector.js'
 import { friendlyConnectorLabel } from './device-view-helpers.js'
+import { listAllScreenDestinationsForDeviceView } from '../lib/device-view-host-channels.js'
 
 function getDestinationConnectionLabel(edge, lastPayload, connectorById) {
 	const id = String(edge?.sinkId || '').trim()
@@ -106,7 +107,9 @@ export function renderDestinations(ctx) {
 		}
 	}
 
-	const destinationsRaw = Array.isArray(lastPayload?.screenDestinations?.destinations) ? lastPayload.screenDestinations.destinations : []
+	const destinationsRaw = listAllScreenDestinationsForDeviceView(lastPayload)
+	const userDestCount = (Array.isArray(lastPayload?.screenDestinations?.destinations) ? lastPayload.screenDestinations.destinations : []).length
+	const hostDestCount = destinationsRaw.length - userDestCount
 	const seenDestinationIds = new Set()
 	const destinationsList = destinationsRaw.filter((d) => {
 		const id = String(d?.id || '').trim()
@@ -129,7 +132,16 @@ export function renderDestinations(ctx) {
 	const container = document.createElement('div')
 	container.className = 'device-view__destinations-vertical-stack'
 
+	let hostHeadingAdded = false
 	for (const d of destinationsList) {
+		const isHost = String(d?.mode || '') === 'host_channel' || d?.virtual === true
+		if (isHost && hostDestCount > 0 && !hostHeadingAdded && userDestCount > 0) {
+			hostHeadingAdded = true
+			const hostHead = document.createElement('div')
+			hostHead.className = 'device-view__destinations-host-heading'
+			hostHead.textContent = 'Input & host channels'
+			container.appendChild(hostHead)
+		}
 		const destCardWrap = document.createElement('div')
 		destCardWrap.className = 'device-view__destination-wrapper'
 		destCardWrap.style.cssText = 'display: flex; flex-direction: column; gap: 4px; width: 100%; position: relative;'
@@ -137,12 +149,14 @@ export function renderDestinations(ctx) {
 		const mode = String(d?.mode || 'pgm_prv')
 		const b = document.createElement('div')
 		destCardWrap.appendChild(b)
-		b.className = `device-view__destination device-view__destination--mode-${mode}`
+		b.className = `device-view__destination device-view__destination--mode-${mode}${isHost ? ' device-view__destination--host-channel' : ''}`
 		const main = parseInt(String(d?.mainScreenIndex ?? 0), 10) || 0
 		const title = document.createElement('strong')
 		title.textContent = String(d?.label || d?.id || 'Destination')
 		const subtitle = document.createElement('small')
-		subtitle.textContent = destinationRectLabel(d)
+		subtitle.textContent = isHost
+			? `HOST · ch ${d?.casparChannel ?? intent?.pgmChannel ?? '?'}`
+			: destinationRectLabel(d)
 		
 		const ports = document.createElement('div')
 		ports.className = 'device-view__destination-ports'
@@ -186,7 +200,6 @@ export function renderDestinations(ctx) {
 		}
 		
 		b.append(title, subtitle, ports)
-		
 		if (mode === 'pgm_prv') {
 			b.classList.add('device-view__destination--pair')
 			const basePorts = b.querySelector('.device-view__destination-ports')
@@ -251,7 +264,7 @@ export function renderDestinations(ctx) {
 		}
 		
 		const mainFromIntent = Number.isFinite(intent?.mainScreenIndex) ? intent.mainScreenIndex : main
-		if (mode !== 'multiview' && mode !== 'stream') {
+		if (mode !== 'multiview' && mode !== 'stream' && mode !== 'host_channel') {
 			addDestinationKey(`${mainFromIntent}:pgm`, b)
 			if (mode !== 'pgm_only') addDestinationKey(`${mainFromIntent}:prv`, b)
 		} else if (mode === 'multiview') {

@@ -15,8 +15,7 @@ const { getMainWindow } = require('./main-window.js')
  * }} ctx
  */
 function registerSimIpc(ctx) {
-	const { launcherDir, repoRoot, simLauncherScript, resolveSimAppRoot, formatSimRootHelp, isServerAppRoot } =
-		ctx
+	const { launcherDir, repoRoot, simLauncherScript, resolveSimAppRoot, formatSimRootHelp, isServerAppRoot } = ctx
 
 	/** @type {import('child_process').ChildProcess | null} */
 	let simProcess = null

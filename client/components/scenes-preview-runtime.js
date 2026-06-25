@@ -5,7 +5,7 @@
 import { api } from '../lib/api-client.js'
 import { postAmcpPreviewPipeline } from '../lib/amcp-preview-batch.js'
 import { buildPipOverlayRemoveLines } from '../lib/pip-overlay-amcp.js'
-import { amcpParam, chLayerAmcp } from './scenes-shared.js'
+import { amcpParam, chLayerAmcp, buildIncomingScenePayload } from './scenes-shared.js'
 import {
 	allMatrixLayersOnPreviewChannel,
 	defaultLookDecadeLayersForSweep,
@@ -154,6 +154,16 @@ export function createScenesPreviewRuntime(opts) {
 			if (!Number.isFinite(programCh) || programCh <= 0) continue
 			const prvCh = Number(cm.previewChannels?.[mIdx])
 			const fps = cm.programResolutions?.[mIdx]?.fps ?? 50
+			const incomingScene = buildIncomingScenePayload(scene, {
+				timeline: null,
+				positionMs: 0,
+				programChannel: programCh,
+				mainIdx: mIdx,
+				fps,
+				stateStore,
+				transitionTake: false,
+				pgmOnly: false,
+			})
 			await api.post('/api/scene/take', {
 				channel: programCh,
 				sceneId,
@@ -161,6 +171,10 @@ export function createScenesPreviewRuntime(opts) {
 				forceCut,
 				useServerLive: true,
 				framerate: fps,
+				incomingScene: {
+					...incomingScene,
+					globalBorder: sceneState.getGlobalBorderForScreen(mIdx),
+				},
 			})
 			sceneState.setPreviewSceneId(sceneId, mIdx)
 			if (Number.isFinite(prvCh) && prvCh > 0) lastPreviewChannel = prvCh

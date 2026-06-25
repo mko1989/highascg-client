@@ -4,6 +4,11 @@
 
 export function destinationRectLabel(d) {
 	const modeRaw = String(d?.mode || 'pgm_prv')
+	if (modeRaw === 'host_channel') {
+		const ch = d?.casparChannel
+		const role = d?.hostRole ? roleLabel({ role: d.hostRole }) : 'Host'
+		return ch != null ? `${role} · ch ${ch}` : role
+	}
 	const mode = modeRaw === 'pgm_only' ? 'PGM' : (modeRaw === 'multiview' ? 'MVR' : (modeRaw === 'stream' ? 'STREAM' : 'PGM/PRV'))
 	const w = Math.max(64, parseInt(String(d?.width ?? 1920), 10) || 1920)
 	const h = Math.max(64, parseInt(String(d?.height ?? 1080), 10) || 1080)
@@ -30,6 +35,10 @@ export function roleLabel(item) {
 			return 'Multiview'
 		case 'inputs_host':
 			return 'Inputs host'
+		case 'decklink_input':
+			return 'DeckLink input'
+		case 'live_audio_input':
+			return 'Live audio input'
 		case 'extra_audio':
 			return 'Extra audio'
 		case 'streaming_channel':

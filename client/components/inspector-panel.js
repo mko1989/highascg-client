@@ -440,6 +440,10 @@ export function initInspectorPanel(root, stateStore) {
 		redrawInspectorContent()
 	})
 
+	window.addEventListener('highascg-workspace-tab-activated', () => {
+		redrawInspectorContent()
+	})
+
 	dmxState.on('selection', () => {
 		redrawInspectorContent()
 	})

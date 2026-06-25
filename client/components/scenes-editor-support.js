@@ -173,43 +173,29 @@ export function createTakeSceneToProgram(deps) {
 				touched.push({ mainIdx, channel: Number(programCh) })
 				const fps = cm.programResolutions?.[mainIdx]?.fps ?? 50
 				const pgmOnly = !isPreviewBusAvailable(cm, mainIdx)
-				const buildTakeBody = (withFullScene) => {
-					const base = {
-						channel: Number(programCh),
-						sceneId: scene.id,
-						framerate: fps,
-						forceCut,
-						useServerLive: true,
-					}
-					if (!withFullScene) return base
-					const incomingScene = buildIncomingScenePayload(scene, {
-						timeline: null,
-						positionMs: 0,
-						programChannel: Number(programCh),
-						mainIdx,
-						fps,
-						stateStore: deps.stateStore,
-						variableStore,
-						oscClient,
-						transitionTake: !forceCut && !pgmOnly,
-						pgmOnly,
-					})
-					return {
-						...base,
-						incomingScene: { ...incomingScene, globalBorder: sceneState.getGlobalBorderForScreen(mainIdx) },
-					}
-				}
-				let takeRes
-				try {
-					takeRes = await deps.api.post('/api/scene/take', buildTakeBody(false))
-				} catch (takeErr) {
-					const msg = String(takeErr?.message || takeErr)
-					if (/incomingScene/i.test(msg)) {
-						takeRes = await deps.api.post('/api/scene/take', buildTakeBody(true))
-					} else {
-						throw takeErr
-					}
-				}
+				const incomingSceneForTake = buildIncomingScenePayload(scene, {
+					timeline: null,
+					positionMs: 0,
+					programChannel: Number(programCh),
+					mainIdx,
+					fps,
+					stateStore: deps.stateStore,
+					variableStore,
+					oscClient,
+					transitionTake: !forceCut && !pgmOnly,
+					pgmOnly,
+				})
+				const takeRes = await deps.api.post('/api/scene/take', {
+					channel: Number(programCh),
+					sceneId: scene.id,
+					framerate: fps,
+					forceCut,
+					useServerLive: true,
+					incomingScene: {
+						...incomingSceneForTake,
+						globalBorder: sceneState.getGlobalBorderForScreen(mainIdx),
+					},
+				})
 				const incomingScene = buildIncomingScenePayload(scene, {
 					timeline: null,
 					positionMs: 0,

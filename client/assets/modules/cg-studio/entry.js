@@ -77,5 +77,24 @@ function registerCgStudioWorkspaceTab() {
 		}
 	})
 
+	let pendingTemplateLoad = null
+
+	window.addEventListener('highascg-cg-studio-edit-template', async (e) => {
+		const id = e.detail?.id
+		if (!id) return
+		pendingTemplateLoad = id
+
+		if (typeof window.highascgActivateWorkspaceTab === 'function') {
+			window.highascgActivateWorkspaceTab(TAB_ID)
+		}
+
+		await ensureEditor()
+
+		if (pendingTemplateLoad === id) {
+			pendingTemplateLoad = null
+			window.dispatchEvent(new CustomEvent('highascg-cg-studio-load-template', { detail: { id } }))
+		}
+	})
+
 	console.info('[cg-studio] workspace tab registered')
 }

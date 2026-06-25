@@ -3,51 +3,63 @@
  */
 import * as Actions from './device-view-actions.js'
 import { setStatus } from './device-view-ui-utils.js'
-import { resolveGpuPhysicalScreenIndex, resolveGpuScreenNumber } from './device-view-inspector-gpu-resolve.js'
+import { resolveGpuPhysicalScreenIndex, resolveGpuScreenNumber, gpuOutputIsMultiviewBound } from './device-view-inspector-gpu-resolve.js'
 import { appendGpuLayoutEditorIfEditMode } from './device-view-inspector-gpu-layout-editor.js'
 import { populateGpuVideoModelineSection } from './device-view-inspector-gpu-video-modeline.js'
 import {
 	SCREEN_CONSUMER_DEFAULTS,
 	screenConsumerFlagsFromCasparServer,
 	screenConsumerDefaultsSettingsPatch,
+	screenConsumerKeysUnset,
+	screenConsumerSeedCasparPatch,
 	shouldSeedScreenConsumerDefaults,
+	multiviewAlwaysOnTopFromCasparServer,
+	multiviewConsumerDefaultsSettingsPatch,
+	shouldSeedMultiviewAlwaysOnTopDefault,
 } from '../lib/screen-consumer-defaults.js'
 
 export function renderGpuOutControls(h, conn, { currentSettings, lastPayload, statusEl, load, setCasparRestartDirty, connectorCtx }) {
 	const cs = currentSettings?.casparServer && typeof currentSettings.casparServer === 'object' ? currentSettings.casparServer : {}
-	// Caspar consumer keys follow graph binding (mainIndex / cable destination), not rear jack order.
+	// Video mode follows Caspar graph binding; per-jack consumer/OS keys follow rear port order.
 	const screenN = resolveGpuScreenNumber(conn, lastPayload)
-	const physicalScreenN = resolveGpuPhysicalScreenIndex(conn, lastPayload)
-	const osScreenN = physicalScreenN
-	const keyWindowed = `screen_${screenN}_windowed`
-	const keyVsync = `screen_${screenN}_vsync`
-	const keyBorderless = `screen_${screenN}_borderless`
+	const portN = resolveGpuPhysicalScreenIndex(conn, lastPayload)
+	const osScreenN = portN
+	const isMultiviewOutput = gpuOutputIsMultiviewBound(conn, lastPayload)
+	const keyWindowed = `screen_${portN}_windowed`
+	const keyVsync = `screen_${portN}_vsync`
+	const keyBorderless = `screen_${portN}_borderless`
 	const keyEdid = `screen_${screenN}_edid_override`
-	const keyStretch = `screen_${screenN}_stretch`
-	const keyKeyOnly = `screen_${screenN}_key_only`
-	const keyAlwaysOnTop = `screen_${screenN}_always_on_top`
-	const keyInteractive = `screen_${screenN}_interactive`
-	const keySbsKey = `screen_${screenN}_sbs_key`
-	const keyColourSpace = `screen_${screenN}_colour_space`
-	const keyForceLinear = `screen_${screenN}_force_linear_filter`
-	const keyMipmaps = `screen_${screenN}_enable_mipmaps`
-	const keyHighBitdepth = `screen_${screenN}_high_bitdepth`
-	const keyName = `screen_${screenN}_name`
-	const keyAspectRatio = `screen_${screenN}_aspect_ratio`
-	const keyPosX = `screen_${screenN}_x`
-	const keyPosY = `screen_${screenN}_y`
-	const seedConsumerDefaults = shouldSeedScreenConsumerDefaults(cs, screenN)
-	if (seedConsumerDefaults) {
-		void Actions.saveSettingsPatch(screenConsumerDefaultsSettingsPatch(screenN)).then(() => load?.())
+	const keyStretch = `screen_${portN}_stretch`
+	const keyKeyOnly = `screen_${portN}_key_only`
+	const keyAlwaysOnTop = isMultiviewOutput ? 'multiview_always_on_top' : `screen_${portN}_always_on_top`
+	const keyInteractive = `screen_${portN}_interactive`
+	const keySbsKey = `screen_${portN}_sbs_key`
+	const keyColourSpace = `screen_${portN}_colour_space`
+	const keyForceLinear = `screen_${portN}_force_linear_filter`
+	const keyMipmaps = `screen_${portN}_enable_mipmaps`
+	const keyHighBitdepth = `screen_${portN}_high_bitdepth`
+	const keyName = `screen_${portN}_name`
+	const keyAspectRatio = `screen_${portN}_aspect_ratio`
+	const keyPosX = `screen_${portN}_x`
+	const keyPosY = `screen_${portN}_y`
+	const consumerSeedPatch = screenConsumerSeedCasparPatch(cs, portN)
+	const seedMultiviewAlwaysOnTop = isMultiviewOutput && shouldSeedMultiviewAlwaysOnTopDefault(cs)
+	if (Object.keys(consumerSeedPatch).length > 0 || seedMultiviewAlwaysOnTop) {
+		const patch = { casparServer: { ...consumerSeedPatch } }
+		if (seedMultiviewAlwaysOnTop) Object.assign(patch.casparServer, multiviewConsumerDefaultsSettingsPatch().casparServer)
+		void Actions.saveSettingsPatch(patch).then(() => load?.())
 	}
-	const consumerFlags = seedConsumerDefaults
+	const csForFlags = Object.keys(consumerSeedPatch).length ? { ...cs, ...consumerSeedPatch } : cs
+	const consumerFlags = screenConsumerKeysUnset(csForFlags, portN)
 		? SCREEN_CONSUMER_DEFAULTS
-		: screenConsumerFlagsFromCasparServer(cs, screenN)
+		: screenConsumerFlagsFromCasparServer(csForFlags, portN)
 	const { windowed: windowedOn, vsync: vsyncOn, borderless: borderlessOn } = consumerFlags
 	const edidOverride = String(cs[keyEdid] || conn?.caspar?.edidOverride || '')
 	const stretchVal = String(cs[keyStretch] || 'none')
 	const keyOnlyOn = cs[keyKeyOnly] === true || cs[keyKeyOnly] === 'true'
-	const alwaysOnTopOn = cs[keyAlwaysOnTop] !== false && cs[keyAlwaysOnTop] !== 'false'
+	const alwaysOnTopOn = isMultiviewOutput
+		? (seedMultiviewAlwaysOnTop ? false : multiviewAlwaysOnTopFromCasparServer(cs))
+		: cs[keyAlwaysOnTop] !== false && cs[keyAlwaysOnTop] !== 'false'
 	const interactiveOn = cs[keyInteractive] === true || cs[keyInteractive] === 'true'
 	const sbsKeyOn = cs[keySbsKey] === true || cs[keySbsKey] === 'true'
 	const colourSpaceVal = String(cs[keyColourSpace] || 'RGB')
@@ -191,7 +203,7 @@ export function renderGpuOutControls(h, conn, { currentSettings, lastPayload, st
 			},
 		})
 		setCasparRestartDirty(true)
-		setStatus(statusEl, `Caspar screen ${screenN} saved`, true)
+		setStatus(statusEl, `GPU port ${portN} (Caspar screen ${screenN}) saved`, true)
 	}
 
 	async function saveGlobalOsSettings() {
@@ -229,11 +241,11 @@ export function renderGpuOutControls(h, conn, { currentSettings, lastPayload, st
 	resetBtn.style.marginTop = '1rem'
 	resetBtn.style.opacity = '0.7'
 	resetBtn.onclick = async () => {
-		if (!confirm(`Are you sure you want to reset all settings for Screen ${screenN}?`)) return
+		if (!confirm(`Are you sure you want to reset all settings for GPU port ${portN}?`)) return
 		const patch = {
 			casparServer: {
 				[keyMode]: null,
-				...screenConsumerDefaultsSettingsPatch(screenN).casparServer,
+				...screenConsumerDefaultsSettingsPatch(portN).casparServer,
 				[keyCustomWidth]: null, [keyCustomHeight]: null, [keyCustomFps]: null, [keyEdid]: null,
 				[keySystemId]: null, [keyOsMode]: null, [keyOsRate]: null, [keyOsBackend]: null,
 				[keyOsTimingSource]: null,
@@ -245,7 +257,7 @@ export function renderGpuOutControls(h, conn, { currentSettings, lastPayload, st
 		}
 		await Actions.saveSettingsPatch(patch)
 		await load()
-		setStatus(statusEl, `Settings for Screen ${screenN} cleared`, true)
+		setStatus(statusEl, `Settings for GPU port ${portN} cleared`, true)
 	}
 
 	const posRow = Object.assign(document.createElement('div'), { style: 'display:flex;gap:6px' })
@@ -300,7 +312,7 @@ export function renderGpuOutControls(h, conn, { currentSettings, lastPayload, st
 	advancedToggles.append(
 		Object.assign(document.createElement('hr'), { className: 'device-view__hr' }),
 		Object.assign(document.createElement('div'), { className: 'device-view__inspector-label', textContent: 'OS / X11 Settings (xrandr)', style: 'font-size:10px; opacity:0.7' }),
-		Object.assign(document.createElement('div'), { className: 'device-view__row', style: 'margin: 4px 0', innerHTML: `<small style="font-size:10px; opacity:0.6">Physical: ${detectedDisplay ? `<strong>${detectedDisplay.name}</strong>` : '<em>None</em>'}${physicalScreenN !== screenN ? ` · rear port ${physicalScreenN} · Caspar screen ${screenN}` : ` · Caspar screen ${screenN}`}</small>` }),
+		Object.assign(document.createElement('div'), { className: 'device-view__row', style: 'margin: 4px 0', innerHTML: `<small style="font-size:10px; opacity:0.6">Physical: ${detectedDisplay ? `<strong>${detectedDisplay.name}</strong>` : '<em>None</em>'}${portN !== screenN ? ` · rear port ${portN} · Caspar screen ${screenN}` : ` · port / Caspar screen ${portN}`}</small>` }),
 		osBackendWrap,
 		Object.assign(document.createElement('hr'), { className: 'device-view__hr' }),
 		Object.assign(document.createElement('label'), { className: 'device-view__inspector-label', textContent: 'Stretch', style: 'font-size:10px;opacity:.7' }), stretchSel,

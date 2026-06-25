@@ -8,6 +8,11 @@ export const SCREEN_CONSUMER_DEFAULTS = {
 	vsync: true,
 }
 
+/** Multiview screen consumer: not always-on-top unless explicitly enabled. */
+export const MULTIVIEW_CONSUMER_DEFAULTS = {
+	always_on_top: false,
+}
+
 /**
  * @param {Record<string, unknown>} cs casparServer settings slice
  * @param {number} screenN 1-based screen index
@@ -70,7 +75,54 @@ export function screenConsumerKeysUnset(cs, screenN) {
 	)
 }
 
-/** @returns {boolean} true when a settings write was needed */
+/**
+ * Only writes consumer keys that are still unset (or legacy bordered-window → borderless only).
+ * Never overwrites an explicit user value such as vsync off.
+ * @param {Record<string, unknown>} cs
+ * @param {number} screenN
+ * @returns {Record<string, boolean>}
+ */
+export function screenConsumerSeedCasparPatch(cs, screenN) {
+	const n = Math.max(1, Number(screenN) || 1)
+	if (screenConsumerKeysUnset(cs, n)) {
+		return screenConsumerCasparPatch(n)
+	}
+	const patch = {}
+	if (legacyBorderedWindowConsumer(cs, n)) {
+		patch[`screen_${n}_borderless`] = true
+	}
+	return patch
+}
+
+/** POST /api/settings body fragment — seeds only missing consumer keys. */
+export function screenConsumerSeedSettingsPatch(cs, screenN) {
+	return { casparServer: screenConsumerSeedCasparPatch(cs, screenN) }
+}
+
+/** @returns {boolean} true when a settings write is needed */
 export function shouldSeedScreenConsumerDefaults(cs, screenN) {
-	return screenConsumerKeysUnset(cs, screenN) || legacyBorderedWindowConsumer(cs, screenN)
+	return Object.keys(screenConsumerSeedCasparPatch(cs, screenN)).length > 0
+}
+
+/**
+ * @param {Record<string, unknown>} cs
+ * @returns {boolean}
+ */
+export function multiviewAlwaysOnTopFromCasparServer(cs) {
+	const v = cs?.multiview_always_on_top
+	return v === true || v === 'true'
+}
+
+export function shouldSeedMultiviewAlwaysOnTopDefault(cs) {
+	const v = cs?.multiview_always_on_top
+	return v === undefined || v === null
+}
+
+/** POST /api/settings body fragment for multiview GPU output (always-on-top off by default). */
+export function multiviewConsumerDefaultsSettingsPatch() {
+	return {
+		casparServer: {
+			multiview_always_on_top: MULTIVIEW_CONSUMER_DEFAULTS.always_on_top,
+		},
+	}
 }

@@ -89,6 +89,12 @@ export function attachWsHandlers(ws, { stateStore, sceneState, timelineState, mu
 		ingestArtnetGlobalBorderSync(sceneState, data)
 	})
 
+	ws.on('lower-third.state', (data) => {
+		try {
+			window.dispatchEvent(new CustomEvent('highascg-lower-third-state', { detail: data }))
+		} catch { /* non-browser */ }
+	})
+
 	ws.on('project_sync', (project) => {
 		if (!project || project.error || !project.version || consumeSkipRemoteProjectSync()) return
 		try {

@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>PIP Edge Strip Overlay</title>
+<style>
+	* { margin: 0; padding: 0; box-sizing: border-box; }
+	html, body {
+		width: 100%; height: 100%;
+		overflow: hidden;
+		background: transparent !important;
+	}
+	#root {
+		position: absolute;
+		inset: 0;
+		pointer-events: none;
+		overflow: hidden;
+	}
+	.svg-container {
+		position: absolute;
+		left: calc(var(--il) * 100%);
+		top: calc(var(--it) * 100%);
+		width: calc(var(--iw) * 100%);
+		height: calc(var(--ih) * 100%);
+	}
+	svg {
+		width: 100%;
+		height: 100%;
+		display: block;
+	}
+</style>
+<style id="pip-edge-strip-keyframes"></style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+(function () {
+	var root = document.getElementById('root')
+	var kfEl = document.getElementById('pip-edge-strip-keyframes')
+	var state = {
+		direction: 'cw',
+		count: 1,
+		thickness: 3,
+		color: '#e63946',
+		speed: 2,
+		length: 28,
+		glow: true,
+		glowColor: '#ff6b6b',
+		glowWidth: 5,
+		roundedTips: false,
+		side: 'outside',
+		opacity: 1,
+		inner: null,
+		slices: [],
+		liveFile: null
+	}
+
+	var livePollId = null
+	var lastLiveRaw = ''
+
+	function clamp01(x) {
+		var n = Number(x)
+		return isFinite(n) ? Math.max(0, Math.min(1, n)) : 0
+	}
+
+	function readInner(d) {
+		if (!d || !d.inner || typeof d.inner !== 'object') return null
+		return { l: clamp01(d.inner.l), t: clamp01(d.inner.t), w: clamp01(d.inner.w), h: clamp01(d.inner.h) }
+	}
+
+	function hasMargin(inn) {
+		if (!inn) return false
+		var w = inn.w != null ? inn.w : (inn.width != null ? inn.width : 0)
+		var h = inn.h != null ? inn.h : (inn.height != null ? inn.height : 0)
+		return w > 0 && h > 0
+	}
+
+	function normalizeSlice(s) {
+		return {
+			l: clamp01(s.x != null ? s.x : s.l),
+			t: clamp01(s.y != null ? s.y : s.t),
+			w: clamp01(s.w),
+			h: clamp01(s.h)
+		}
+	}
+
+	function activeSlices() {
+		var slices = state.slices || []
+		if (slices.length === 0 && state.inner && hasMargin(state.inner)) {
+			return [state.inner]
+		}
+		return slices.map(normalizeSlice).filter(hasMargin)
+	}
+
+	function render() {
+		root.innerHTML = ''
+		kfEl.textContent = ''
+		
+		var slices = activeSlices()
+		if (slices.length === 0) return
+
+		var NS = 'http://www.w3.org/2000/svg'
+		var cw = state.direction !== 'ccw'
+		var dur = Math.max(0.1, state.speed)
+		var n = Math.max(1, Math.min(12, Math.round(Number(state.count))))
+		var L = Math.max(2, Math.min(98, state.length))
+		var gap = 100 - L
+		var th = state.thickness || 3
+		var side = state.side || 'outside'
+
+		var animName = 'pes_anim'
+		var offEnd = cw ? '-100' : '100'
+		kfEl.textContent = '@keyframes ' + animName + ' { from { stroke-dashoffset: 0; } to { stroke-dashoffset: ' + offEnd + '; } }\n'
+
+		var screenW = window.innerWidth || 1920
+		var screenH = window.innerHeight || 1080
+
+		slices.forEach(function (inn) {
+			var wPx = inn.w * screenW
+			var hPx = inn.h * screenH
+
+			var wrap = document.createElement('div')
+			wrap.className = 'svg-container'
+			wrap.style.setProperty('--il', String(inn.l))
+			wrap.style.setProperty('--it', String(inn.t))
+			wrap.style.setProperty('--iw', String(inn.w))
+			wrap.style.setProperty('--ih', String(inn.h))
+			wrap.style.opacity = String(clamp01(state.opacity))
+
+			if (side === 'inside') {
+				wrap.style.overflow = 'hidden'
+			} else {
+				wrap.style.overflow = 'visible'
+			}
+
+			// Adjust rect position based on stroke alignment so stroke isn't cut off or misaligned
+			var rx, ry, rw, rh
+			if (side === 'inside') {
+				var pad = th / 2
+				rx = pad
+				ry = pad
+				rw = wPx - th
+				rh = hPx - th
+			} else if (side === 'outside') {
+				var pad = -th / 2
+				rx = pad
+				ry = pad
+				rw = wPx + th
+				rh = hPx + th
+			} else {
+				rx = 0
+				ry = 0
+				rw = wPx
+				rh = hPx
+			}
+
+			var svg = document.createElementNS(NS, 'svg')
+			svg.setAttribute('viewBox', '0 0 ' + wPx + ' ' + hPx)
+			svg.style.position = 'absolute'
+			svg.style.inset = '0'
+
+			var svgGlow = null
+			if (state.glow) {
+				svgGlow = document.createElementNS(NS, 'svg')
+				svgGlow.setAttribute('viewBox', '0 0 ' + wPx + ' ' + hPx)
+				svgGlow.style.position = 'absolute'
+				svgGlow.style.inset = '0'
+				svgGlow.style.filter = 'blur(' + (state.glowWidth || 5) + 'px)'
+				wrap.appendChild(svgGlow)
+			}
+
+			function createRect(stroke, width, opacity, delay, rxVal, ryVal, rwVal, rhVal) {
+				var r = document.createElementNS(NS, 'rect')
+				r.setAttribute('x', String(rxVal))
+				r.setAttribute('y', String(ryVal))
+				r.setAttribute('width', String(rwVal))
+				r.setAttribute('height', String(rhVal))
+				
+				r.setAttribute('fill', 'none')
+				r.setAttribute('stroke', stroke)
+				r.setAttribute('stroke-width', width)
+				r.setAttribute('stroke-linecap', state.roundedTips ? 'round' : 'butt')
+				r.style.vectorEffect = 'non-scaling-stroke'
+				r.setAttribute('pathLength', '100')
+				r.setAttribute('stroke-dasharray', L + ' ' + gap)
+				r.style.animation = animName + ' ' + dur + 's linear infinite'
+				r.style.animationDelay = delay + 's'
+				if (opacity < 1) r.setAttribute('opacity', String(opacity))
+				return r
+			}
+
+			for (var i = 0; i < n; i++) {
+				var delay = (-(i / n) * dur).toFixed(3)
+				if (state.glow && svgGlow) {
+					var gw = state.glowWidth || 5
+					// For glow, offset slightly more or keep centered
+					var g = createRect(state.glowColor, th + gw * 1.2, 0.55, delay, rx, ry, rw, rh)
+					svgGlow.appendChild(g)
+				}
+				svg.appendChild(createRect(state.color, th, 1, delay, rx, ry, rw, rh))
+			}
+
+			wrap.appendChild(svg)
+			root.appendChild(wrap)
+		})
+	}
+
+	window['play'] = function () {}
+	window['stop'] = function () {}
+	window['next'] = function () {}
+
+	function applyFromData(d) {
+		if (!d) return
+		if (d.direction != null) state.direction = String(d.direction)
+		if (d.count != null) state.count = Math.max(1, Math.min(12, Math.round(parseFloat(d.count))))
+		if (d.thickness != null) state.thickness = parseFloat(d.thickness)
+		if (d.color != null) state.color = String(d.color)
+		if (d.speed != null) state.speed = parseFloat(d.speed)
+		if (d.length != null) state.length = parseFloat(d.length)
+		if (d.glow != null) state.glow = !!d.glow
+		if (d.glowColor != null) state.glowColor = String(d.glowColor)
+		if (d.glowWidth != null) state.glowWidth = parseFloat(d.glowWidth)
+		if (d.roundedTips != null) state.roundedTips = !!d.roundedTips
+		if (d.side != null) state.side = String(d.side)
+		if (d.opacity != null) state.opacity = clamp01(parseFloat(d.opacity))
+		state.inner = readInner(d)
+		if (Array.isArray(d.slices)) {
+			state.slices = d.slices.map(function (s) {
+				return {
+					x: clamp01(s.x),
+					y: clamp01(s.y),
+					w: clamp01(s.w),
+					h: clamp01(s.h)
+				}
+			})
+		}
+		render()
+	}
+
+	function pollLiveFile() {
+		if (!state.liveFile) return
+		var xhr = new XMLHttpRequest()
+		xhr.open('GET', state.liveFile + '?_=' + Date.now(), true)
+		xhr.onload = function () {
+			if (xhr.status !== 200 && xhr.status !== 0) return
+			if (xhr.responseText === lastLiveRaw) return
+			lastLiveRaw = xhr.responseText
+			try {
+				applyFromData(JSON.parse(xhr.responseText))
+			} catch (e) { console.warn('pip_edge_strip live:', e) }
+		}
+		xhr.send(null)
+	}
+
+	function ensureLivePoll(file) {
+		if (file) state.liveFile = String(file)
+		if (!state.liveFile) return
+		if (!livePollId) {
+			livePollId = setInterval(pollLiveFile, 33)
+			pollLiveFile()
+		}
+	}
+
+	window['update'] = function (raw) {
+		try {
+			var d = typeof raw === 'string' ? JSON.parse(raw.replace(/\\"/g, '"').replace(/^"|"$/g, '')) : raw
+			if (d.liveFile) ensureLivePoll(d.liveFile)
+			applyFromData(d)
+		} catch (e) { console.warn('pip_edge_strip update:', e) }
+	}
+
+	render()
+})()
+</script>
+</body>
+</html>

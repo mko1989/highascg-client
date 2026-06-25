@@ -3,8 +3,8 @@
     {
       "id": "cg-studio",
       "label": "CG Overlay Studio",
-      "description": "GrapesJS HTML template editor (large bundle). Enable only when building Caspar overlay templates.",
-      "load": "vite-bundle",
+      "description": "Lower-thirds template editor on this machine (:4300). Exports to the linked HighAsCG template/ tree.",
+      "launcherOpensWindow": true,
       "defaultEnabled": false
     },
     {

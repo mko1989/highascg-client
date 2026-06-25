@@ -1,4 +1,5 @@
 import { hasDrmGpuPhysicalMap, readGpuLayoutPrefs, resolveEffectiveGpuTopology } from '../lib/device-view-gpu-port-list.js'
+import { findScreenDestinationById } from '../lib/device-view-host-channels.js'
 import { normRandrCaspar } from './device-view-caspar-render-helpers.js'
 
 export const CASPAR_HOST = 'caspar_host'
@@ -80,7 +81,7 @@ export function connectorById(payload, id) {
 	const externalRef = sid.slice('dst_in_'.length).trim()
 	if (!externalRef) return null
 	const destinations = Array.isArray(payload?.screenDestinations?.destinations) ? payload.screenDestinations.destinations : []
-	const d = destinations.find((x) => String(x?.id || '').trim() === externalRef) || null
+	const d = destinations.find((x) => String(x?.id || '').trim() === externalRef) || findScreenDestinationById(payload, externalRef)
 	// Fallback synthetic destination connector keeps cable UX stable if connector lists are stale.
 	return {
 		id: sid,
@@ -265,6 +266,8 @@ export function friendlyConnectorLabel(lastPayload, connectorId) {
 	const conn = connectorById(lastPayload, id)
 	if (conn?.kind === 'destination_in') {
 		const did = String(conn?.externalRef || '').trim()
+		const hostDest = did.startsWith('host_') ? findScreenDestinationById(lastPayload, did) : null
+		if (hostDest?.casparChannel != null) return `host_ch${hostDest.casparChannel}`
 		const intents = Array.isArray(lastPayload?.live?.caspar?.destinationIntent?.items) ? lastPayload.live.caspar.destinationIntent.items : []
 		const intent = intents.find((x) => String(x?.id || '').trim() === did) || null
 		if (intent?.mode === 'multiview') {

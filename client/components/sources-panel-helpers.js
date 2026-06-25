@@ -79,14 +79,13 @@ import { MIXER_EFFECTS, EFFECT_CATEGORIES } from '../lib/effect-registry.js'
  * @param {() => void} [onDeleted] - refresh list / feedback after successful delete
  */
 export function attachMediaModifierClick(el, id, label, onDeleted) {
-	const hintDl = 'Ctrl+click or ⌘+click: download to this computer'
+	const hintDl = 'Alt+click: download to this computer'
 	const hintRm = 'Ctrl+Alt+click or ⌘+⌥+click: remove from server'
 	el.title = `${label} — ${hintDl} · ${hintRm}`
 	el.addEventListener('click', (e) => {
-		if (!(e.ctrlKey || e.metaKey)) return
-		e.preventDefault()
-		e.stopPropagation()
-		if (e.altKey) {
+		if (e.altKey && (e.ctrlKey || e.metaKey)) {
+			e.preventDefault()
+			e.stopPropagation()
 			const shortName = String(label || id).replace(/^.*[/\\]/, '') || id
 			if (!confirm(`Remove "${shortName}" from the server?\n\nThis cannot be undone.`)) return
 			void (async () => {
@@ -99,13 +98,17 @@ export function attachMediaModifierClick(el, id, label, onDeleted) {
 			})()
 			return
 		}
-		void (async () => {
-			try {
-				await downloadLocalMediaFile(id, label)
-			} catch (err) {
-				alert(err?.message || 'Download failed')
-			}
-		})()
+		if (e.altKey && !(e.ctrlKey || e.metaKey)) {
+			e.preventDefault()
+			e.stopPropagation()
+			void (async () => {
+				try {
+					await downloadLocalMediaFile(id, label)
+				} catch (err) {
+					alert(err?.message || 'Download failed')
+				}
+			})()
+		}
 	})
 }
 

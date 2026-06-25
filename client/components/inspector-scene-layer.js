@@ -8,6 +8,7 @@ import { appendSceneLayerMixerGroup } from './inspector-mixer.js'
 import { renderEffectsGroup } from './inspector-effects.js'
 import { renderPipOverlayGroup } from './inspector-pip-overlay.js'
 import { appendSceneLayerHtmlTemplateGroup } from './inspector-html-template.js'
+import { appendLowerThirdGroup } from './inspector-lower-third.js'
 import { getPipOverlaysFromLayer } from '../lib/pip-overlay-registry.js'
 import { showScenesToast } from './scenes-editor-support.js'
 import { getResolutionForScreen } from './inspector-channel-resolution.js'
@@ -169,6 +170,8 @@ export function renderSceneLayerInspector(deps, sel) {
 	appendSceneLayerMixerGroup(root, { sceneId, layerIndex, layer })
 
 	appendSceneLayerHtmlTemplateGroup(root, { sceneState, stateStore, sceneId, layerIndex, layer })
+
+	appendLowerThirdGroup(root, { sceneId, layerIndex, layer, stateStore })
 
 	renderEffectsGroup(root, {
 		effects: layer.effects || [],

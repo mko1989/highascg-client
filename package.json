@@ -9,7 +9,7 @@
 		"build": "vite build",
 		"assets:optimize": "bash client/tools/optimize-brand-assets.sh",
 		"build:client": "vite build",
-		"launcher:prepare": "npx vite build && bash client/tools/electron-launcher/sync-dist-web.sh && bash client/tools/electron-launcher/sync-launcher-bundle.sh && bash client/tools/electron-launcher/sync-sim-server.sh",
+		"launcher:prepare": "npx vite build && bash client/tools/electron-launcher/sync-dist-web.sh && bash client/tools/electron-launcher/sync-launcher-bundle.sh && bash client/tools/electron-launcher/sync-sim-server.sh && bash client/tools/electron-launcher/sync-cg-studio.sh",
 		"launcher:bundle": "bash client/tools/electron-launcher/sync-dist-web.sh && bash client/tools/electron-launcher/sync-launcher-bundle.sh",
 		"launcher:sim-install": "npm install --prefix client/tools/electron-launcher/sim-server",
 		"launcher": "bash client/tools/electron-launcher/sync-dist-web.sh && bash client/tools/electron-launcher/sync-launcher-bundle.sh && electron --no-sandbox client/tools/electron-launcher",
@@ -22,7 +22,10 @@
 		"portable:sim:check": "node --check client/tools/portable-desktop/launch-sim-from-exfat.cjs && node --check client/tools/portable-desktop/sim-app-root.cjs",
 		"operator-kit": "node client/tools/operator-desktop/highascg-operator.js",
 		"operator-kit:check": "node --check client/tools/operator-desktop/highascg-operator.js",
-		"stick-studio": "python3 client/tools/stick-tools/stick_studio.py"
+		"stick-studio": "python3 client/tools/stick-tools/stick_studio.py",
+		"to-server:prepare": "bash client/tools/to-server/prepare-to-server.sh",
+		"to-server:apply": "bash to_server/apply-to-server.sh",
+		"deploy:client": "bash client/tools/to-server/push-dist-web.sh"
 	},
 	"engines": {
 		"node": ">=20"
@@ -34,6 +37,7 @@
 	"optionalDependencies": {
 		"grapesjs": "^0.21.2",
 		"html-to-image": "^1.11.13",
-		"three": "^0.184.0"
+		"three": "^0.184.0",
+		"xlsx": "^0.18.5"
 	}
 }

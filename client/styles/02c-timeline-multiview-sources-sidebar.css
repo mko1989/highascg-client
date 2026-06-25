@@ -247,8 +247,10 @@
 	flex-shrink: 0;
 	width: 1.1rem;
 	text-align: center;
-	font-size: 0.72rem;
-	opacity: 0.65;
+	font-size: 0.8rem;
+	line-height: 1.2;
+	color: var(--text, #e6edf3);
+	opacity: 0.9;
 	cursor: pointer;
 	user-select: none;
 }

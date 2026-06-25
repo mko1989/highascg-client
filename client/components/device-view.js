@@ -24,13 +24,17 @@ import { showLogsModal } from './logs-modal.js'
 import { describeCableRejection, cableReasonFromError } from '../lib/device-view-cable-messages.js'
 import { isUnknownCableConnectorError, resolveCableEdgeIds, findGpuSinkCableConflict } from '../lib/device-view-cable-resolve.js'
 import { gpuPhysicalPortCableId } from '../lib/device-view-gpu-port-list.js'
+import { findScreenDestinationById } from '../lib/device-view-host-channels.js'
 import { showCasparConfigModal } from './caspar-config-modal.js'
 import { renderDestinationInspector } from './device-view-destinations-inspector.js'
 import { openSaveDeviceSnapshotModal, openLoadDeviceSnapshotModal } from './device-view-snapshot-modals.js'
-import { resolveGpuScreenNumber } from './device-view-inspector-gpu-resolve.js'
+import { resolveGpuPhysicalScreenIndex, resolveGpuScreenNumber } from './device-view-inspector-gpu-resolve.js'
 import {
 	screenConsumerDefaultsSettingsPatch,
+	screenConsumerSeedSettingsPatch,
 	shouldSeedScreenConsumerDefaults,
+	multiviewConsumerDefaultsSettingsPatch,
+	shouldSeedMultiviewAlwaysOnTopDefault,
 } from '../lib/screen-consumer-defaults.js'
 import {
 	gpuOutputBindingFromCableSource,
@@ -192,8 +196,7 @@ let mounted = false; export function initDeviceView(root) {
 	}
 
 	function selectDestinationById(id) {
-		const dests = Array.isArray(lastPayload?.screenDestinations?.destinations) ? lastPayload.screenDestinations.destinations : []
-		const d = dests.find(x => String(x.id) === String(id))
+		const d = findScreenDestinationById(lastPayload, id)
 		if (!d) { selectedDestinationId = null; return }
 		selectedDestinationId = id; selectedEdgeId = null; selectedConnectorId = null; selectedKey = null; selectedDeviceId = null
 		const mode = String(d.mode || 'pgm_prv')
@@ -346,10 +349,16 @@ let mounted = false; export function initDeviceView(root) {
 						? currentSettings.casparServer
 						: {}
 				const screenN = resolveGpuScreenNumber(sinkConn, lastPayload)
+				const portN = resolveGpuPhysicalScreenIndex(sinkConn, lastPayload)
 				const source = resolveCableSourceResolution(lastPayload, resolved.sourceId)
+				const outputBinding = gpuOutputBindingFromCableSource(lastPayload, resolved.sourceId)
+				const isMultiviewOutput = outputBinding?.type === 'multiview'
 				const settingsPatches = []
-				if (shouldSeedScreenConsumerDefaults(cs, screenN)) {
-					settingsPatches.push(screenConsumerDefaultsSettingsPatch(screenN))
+				if (shouldSeedScreenConsumerDefaults(cs, portN)) {
+					settingsPatches.push(screenConsumerSeedSettingsPatch(cs, portN))
+				}
+				if (isMultiviewOutput && shouldSeedMultiviewAlwaysOnTopDefault(cs)) {
+					settingsPatches.push(multiviewConsumerDefaultsSettingsPatch())
 				}
 				if (source) {
 					settingsPatches.push(gpuScreenInheritedSettingsPatch(screenN, source))
@@ -359,7 +368,6 @@ let mounted = false; export function initDeviceView(root) {
 				}
 				if (source) {
 					const connectorPatch = { caspar: { mode: source.videoMode } }
-					const outputBinding = gpuOutputBindingFromCableSource(lastPayload, resolved.sourceId)
 					if (outputBinding) connectorPatch.caspar.outputBinding = outputBinding
 					await Actions.updateConnector(resolved.sinkId, connectorPatch)
 				}
@@ -530,7 +538,7 @@ let mounted = false; export function initDeviceView(root) {
 						? currentSettings.casparServer
 						: {}
 				if (shouldSeedScreenConsumerDefaults(cs, newScreenN)) {
-					await Actions.saveSettingsPatch(screenConsumerDefaultsSettingsPatch(newScreenN))
+					await Actions.saveSettingsPatch(screenConsumerSeedSettingsPatch(cs, newScreenN))
 				}
 			}
 			setCasparRestartDirty(true)

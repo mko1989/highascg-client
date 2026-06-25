@@ -19,6 +19,18 @@
 	flex-shrink: 0;
 }
 
+#tab-cg-studio .cg-studio-toolbar select.cg-studio-anim-preset,
+#tab-cg-studio .cg-studio-toolbar select.cg-studio-load-select {
+	min-width: 7rem;
+	max-width: 10rem;
+	padding: 4px 8px;
+	font-size: 12px;
+	background: var(--bg-elevated);
+	color: var(--text);
+	border: 1px solid var(--border);
+	border-radius: 4px;
+}
+
 #tab-cg-studio .cg-studio-toolbar input.header-project__name {
 	min-width: 10rem;
 	flex: 1;

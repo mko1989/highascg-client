@@ -11,6 +11,7 @@ import {
 	getLiveLayerPlayheadFrames,
 	playSeekFramesForRelativeToPrevious,
 } from '../lib/layer-playhead-resolve.js'
+import { isLowerThirdSource, resolveLayerLowerThirdCgData, resolveLayerLowerThirdConfig, buildLowerThirdCasparCgData } from '../lib/lower-third-cg-data.js'
 
 export function amcpParam(str) {
 	if (str == null || str === '') return ''
@@ -270,6 +271,7 @@ export function playSeekFramesForSceneLayerFromTimeline(timeline, layerIdx, posi
  */
 export function buildIncomingScenePayload(scene, seekOpts) {
 	const layers = (scene.layers || []).map((l) => {
+		const ltCfg = isLowerThirdSource(l.source) ? resolveLayerLowerThirdConfig(l) : null
 		const row = {
 			layerNumber: l.layerNumber,
 			source: l.source
@@ -279,6 +281,7 @@ export function buildIncomingScenePayload(scene, seekOpts) {
 						isPlaceholder: !!l.source.isPlaceholder,
 						template: l.source.template,
 						...(l.source.parameters != null ? { parameters: l.source.parameters } : {}),
+						...(ltCfg ? { lowerThirdConfig: JSON.parse(JSON.stringify(ltCfg)) } : {}),
 					}
 				: null,
 			loop: !!l.loop,
@@ -309,6 +312,15 @@ export function buildIncomingScenePayload(scene, seekOpts) {
 		const pipOverlays = getPipOverlaysFromLayer(l)
 		if (pipOverlays.length > 0) {
 			row.pipOverlays = JSON.parse(JSON.stringify(pipOverlays))
+		}
+		if (ltCfg || resolveLayerLowerThirdCgData(l)) {
+			row.cgData = buildLowerThirdCasparCgData(ltCfg || l.source?.lowerThirdConfig || {})
+		} else if (l.templateData && typeof l.templateData === 'object') {
+			row.templateData = JSON.parse(JSON.stringify(l.templateData))
+		} else if (l.source?.type === 'template' && l.source?.data && typeof l.source.data === 'object') {
+			row.cgData = JSON.parse(JSON.stringify(l.source.data))
+		} else if (isLowerThirdSource(l.source)) {
+			row.cgData = { data: {}, style: {} }
 		}
 		return row
 	})

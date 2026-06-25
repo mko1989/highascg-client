@@ -21,6 +21,16 @@ npm run launcher
 2. Click **Open Control UI (embedded)** — opens a second window (`highascg://app/…`).
 3. Optional: **Open in system browser** — legacy; only works if the server still serves static files.
 
+## CG Studio
+
+CG Studio is **not** part of the playout server. It runs on the **operator machine** inside the Electron launcher (default port **4300**).
+
+1. Open the **Modules** tab and enable **CG Overlay Studio**.
+2. Ensure `launcher:prepare` has synced `cg-studio/` (or set `HIGHASCG_SERVER_ROOT` to your highascg checkout).
+3. Click **CG Studio** in the header or **Open CG Studio** on the Simulation tab.
+
+The launcher starts a local HTTP server and opens it in a separate window. Templates are read from and exported to `template/` on the linked HighAsCG server checkout (sim bundle or `HIGHASCG_SIM_APP_ROOT`).
+
 ## Simulation
 
 **Start Simulation** runs a local API child from the launcher bundle (`sim-server/`, synced from `not-needed/` via `launcher:prepare`) — **not** from the USB stick. Opens the embedded UI against `http://127.0.0.1:<port>`.

@@ -8,6 +8,7 @@ import {
 	gpuPhysicalPortCableId,
 	resolveTopologyForDeviceView,
 } from './device-view-gpu-port-list.js'
+import { findScreenDestinationById } from './device-view-host-channels.js'
 
 const HOST_DEVICE = { id: CASPAR_HOST, role: 'caspar_host', label: 'Caspar / HighAsCG host' }
 const DEST_DEVICE = { id: 'destinations', role: 'destinations', label: 'Screen destinations' }
@@ -67,7 +68,7 @@ function minimalDestinationInConnector(connectorId, payload) {
 	const destinations = Array.isArray(payload?.screenDestinations?.destinations)
 		? payload.screenDestinations.destinations
 		: []
-	const d = destinations.find((x) => String(x?.id || '').trim() === externalRef) || null
+	const d = destinations.find((x) => String(x?.id || '').trim() === externalRef) || findScreenDestinationById(payload, externalRef)
 	return {
 		id,
 		deviceId: 'destinations',

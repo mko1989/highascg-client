@@ -21,6 +21,22 @@
 	flex-wrap: wrap;
 	gap: 8px;
 }
+.device-view__destinations-host-heading {
+	margin: 8px 0 4px;
+	font-size: 10px;
+	font-weight: 700;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: #38bdf8;
+	opacity: 0.9;
+}
+.device-view__destination--host-channel {
+	border-color: rgba(56, 189, 248, 0.35);
+	background: linear-gradient(135deg, rgba(8, 47, 73, 0.35), rgba(17, 17, 22, 0.9));
+}
+.device-view__destination--host-channel strong {
+	color: #7dd3fc;
+}
 .device-view__destinations-vertical-stack {
 	display: flex;
 	flex-direction: column;

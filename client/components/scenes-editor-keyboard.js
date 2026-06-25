@@ -6,7 +6,8 @@ function isScenesTabActive() {
 }
 
 /**
- * Global shortcuts while the Scenes workspace tab is active (including inspector fields).
+ * Global shortcuts while the Scenes workspace tab is active.
+ * Space → take preview to program (skipped when typing in a field).
  *
  * @param {{ globalTakeFromPreview: () => void | Promise<void> }} deps
  */
@@ -16,6 +17,7 @@ export function attachScenesEditorKeyboard(deps) {
 		if (e.defaultPrevented) return
 		if (e.ctrlKey || e.metaKey || e.altKey) return
 		if (e.key !== ' ') return
+		if (e.target.closest('input, textarea, select, [contenteditable="true"]')) return
 		e.preventDefault()
 		void deps.globalTakeFromPreview()
 	}

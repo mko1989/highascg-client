@@ -40,6 +40,9 @@
             <svg class="header-btn__icon" viewBox="0 0 24 24" style="width:14px;height:14px;margin-right:4px;fill:currentColor;"><path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/></svg>
             Open Web UI
           </button>
+          <button class="header-btn header-btn--open-cg-studio btn-glowing hidden" id="header-btn-open-cg-studio" type="button" title="Open CG Studio template editor">
+            CG Studio
+          </button>
         </div>
       </div>
     </header>
@@ -501,7 +504,10 @@
                   <svg viewBox="0 0 24 24" class="btn-icon"><path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/></svg>
                   Open Web UI (http://localhost:4350)
                 </button>
-                <p class="quicklink-hint">Opens the HighAsCG interface in your browser</p>
+                <button class="btn btn-secondary btn-large hidden" id="btn-open-cg-studio" type="button">
+                  Open CG Studio
+                </button>
+                <p class="quicklink-hint">Web UI uses the embedded launcher port. CG Studio runs locally on this machine (default :4300).</p>
               </div>
             </div>
           </div>
@@ -536,8 +542,9 @@
           <div class="card modules-card">
             <h2>Web UI optional modules</h2>
             <p class="field-hint modules-tab-intro">
-              Choose which feature modules load when you open the Web UI from this launcher (port 4350).
-              Disabled modules are not downloaded. Reload the Web UI browser tab after changing toggles.
+              Choose which optional modules are active for this launcher session.
+              <strong>CG Overlay Studio</strong> opens in a separate window on the playout server (port 4300).
+              Other modules load inside the Web UI when enabled.
             </p>
             <div class="optional-modules-list" id="optional-modules-list" aria-live="polite">
               <p class="field-hint">Loading module list…</p>

@@ -1,4 +1,4 @@
-import { buildInspectorTable } from './device-view-ui-utils.js'
+import { buildInspectorTable, roleLabel } from './device-view-ui-utils.js'
 
 export const STANDARD_VIDEO_MODES = [
 	'PAL', 'NTSC', '576p2500', '720p2398', '720p2400', '720p2500', '720p2997', '720p3000', '720p5000', '720p5994', '720p6000',
@@ -112,6 +112,56 @@ export function renderDestinationInspector(args) {
 		removeDestination,
 		updateDestinationOutputLayer,
 	} = args
+
+	if (mode === 'host_channel' || d?.virtual === true) {
+		const role = d?.hostRole || intent?.hostRole
+		const rows = [
+			{ label: 'Label', value: String(d?.label || d?.id || 'Host channel') },
+			{ label: 'Type', value: roleLabel({ role }) },
+			{ label: 'Caspar channel', value: String(d?.casparChannel ?? intent?.pgmChannel ?? '-') },
+		]
+		host.append(buildInspectorTable(rows))
+		const note = document.createElement('p')
+		note.className = 'device-view__note'
+		note.textContent =
+			role === 'decklink_input'
+				? 'Dedicated DeckLink input host channel. Cable this destination to Record or Stream on the rear panel to capture that input directly.'
+				: role === 'live_audio_input'
+					? 'Dedicated live-audio input host channel. Cable to Record or Stream to capture that ALSA/USB input bus.'
+					: role === 'inputs_host'
+				? 'Dedicated inputs host bus — Caspar plays DeckLink / live audio here so layers can route:// it everywhere. Cable this to Record or Stream on the rear panel to capture that bus directly.'
+				: role === 'streaming_channel'
+					? 'Encode / streaming bus — RTMP and file record consumers attach here. Cable another destination (e.g. PGM) into Stream on the rear panel, or cable this host channel to Record to file from the encode bus.'
+					: 'Auxiliary Caspar channel. Cable to Record or Stream outputs on the rear panel.'
+		host.append(note)
+		if (mappedOutputEdges.length) {
+			const outputMapWrap = document.createElement('div')
+			outputMapWrap.className = 'device-view__kv'
+			const outputMapTitle = document.createElement('div')
+			outputMapTitle.className = 'device-view__kv-row'
+			outputMapTitle.innerHTML = '<span class="device-view__kv-key">Cabled to</span><span class="device-view__kv-val"></span>'
+			outputMapWrap.appendChild(outputMapTitle)
+			for (const edge of mappedOutputEdges) {
+				const c = connectorById.get(String(edge?.sinkId || '')) || null
+				const row = document.createElement('div')
+				row.className = 'device-view__kv-row'
+				const btn = document.createElement('button')
+				btn.type = 'button'
+				btn.className = 'device-view__inspector-link-btn'
+				btn.textContent = String(c?.label || edge?.sinkId || 'Output')
+				btn.onclick = () => {
+					window.dispatchEvent(new CustomEvent('highascg-device-view-focus-connector', {
+						detail: { connectorId: edge.sinkId },
+					}))
+				}
+				row.append(btn)
+				outputMapWrap.appendChild(row)
+			}
+			host.append(outputMapWrap)
+		}
+		return
+	}
+
 	const rows = [
 		{ label: 'Label', value: String(d?.label || d?.id || 'Destination') },
 		{ label: 'Mode', value: mode === 'pgm_only' ? 'PGM only' : (mode === 'multiview' ? 'Multiview' : 'PGM/PRV') },

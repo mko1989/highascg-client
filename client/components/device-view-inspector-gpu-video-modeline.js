@@ -17,9 +17,24 @@ function resolveMainScreenCount(cs, currentSettings) {
 	return Math.max(1, Math.min(4, parseInt(String(currentSettings?.screen_count ?? cs?.screen_count ?? 1), 10) || 1))
 }
 
-function readGlobalOsValue(cs, currentSettings, suffix) {
-	const k = `screen_1_${suffix}`
+function readPortOsValue(cs, currentSettings, screenN, suffix) {
+	const n = Math.max(1, Math.min(4, Number(screenN) || 1))
+	const k = `screen_${n}_${suffix}`
 	return cs[k] ?? currentSettings?.casparServer?.[k] ?? currentSettings?.[k]
+}
+
+function buildPerPortOsSettingsPatch(osScreenN, fields, { systemId } = {}) {
+	const n = Math.max(1, Math.min(4, Number(osScreenN) || 1))
+	const patch = {
+		[`screen_${n}_os_mode`]: fields.os_mode,
+		[`screen_${n}_os_rate`]: fields.os_rate,
+		[`screen_${n}_os_backend`]: fields.os_backend,
+		[`screen_${n}_os_timing_source`]: fields.os_timing_source,
+		[`screen_${n}_force_os_resolution`]: fields.force_os_resolution,
+	}
+	const sid = String(systemId || '').trim()
+	if (sid) patch[`screen_${n}_system_id`] = sid
+	return patch
 }
 
 function buildGlobalOsFieldsFromUi(overrideResIn, timingSel, osBackendSel, readSelectedOsModeAndRate, cs, currentSettings, casparScreenN) {
@@ -49,16 +64,6 @@ function buildGlobalOsFieldsFromUi(overrideResIn, timingSel, osBackendSel, readS
 	}
 }
 
-/** Persist blanket OS choice on screen 1 only (not copied to every Caspar screen). */
-function buildGlobalOsSettingsPatch(cs, currentSettings, fields) {
-	return {
-		screen_1_os_mode: fields.os_mode,
-		screen_1_os_rate: fields.os_rate,
-		screen_1_os_backend: fields.os_backend,
-		screen_1_os_timing_source: fields.os_timing_source,
-		screen_1_force_os_resolution: fields.force_os_resolution,
-	}
-}
 
 /** Expand to all main screens for POST /api/settings/apply-os only. */
 function expandBlanketOsPatch(cs, currentSettings, fields) {
@@ -112,7 +117,7 @@ export function populateGpuVideoModelineSection(wrapCtl, ctx) {
 	const keyOsTimingSource = `screen_${osScreenN}_os_timing_source`
 	const osBackendSel = Object.assign(document.createElement('select'), { className: 'device-view__destinations-type' })
 	osBackendSel.innerHTML = '<option value="xrandr">Apply via X (xrandr)</option><option value="nvidia">Apply via NVIDIA</option>'
-	osBackendSel.value = String(readGlobalOsValue(cs, currentSettings, 'os_backend') || 'xrandr').trim().toLowerCase() === 'nvidia' ? 'nvidia' : 'xrandr'
+	osBackendSel.value = String(readPortOsValue(cs, currentSettings, osScreenN, 'os_backend') || 'xrandr').trim().toLowerCase() === 'nvidia' ? 'nvidia' : 'xrandr'
 	osBackendSel.style.fontSize = '11px'
 	osBackendSel.style.height = '24px'
 	osBackendSel.addEventListener('change', () => { runOsSave() })
@@ -262,43 +267,46 @@ export function populateGpuVideoModelineSection(wrapCtl, ctx) {
 	}
 
 	const detectedDisplay = detectDisplayForConnector()
-	const allDisplays = Array.isArray(lastPayload?.live?.gpu?.displays) ? lastPayload.live.gpu.displays : []
-	const detectedModes = allDisplays.flatMap((d) =>
-		(Array.isArray(d?.modes) ? d.modes : []).map(formatModeOption).filter(Boolean),
-	)
-	const uniqueDetectedModes = detectedModes.filter(
+	const portModes = (Array.isArray(detectedDisplay?.modes) ? detectedDisplay.modes : [])
+		.map(formatModeOption)
+		.filter(Boolean)
+	const uniqueDetectedModes = portModes.filter(
 		(m, i, a) => a.findIndex((x) => x.randrMode === m.randrMode && x.rate === m.rate) === i,
 	)
-	const savedOsMode = String(readGlobalOsValue(cs, currentSettings, 'os_mode') || '').trim()
-	const savedOsRate = readGlobalOsValue(cs, currentSettings, 'os_rate')
+	const savedOsMode = String(readPortOsValue(cs, currentSettings, osScreenN, 'os_mode') || '').trim()
+	const savedOsRate = readPortOsValue(cs, currentSettings, osScreenN, 'os_rate')
 	const matchSavedModeIdx = uniqueDetectedModes.findIndex((m) => {
 		const modeMatch = m.randrMode === savedOsMode || m.mode === savedOsMode
 		if (!modeMatch) return false
 		if (savedOsRate == null || savedOsRate === '') return true
 		return String(m.rate) === String(savedOsRate)
 	})
+	const currentModeIdx = uniqueDetectedModes.findIndex((m) => m.current)
 	const defaultModeIdx = matchSavedModeIdx >= 0
 		? matchSavedModeIdx
-		: uniqueDetectedModes.findIndex((m) => m.current)
-	const modeFromRes = String(detectedDisplay?.resolution || allDisplays.find((d) => d?.connected)?.resolution || '').match(/^(\d+)x(\d+)$/)
+		: currentModeIdx >= 0
+			? currentModeIdx
+			: 0
+	const modeFromRes = String(detectedDisplay?.resolution || '').match(/^(\d+)x(\d+)$/)
 	const displayModeSelect = Object.assign(document.createElement('select'), { className: 'device-view__destinations-type' })
+	const displayLabel = detectedDisplay?.name ? String(detectedDisplay.name) : ''
 	displayModeSelect.innerHTML = uniqueDetectedModes.length
-		? uniqueDetectedModes.map((m, i) => `<option value="${i}" ${i === (defaultModeIdx >= 0 ? defaultModeIdx : 0) ? 'selected' : ''}>${m.label}</option>`).join('')
-		: '<option value="">No EDID/xrandr modes found</option>'
+		? uniqueDetectedModes.map((m, i) => `<option value="${i}" ${i === defaultModeIdx ? 'selected' : ''}>${m.label}</option>`).join('')
+		: `<option value="">${displayLabel ? `No modes for ${displayLabel}` : 'No EDID/xrandr modes for this port'}</option>`
 
 	const overrideResRow = Object.assign(document.createElement('label'), {
 		className: 'device-view__cablemode',
 		style: 'display:flex; align-items:center; gap:6px; margin: 0 0 4px',
 	})
 	const overrideResIn = Object.assign(document.createElement('input'), { type: 'checkbox' })
-	const savedForceOs = readGlobalOsValue(cs, currentSettings, 'force_os_resolution')
+	const savedForceOs = readPortOsValue(cs, currentSettings, osScreenN, 'force_os_resolution')
 	overrideResIn.checked = savedForceOs === true || savedForceOs === 'true'
 	overrideResRow.append(overrideResIn, document.createTextNode('Override'))
 	overrideResRow.title = 'Use Caspar video mode for xrandr instead of the EDID list'
 
 	const systemResolutionLbl = Object.assign(document.createElement('div'), {
 		className: 'device-view__inspector-label',
-		textContent: 'System resolution',
+		textContent: displayLabel ? `System resolution (${displayLabel})` : 'System resolution',
 		style: 'font-size:10px; opacity:0.7; margin-top:8px',
 	})
 	const systemResolutionBlock = Object.assign(document.createElement('div'), {
@@ -323,7 +331,7 @@ export function populateGpuVideoModelineSection(wrapCtl, ctx) {
 	]
 		.map(([v, lab]) => `<option value="${v}">${lab}</option>`)
 		.join('')
-	const timingStored = String(readGlobalOsValue(cs, currentSettings, 'os_timing_source') || 'cvt')
+	const timingStored = String(readPortOsValue(cs, currentSettings, osScreenN, 'os_timing_source') || 'cvt')
 		.trim()
 		.toLowerCase()
 		.replace(/-/g, '_')
@@ -471,7 +479,7 @@ export function populateGpuVideoModelineSection(wrapCtl, ctx) {
 		const fields = {
 			...buildGlobalOsFieldsFromUi(overrideResIn, timingSel, osBackendSel, readSelectedOsModeAndRate, cs, currentSettings, screenN),
 		}
-		return buildGlobalOsSettingsPatch(cs, currentSettings, fields)
+		return buildPerPortOsSettingsPatch(osScreenN, fields, { systemId: detectedDisplay?.name })
 	}
 
 	/** Blanket OS/xrandr for apply-os: same mode on every mapped output. */
@@ -482,7 +490,7 @@ export function populateGpuVideoModelineSection(wrapCtl, ctx) {
 
 	const buildGlobalOsSettingsPatchForSave = () => {
 		const fields = buildGlobalOsFieldsFromUi(overrideResIn, timingSel, osBackendSel, readSelectedOsModeAndRate, cs, currentSettings, screenN)
-		return buildGlobalOsSettingsPatch(cs, currentSettings, fields)
+		return buildPerPortOsSettingsPatch(osScreenN, fields, { systemId: detectedDisplay?.name })
 	}
 
 	const siblingPorts = listSiblingGpuPortsOnCasparScreen(conn, lastPayload, screenN)
